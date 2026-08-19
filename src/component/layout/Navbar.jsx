@@ -6,6 +6,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  UserCircle,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from '../../context/ThemeContext';
@@ -114,8 +115,15 @@ const Navbar = ({
                       </div>
 
                       <button
+                        onClick={() => { navigate('/profile'); setOpenDropdown(false); }}
+                        className="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-3"
+                      >
+                        <UserCircle className="w-4 h-4" />
+                        My Profile
+                      </button>
+                      <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex items-center gap-3"
+                        className="w-full text-left px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors flex items-center gap-3 border-t border-gray-100 dark:border-gray-800"
                       >
                         <LogOut className="w-4 h-4" />
                         Logout

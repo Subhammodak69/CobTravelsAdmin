@@ -4,6 +4,7 @@ import ProtectedRoute from './component/ProtectedRoute';
 import MainLayout from './component/layout/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
 
 // Fallback placeholder component for other routes
 const UnderConstruction = ({ title }) => (
@@ -25,6 +26,7 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/users" element={<UnderConstruction title="Users" />} />
           <Route path="/projects" element={<UnderConstruction title="Projects" />} />
           <Route path="/qr-codes" element={<UnderConstruction title="QR Codes" />} />

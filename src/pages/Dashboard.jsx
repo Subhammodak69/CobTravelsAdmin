@@ -1,502 +1,397 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Smartphone, 
-  Laptop, 
-  Clock, 
-  RefreshCw, 
-  LogOut, 
-  Trash2, 
-  CheckCircle2, 
-  Server, 
-  Shield
+import React, { useState } from 'react';
+import {
+  Users,
+  MapPin,
+  TrendingUp,
+  Star,
+  Plane,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  ArrowUpRight,
+  ArrowDownRight,
+  IndianRupee,
+  Bus,
+  Compass,
+  Hotel,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { apiCall, handleApiError } from '../utils/apiCall';
-import { useAuth } from '../context/AuthContext';
-import { API_BASE } from '../utils/config';
 
+// ─── Dummy Data ───────────────────────────────────────────────────────────────
+const STATS = [
+  {
+    id: 'revenue',
+    label: 'Total Revenue',
+    value: '₹18,42,500',
+    change: '+12.4%',
+    up: true,
+    sub: 'vs last month',
+    icon: IndianRupee,
+    color: 'emerald',
+  },
+  {
+    id: 'bookings',
+    label: 'Total Bookings',
+    value: '3,284',
+    change: '+8.1%',
+    up: true,
+    sub: 'vs last month',
+    icon: Calendar,
+    color: 'blue',
+  },
+  {
+    id: 'users',
+    label: 'Registered Users',
+    value: '12,640',
+    change: '+5.6%',
+    up: true,
+    sub: 'vs last month',
+    icon: Users,
+    color: 'violet',
+  },
+  {
+    id: 'trips',
+    label: 'Active Trips',
+    value: '147',
+    change: '-3.2%',
+    up: false,
+    sub: 'vs last month',
+    icon: Plane,
+    color: 'amber',
+  },
+];
+
+const RECENT_BOOKINGS = [
+  { id: 'BK-001', user: 'Aarav Sharma', destination: 'Darjeeling, WB', package: 'Hill Station Escape', amount: '₹12,500', date: '18 Aug 2026', status: 'confirmed', avatar: 'AS' },
+  { id: 'BK-002', user: 'Priya Das',    destination: 'Puri, Odisha',   package: 'Beach Holiday',      amount: '₹8,200',  date: '17 Aug 2026', status: 'pending',   avatar: 'PD' },
+  { id: 'BK-003', user: 'Rohit Meena',  destination: 'Sikkim Tour',    package: 'Mountain Adventure', amount: '₹22,000', date: '16 Aug 2026', status: 'confirmed', avatar: 'RM' },
+  { id: 'BK-004', user: 'Sneha Roy',    destination: 'Goa, India',     package: 'Beachside Retreat',  amount: '₹15,800', date: '15 Aug 2026', status: 'cancelled', avatar: 'SR' },
+  { id: 'BK-005', user: 'Karan Bose',   destination: 'Manali, HP',     package: 'Snow Paradise',      amount: '₹19,200', date: '14 Aug 2026', status: 'confirmed', avatar: 'KB' },
+  { id: 'BK-006', user: 'Anita Ghosh',  destination: 'Kerala Backwaters','package': 'Houseboat Tour', amount: '₹28,500', date: '13 Aug 2026', status: 'pending',   avatar: 'AG' },
+];
+
+const TOP_DESTINATIONS = [
+  { name: 'Darjeeling',     bookings: 842,  pct: 82, icon: '🏔️' },
+  { name: 'Puri Beach',     bookings: 674,  pct: 66, icon: '🏖️' },
+  { name: 'Sikkim',         bookings: 521,  pct: 51, icon: '🌿' },
+  { name: 'Manali',         bookings: 489,  pct: 48, icon: '❄️' },
+  { name: 'Kerala',         bookings: 403,  pct: 39, icon: '🛶' },
+];
+
+const MONTHLY_REVENUE = [
+  { month: 'Mar', val: 9.2 },
+  { month: 'Apr', val: 11.5 },
+  { month: 'May', val: 14.1 },
+  { month: 'Jun', val: 10.8 },
+  { month: 'Jul', val: 16.3 },
+  { month: 'Aug', val: 18.4 },
+];
+
+const QUICK_STATS = [
+  { label: 'Hotels Listed',     value: '238',  icon: Hotel,   color: 'rose' },
+  { label: 'Tour Packages',     value: '94',   icon: Compass, color: 'cyan' },
+  { label: 'Bus Routes',        value: '61',   icon: Bus,     color: 'orange' },
+  { label: 'Avg Rating',        value: '4.7★', icon: Star,    color: 'yellow' },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const colorMap = {
+  emerald: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', ring: 'ring-emerald-200 dark:ring-emerald-800' },
+  blue:    { bg: 'bg-blue-50 dark:bg-blue-900/20',    text: 'text-blue-600 dark:text-blue-400',    ring: 'ring-blue-200 dark:ring-blue-800' },
+  violet:  { bg: 'bg-violet-50 dark:bg-violet-900/20', text: 'text-violet-600 dark:text-violet-400', ring: 'ring-violet-200 dark:ring-violet-800' },
+  amber:   { bg: 'bg-amber-50 dark:bg-amber-900/20',  text: 'text-amber-600 dark:text-amber-400',  ring: 'ring-amber-200 dark:ring-amber-800' },
+  rose:    { bg: 'bg-rose-50 dark:bg-rose-900/20',    text: 'text-rose-600 dark:text-rose-400',    ring: 'ring-rose-200 dark:ring-rose-800' },
+  cyan:    { bg: 'bg-cyan-50 dark:bg-cyan-900/20',    text: 'text-cyan-600 dark:text-cyan-400',    ring: 'ring-cyan-200 dark:ring-cyan-800' },
+  orange:  { bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-600 dark:text-orange-400', ring: 'ring-orange-200 dark:ring-orange-800' },
+  yellow:  { bg: 'bg-yellow-50 dark:bg-yellow-900/20', text: 'text-yellow-600 dark:text-yellow-400', ring: 'ring-yellow-200 dark:ring-yellow-800' },
+};
+
+const statusConfig = {
+  confirmed: { label: 'Confirmed', icon: CheckCircle2, cls: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800' },
+  pending:   { label: 'Pending',   icon: Clock,        cls: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800' },
+  cancelled: { label: 'Cancelled', icon: XCircle,      cls: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 border-rose-200 dark:border-rose-800' },
+};
+
+const avatarColors = ['from-blue-500 to-indigo-600', 'from-violet-500 to-purple-600', 'from-emerald-500 to-teal-600', 'from-rose-500 to-pink-600', 'from-amber-500 to-orange-600', 'from-cyan-500 to-blue-600'];
+
+// ─── Chart Bar ────────────────────────────────────────────────────────────────
+const BarChart = () => {
+  const max = Math.max(...MONTHLY_REVENUE.map(d => d.val));
+  return (
+    <div className="flex items-end gap-3 h-36 px-2 pt-4">
+      {MONTHLY_REVENUE.map((d, i) => (
+        <div key={d.month} className="flex-1 flex flex-col items-center gap-1.5">
+          <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+            {d.val}L
+          </span>
+          <div className="w-full relative rounded-t-md overflow-hidden" style={{ height: `${(d.val / max) * 100}px` }}>
+            <div
+              className={`absolute inset-0 rounded-t-md transition-all duration-700 ${
+                i === MONTHLY_REVENUE.length - 1
+                  ? 'bg-gradient-to-t from-blue-600 to-indigo-400'
+                  : 'bg-gradient-to-t from-blue-200 to-blue-100 dark:from-blue-900 dark:to-blue-800'
+              }`}
+            />
+          </div>
+          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">{d.month}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 const Dashboard = () => {
-  const { user, tokenInfo, fetchUserProfile, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('all');
 
-  const [sessions, setSessions] = useState([]);
-  const [loadingSessions, setLoadingSessions] = useState(false);
-  const [revokingId, setRevokingId] = useState(null);
-  const [revokingAll, setRevokingAll] = useState(false);
-  const [refreshingProfile, setRefreshingProfile] = useState(false);
-
-  // Fetch active sessions from /api/v1/sessions/
-  const loadSessions = useCallback(async () => {
-    setLoadingSessions(true);
-    try {
-      const res = await apiCall('/api/v1/sessions/', 'GET');
-      if (res.ok) {
-        const data = await res.json();
-        // Handle if response is array or wrapped object
-        const sessionList = Array.isArray(data) ? data : (data?.sessions || data?.data || []);
-        setSessions(sessionList);
-      } else {
-        console.warn('Failed to fetch sessions:', res.status);
-      }
-    } catch (err) {
-      console.error('Error fetching sessions:', err);
-    } finally {
-      setLoadingSessions(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
-
-  const handleRefreshProfile = async () => {
-    setRefreshingProfile(true);
-    try {
-      await fetchUserProfile();
-      toast.success('Admin profile refreshed');
-    } catch (e) {
-      toast.error('Could not refresh profile');
-    } finally {
-      setRefreshingProfile(false);
-    }
-  };
-
-  // Revoke a single session: DELETE /api/v1/sessions/{session_id}
-  const handleRevokeSession = async (sessionId) => {
-    if (!window.confirm('Are you sure you want to terminate this session?')) {
-      return;
-    }
-
-    setRevokingId(sessionId);
-    try {
-      const res = await apiCall(`/api/v1/sessions/${sessionId}`, 'DELETE');
-      if (res.ok) {
-        toast.success('Session terminated successfully');
-        loadSessions();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data?.detail || data?.message || 'Failed to revoke session');
-      }
-    } catch (err) {
-      handleApiError(err, 'Failed to revoke session');
-    } finally {
-      setRevokingId(null);
-    }
-  };
-
-  // Revoke all other sessions: POST /api/v1/sessions/logout-all
-  const handleRevokeAllSessions = async () => {
-    if (!window.confirm('Are you sure you want to terminate all other active sessions across devices?')) {
-      return;
-    }
-
-    setRevokingAll(true);
-    try {
-      const res = await apiCall('/api/v1/sessions/logout-all', 'POST');
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast.success(data?.message || 'All other sessions have been logged out');
-        loadSessions();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data?.detail || data?.message || 'Failed to terminate all sessions');
-      }
-    } catch (err) {
-      handleApiError(err, 'Failed to terminate all sessions');
-    } finally {
-      setRevokingAll(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const d = new Date(dateString);
-      return d.toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const parseUserAgent = (ua) => {
-    if (!ua) return { browser: 'Unknown Client', os: 'Unknown OS', isMobile: false };
-    const lower = ua.toLowerCase();
-    const isMobile = lower.includes('mobile') || lower.includes('android') || lower.includes('iphone');
-    
-    let browser = 'Web Browser';
-    if (lower.includes('edg/')) browser = 'Microsoft Edge';
-    else if (lower.includes('chrome/')) browser = 'Google Chrome';
-    else if (lower.includes('safari/') && !lower.includes('chrome')) browser = 'Safari';
-    else if (lower.includes('firefox/')) browser = 'Mozilla Firefox';
-
-    let os = 'Unknown OS';
-    if (lower.includes('windows')) os = 'Windows';
-    else if (lower.includes('macintosh') || lower.includes('mac os')) os = 'macOS';
-    else if (lower.includes('linux')) os = 'Linux';
-    else if (lower.includes('android')) os = 'Android';
-    else if (lower.includes('iphone') || lower.includes('ipad')) os = 'iOS';
-
-    return { browser, os, isMobile };
-  };
+  const filtered = activeTab === 'all'
+    ? RECENT_BOOKINGS
+    : RECENT_BOOKINGS.filter(b => b.status === activeTab);
 
   return (
     <div className="space-y-6 pb-12">
-      
-      {/* Welcome Banner Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-800 text-white shadow-xl shadow-indigo-500/10 p-6 md:p-8">
-        <div className="absolute right-[-20px] top-[-20px] w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+
+      {/* ── Hero Banner ── */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white shadow-xl shadow-indigo-500/20 p-6 md:p-8">
+        {/* decorative blobs */}
+        <div className="absolute -right-10 -top-10 w-72 h-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+        <div className="absolute left-1/2 -bottom-16 w-56 h-56 rounded-full bg-violet-500/20 blur-2xl pointer-events-none" />
+
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className="relative shrink-0">
-              {user?.profile_pic ? (
-                <img 
-                  src={user.profile_pic} 
-                  alt={user.name} 
-                  className="w-16 h-16 rounded-2xl object-cover ring-4 ring-white/20 shadow-lg"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md ring-4 ring-white/20 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
-                  {user?.name?.[0]?.toUpperCase() || 'A'}
-                </div>
-              )}
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 border-2 border-indigo-700 rounded-full shadow" title="Online" />
+            <div className="p-3.5 rounded-2xl bg-white/15 backdrop-blur-md ring-1 ring-white/20 shadow-lg">
+              <MapPin className="w-8 h-8 text-white" />
             </div>
-
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-                  Welcome back, {user?.name || 'Administrator'}
-                </h1>
-                <span className="bg-white/20 text-white text-xs font-semibold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                  {user?.role || 'ADMIN'}
-                </span>
-              </div>
-              <p className="text-blue-100 text-sm mt-1 flex items-center gap-2">
-                <span>{user?.email || 'admin@coochbehartravels.com'}</span>
-                {user?.mobile && <span>&bull; {user?.mobile}</span>}
-                {user?.user_code && <span className="font-mono text-xs opacity-80">({user?.user_code})</span>}
+              <p className="text-blue-200 text-sm font-medium mb-1 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                COB Travels Admin — Live Dashboard
+              </p>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+                Travel Operations Overview
+              </h1>
+              <p className="text-blue-200 text-sm mt-1">
+                August 2026 · Cooch Behar District &amp; Beyond
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 self-start md:self-auto">
-            <button
-              onClick={handleRefreshProfile}
-              disabled={refreshingProfile}
-              className="px-4 py-2 bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-sm flex items-center gap-2 disabled:opacity-50"
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20 text-center">
+              <p className="text-xs text-blue-200">Today's Bookings</p>
+              <p className="text-xl font-bold text-white">38</p>
+            </div>
+            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20 text-center">
+              <p className="text-xs text-blue-200">Today's Revenue</p>
+              <p className="text-xl font-bold text-white">₹1.2L</p>
+            </div>
+            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20 text-center">
+              <p className="text-xs text-blue-200">Pending Actions</p>
+              <p className="text-xl font-bold text-amber-300">12</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── KPI Stats Row ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {STATS.map(stat => {
+          const Icon = stat.icon;
+          const c = colorMap[stat.color];
+          return (
+            <div
+              key={stat.id}
+              className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 group"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshingProfile ? 'animate-spin' : ''}`} />
-              <span>Refresh Profile</span>
-            </button>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  {stat.label}
+                </span>
+                <div className={`p-2.5 rounded-xl ${c.bg} ${c.text} ring-1 ${c.ring}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-1.5">
+                {stat.up
+                  ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />
+                  : <ArrowDownRight className="w-3.5 h-3.5 text-rose-500" />
+                }
+                <span className={`text-xs font-semibold ${stat.up ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {stat.change}
+                </span>
+                <span className="text-xs text-gray-400 dark:text-gray-500">{stat.sub}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-            <button
-              onClick={logout}
-              className="px-4 py-2 bg-red-500/80 hover:bg-red-500 active:bg-red-600 text-white rounded-xl text-sm font-medium transition-all shadow-md shadow-red-500/20 flex items-center gap-2"
+      {/* ── Quick Stats Row ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {QUICK_STATS.map(qs => {
+          const Icon = qs.icon;
+          const c = colorMap[qs.color];
+          return (
+            <div
+              key={qs.label}
+              className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-4 shadow-sm flex items-center gap-4"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Logout</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Stat 1: Active Sessions */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Active Sessions
-            </span>
-            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-              <Laptop className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">
-              {sessions.length || 1}
-            </span>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-              Live Connected
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Across registered browsers & devices
-          </p>
-        </div>
-
-        {/* Stat 2: Account Status */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Account Status
-            </span>
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">
-              {user?.is_active !== false ? 'Active' : 'Disabled'}
-            </span>
-            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-              Verified
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Role: <strong className="text-gray-700 dark:text-gray-300">{user?.role || 'ADMIN'}</strong>
-          </p>
-        </div>
-
-        {/* Stat 3: Token Expiry */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Session Lifetime
-            </span>
-            <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">
-              {tokenInfo?.expires_in_sec ? `${Math.round(tokenInfo.expires_in_sec / 60)} mins` : '900s'}
-            </span>
-            <span className="text-xs text-purple-600 dark:text-purple-400 font-medium capitalize">
-              {tokenInfo?.token_type || 'Bearer'}
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Auto-renewed on active requests
-          </p>
-        </div>
-
-        {/* Stat 4: Backend API Status */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-xl p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              API Connection
-            </span>
-            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
-              <Server className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-gray-900 dark:text-white">
-              Online
-            </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate" title={API_BASE}>
-            {API_BASE.replace('https://', '')}
-          </p>
-        </div>
-      </div>
-
-      {/* Admin Details & Profile Overview Card */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
-              <Shield className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">Admin Identity Profile</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Authenticated via <code>/api/v1/admin/auth/me</code></p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Full Name</span>
-            <span className="font-semibold text-gray-900 dark:text-white text-sm">{user?.name || 'N/A'}</span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Email Address</span>
-            <span className="font-semibold text-gray-900 dark:text-white text-sm">{user?.email || 'N/A'}</span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Mobile Contact</span>
-            <span className="font-semibold text-gray-900 dark:text-white text-sm">{user?.mobile || 'N/A'}</span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Admin Code / ID</span>
-            <span className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400 truncate block">
-              {user?.user_code || user?.id || 'N/A'}
-            </span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Last Login</span>
-            <span className="font-semibold text-gray-900 dark:text-white text-xs">{formatDate(user?.last_login)}</span>
-          </div>
-
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-            <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Account Created At</span>
-            <span className="font-semibold text-gray-900 dark:text-white text-xs">{formatDate(user?.created_at)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Session Management Table Section */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
-        
-        {/* Table Header Controls */}
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
-                <Laptop className="w-5 h-5" />
+              <div className={`p-3 rounded-xl ${c.bg} ${c.text} shrink-0`}>
+                <Icon className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Active Login Sessions</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Manage active device sessions and terminate unauthorized access
-                </p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">{qs.value}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{qs.label}</p>
               </div>
             </div>
+          );
+        })}
+      </div>
+
+      {/* ── Charts + Destinations Row ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+        {/* Revenue Chart */}
+        <div className="lg:col-span-3 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+                Monthly Revenue
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Last 6 months · in Lakhs (₹)</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xl font-bold text-gray-900 dark:text-white">₹18.4L</p>
+              <p className="text-xs text-emerald-500 font-medium flex items-center justify-end gap-1">
+                <ArrowUpRight className="w-3 h-3" /> +12.4% this month
+              </p>
+            </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={loadSessions}
-              disabled={loadingSessions}
-              className="px-3.5 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 disabled:opacity-50"
-              title="Refresh Session List"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loadingSessions ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
-
-            <button
-              onClick={handleRevokeAllSessions}
-              disabled={revokingAll || sessions.length <= 1}
-              className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{revokingAll ? 'Revoking All...' : 'Logout All Other Devices'}</span>
-            </button>
+          <BarChart />
+          <div className="mt-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800 border-t border-gray-100 dark:border-gray-800 pt-4">
+            {[
+              { label: 'Avg / Month', val: '₹13.4L' },
+              { label: 'Peak Month',  val: 'August' },
+              { label: 'Growth YoY',  val: '+22%' },
+            ].map(item => (
+              <div key={item.label} className="px-4 text-center first:pl-0 last:pr-0">
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{item.val}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.label}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Sessions Table */}
+        {/* Top Destinations */}
+        <div className="lg:col-span-2 bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-5">
+            <MapPin className="w-4 h-4 text-violet-500" />
+            Top Destinations
+          </h2>
+          <div className="space-y-4">
+            {TOP_DESTINATIONS.map((dest, idx) => (
+              <div key={dest.name}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{dest.icon}</span>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{dest.name}</span>
+                    {idx === 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+                        #1
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">{dest.bookings}</span>
+                </div>
+                <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500 transition-all duration-700"
+                    style={{ width: `${dest.pct}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Recent Bookings Table ── */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-500" />
+              Recent Bookings
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Latest travel reservations across the platform</p>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
+            {['all', 'confirmed', 'pending', 'cancelled'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg capitalize transition-all ${
+                  activeTab === tab
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
-            <thead className="bg-gray-50/75 dark:bg-gray-800/50 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200/60 dark:border-gray-800">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50/80 dark:bg-gray-800/60 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200/60 dark:border-gray-800">
               <tr>
-                <th className="px-6 py-4">Device & Browser</th>
-                <th className="px-6 py-4">IP Address</th>
-                <th className="px-6 py-4">Created At</th>
-                <th className="px-6 py-4">Last Activity</th>
+                <th className="px-6 py-4">Booking ID</th>
+                <th className="px-6 py-4">Traveller</th>
+                <th className="px-6 py-4">Destination</th>
+                <th className="px-6 py-4">Package</th>
+                <th className="px-6 py-4">Amount</th>
+                <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {loadingSessions && sessions.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
-                    <div className="flex justify-center items-center gap-2">
-                      <RefreshCw className="w-5 h-5 animate-spin text-blue-500" />
-                      <span>Loading active sessions...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : sessions.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
-                    <div className="max-w-xs mx-auto space-y-2">
-                      <Laptop className="w-8 h-8 text-gray-400 mx-auto" />
-                      <p className="font-medium text-gray-700 dark:text-gray-300">No external sessions detected</p>
-                      <p className="text-xs text-gray-400">Current session is active</p>
-                    </div>
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400 dark:text-gray-500 text-sm">
+                    No bookings found
                   </td>
                 </tr>
               ) : (
-                sessions.map((session) => {
-                  const uaInfo = parseUserAgent(session.user_agent);
-                  const isCurrent = session.is_current;
-
+                filtered.map((bk, i) => {
+                  const sc = statusConfig[bk.status];
+                  const StatusIcon = sc.icon;
                   return (
-                    <tr 
-                      key={session.id} 
-                      className={`hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors ${
-                        isCurrent ? 'bg-blue-50/30 dark:bg-blue-950/20' : ''
-                      }`}
-                    >
+                    <tr key={bk.id} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs text-indigo-600 dark:text-indigo-400 font-semibold">{bk.id}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${
-                            uaInfo.isMobile 
-                              ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' 
-                              : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300'
-                          }`}>
-                            {uaInfo.isMobile ? <Smartphone className="w-4 h-4" /> : <Laptop className="w-4 h-4" />}
+                          <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                            {bk.avatar}
                           </div>
-                          <div>
-                            <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                              <span>{uaInfo.browser} ({uaInfo.os})</span>
-                              {isCurrent && (
-                                <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
-                                  Current Device
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[11px] text-gray-400 dark:text-gray-500 font-mono truncate max-w-xs block" title={session.user_agent}>
-                              {session.user_agent || 'Unknown UA'}
-                            </span>
-                          </div>
+                          <span className="font-semibold text-gray-900 dark:text-white text-sm">{bk.user}</span>
                         </div>
                       </td>
-
-                      <td className="px-6 py-4 font-mono text-xs text-gray-700 dark:text-gray-300">
-                        {session.ip_address || '127.0.0.1'}
-                      </td>
-
-                      <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">
-                        {formatDate(session.created_at)}
-                      </td>
-
-                      <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">
-                        {formatDate(session.last_used_at)}
-                      </td>
-
+                      <td className="px-6 py-4 text-gray-600 dark:text-gray-300 text-sm">{bk.destination}</td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400 text-xs">{bk.package}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">{bk.amount}</td>
+                      <td className="px-6 py-4 text-gray-500 dark:text-gray-400 text-xs">{bk.date}</td>
                       <td className="px-6 py-4">
-                        {isCurrent ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                            Active Now
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                            <span className="w-2 h-2 rounded-full bg-gray-400" />
-                            Connected
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4 text-right">
-                        {isCurrent ? (
-                          <span className="text-xs text-gray-400 italic">This Device</span>
-                        ) : (
-                          <button
-                            onClick={() => handleRevokeSession(session.id)}
-                            disabled={revokingId === session.id}
-                            className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-800 disabled:opacity-50"
-                          >
-                            {revokingId === session.id ? 'Revoking...' : 'Revoke'}
-                          </button>
-                        )}
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${sc.cls}`}>
+                          <StatusIcon className="w-3 h-3" />
+                          {sc.label}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -506,6 +401,12 @@ const Dashboard = () => {
           </table>
         </div>
 
+        <div className="px-6 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Showing {filtered.length} of {RECENT_BOOKINGS.length} bookings</p>
+          <button className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors flex items-center gap-1">
+            View All Bookings <ArrowUpRight className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
     </div>

@@ -8,7 +8,8 @@ import {
   Bot,
   Coins,
   QrCode,
-  Server
+  Server,
+  UserCircle,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -22,58 +23,13 @@ const Sidebar = ({
   const [isHovered, setIsHovered] = useState(false);
   const location = useLocation();
   const currentPath = location.pathname;
-
+ 
   const menuItems = [
     {
       icon: House,
       label: "Dashboard",
       path: "/",
     },
-    {
-      icon: Users,
-      label: "Users",
-      path: "/users",
-    },
-    {
-      icon: Briefcase,
-      label: "Projects",
-      path: "/projects",
-    },
-    {
-      icon: QrCode,
-      label: "QR Codes",
-      path: "/qr-codes",
-    },
-    {
-      icon: Server,
-      label: "Tech Provider",
-      path: "/tech-provider",
-    },
-    {
-      icon: Gift,
-      label: "Subscription Packs",
-      path: "/subscription-packs",
-    },
-    {
-      icon: Package,
-      label: "All Subscriptions",
-      path: "/subscriptions",
-    },
-    {
-      icon: Package,
-      label: "Custom Pricing",
-      path: "/custom-pricing",
-    },
-    {
-      icon: Bot,
-      label: "AI Providers",
-      path: "/ai-providers",
-    },
-    {
-      icon: Coins,
-      label: "AI Pricing",
-      path: "/ai-pricing",
-    }
   ];
 
   const isActiveRoute = (itemPath) => {
