@@ -5,11 +5,50 @@ import toast from 'react-hot-toast';
 const AuthContext = createContext();
 
 const USER_DATA_KEY = 'admin_data';
+const ACCESS_TOKEN_KEY = 'access_token';
+const REFRESH_TOKEN_KEY = 'refresh_token';
+
+const clearAuthStorage = () => {
+  localStorage.removeItem(USER_DATA_KEY);
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+};
+
+const readStoredSession = () => {
+  const rawUserData = localStorage.getItem(USER_DATA_KEY);
+  let parsed = null;
+
+  if (rawUserData) {
+    try {
+      parsed = JSON.parse(rawUserData);
+    } catch (error) {
+      console.warn('Failed to parse admin_data from localStorage:', error);
+      clearAuthStorage();
+    }
+  }
+
+  const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY) || parsed?.access_token || parsed?.token || '';
+  const refreshToken = parsed?.refresh_token || localStorage.getItem(REFRESH_TOKEN_KEY) || '';
+
+  return {
+    parsed,
+    accessToken: typeof accessToken === 'string' ? accessToken.trim() : '',
+    refreshToken: typeof refreshToken === 'string' ? refreshToken.trim() : ''
+  };
+};
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [tokenInfo, setTokenInfo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
+
+  const clearAuthState = useCallback(() => {
+    clearAuthStorage();
+    setUser(null);
+    setTokenInfo(null);
+    setAuthError(null);
+  }, []);
 
   const fetchUserProfile = async () => {
     try {
@@ -18,78 +57,123 @@ export const AuthProvider = ({ children }) => {
         const profileData = await response.json();
         setUser(profileData);
         return profileData;
-      } else {
-        console.warn('Failed to fetch admin profile (/api/v1/admin/auth/me):', response.status);
-        return null;
       }
+
+      console.warn('Failed to fetch admin profile (/api/v1/admin/auth/me):', response.status);
+      return null;
     } catch (error) {
       console.error('Error fetching admin profile:', error);
-      return null;
+      throw error;
     }
   };
 
-  const checkAuth = useCallback(async () => {
-    const userDataStr = localStorage.getItem(USER_DATA_KEY);
-    const token = localStorage.getItem('access_token');
+  const refreshAccessToken = useCallback(async () => {
+    const { parsed, accessToken, refreshToken } = readStoredSession();
 
-    if (!userDataStr && !token) {
-      setUser(null);
-      setTokenInfo(null);
+    if (!accessToken && !refreshToken) {
+      return { ok: false, reason: 'missing_tokens' };
+    }
+
+    const payload = {};
+    if (refreshToken) payload.refresh_token = refreshToken;
+
+    try {
+      const response = await apiCall('/api/v1/sessions/refresh', 'POST', payload);
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && (data?.access_token || data?.token)) {
+        const renewedAccessToken = data.access_token || data.token;
+        const renewedRefreshToken = data.refresh_token || refreshToken;
+        const nextSession = {
+          ...(parsed || {}),
+          access_token: renewedAccessToken,
+          refresh_token: renewedRefreshToken,
+          token: renewedAccessToken,
+          token_type: data?.token_type || parsed?.token_type || 'bearer',
+          expires_in_sec: data?.expires_in_sec || data?.expires_in || parsed?.expires_in_sec || parsed?.expires_in,
+          profile: parsed?.profile || parsed?.user || null
+        };
+
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(nextSession));
+        localStorage.setItem(ACCESS_TOKEN_KEY, renewedAccessToken);
+        if (renewedRefreshToken) {
+          localStorage.setItem(REFRESH_TOKEN_KEY, renewedRefreshToken);
+        }
+
+        setTokenInfo(nextSession);
+        return { ok: true, data };
+      }
+
+      return { ok: false, status: response.status, data };
+    } catch (error) {
+      console.error('Refresh token request failed:', error);
+      return { ok: false, error };
+    }
+  }, []);
+
+  const checkAuth = useCallback(async () => {
+    const { accessToken, parsed } = readStoredSession();
+
+    if (!accessToken) {
+      clearAuthState();
       setLoading(false);
       return;
     }
 
-    let parsed = null;
-    if (userDataStr) {
-      try {
-        parsed = JSON.parse(userDataStr);
-      } catch {
-        localStorage.removeItem(USER_DATA_KEY);
-      }
-    }
+    const storedTokenInfo = {
+      access_token: parsed?.access_token || parsed?.token || accessToken,
+      refresh_token: parsed?.refresh_token || localStorage.getItem(REFRESH_TOKEN_KEY) || null,
+      token_type: parsed?.token_type || 'bearer',
+      expires_in_sec: parsed?.expires_in_sec || parsed?.expires_in || null
+    };
 
-    if (parsed) {
-      setTokenInfo({
-        access_token: parsed.access_token || parsed.token,
-        token_type: parsed.token_type || 'bearer',
-        expires_in_sec: parsed.expires_in_sec || parsed.expires_in
-      });
-    }
+    setTokenInfo(storedTokenInfo);
+    setAuthError(null);
 
     try {
       const response = await apiCall('/api/v1/admin/auth/me', 'GET');
+
       if (response.ok) {
         const profile = await response.json();
         setUser(profile);
-      } else if (response.status === 401) {
-        localStorage.removeItem(USER_DATA_KEY);
-        localStorage.removeItem('access_token');
-        setUser(null);
-        setTokenInfo(null);
-      } else {
-        if (parsed?.profile) {
-          setUser(parsed.profile);
-        } else if (parsed?.user) {
-          setUser(parsed.user);
-        }
+        setLoading(false);
+        return;
       }
+
+      if (response.status === 401 || response.status === 403) {
+        const refreshResult = await refreshAccessToken();
+
+        if (refreshResult.ok) {
+          const retryResponse = await apiCall('/api/v1/admin/auth/me', 'GET');
+          if (retryResponse.ok) {
+            const profile = await retryResponse.json();
+            setUser(profile);
+            setAuthError(null);
+            setLoading(false);
+            return;
+          }
+        }
+
+        clearAuthState();
+        setLoading(false);
+        return;
+      }
+
+      throw new Error(`Authentication check failed with status ${response.status}`);
     } catch (error) {
       console.error('Failed to authenticate:', error);
-      if (parsed?.profile) {
-        setUser(parsed.profile);
-      } else if (parsed?.user) {
-        setUser(parsed.user);
-      }
+      setUser(null);
+      setAuthError('server-unavailable');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clearAuthState, refreshAccessToken]);
 
   useEffect(() => {
     checkAuth();
 
     const handleStorage = (e) => {
-      if (!e || e.key === USER_DATA_KEY || e.key === 'access_token') {
+      if (!e || e.key === USER_DATA_KEY || e.key === 'access_token' || e.key === REFRESH_TOKEN_KEY) {
         checkAuth();
       }
     };
@@ -101,45 +185,57 @@ export const AuthProvider = ({ children }) => {
   }, [checkAuth]);
 
   const login = async (authResponse, profile = null) => {
-    const access_token = authResponse?.access_token || authResponse?.token;
+    const normalizedAuthResponse = authResponse?.data && typeof authResponse.data === 'object' ? authResponse.data : authResponse;
+    const accessToken = normalizedAuthResponse?.access_token || normalizedAuthResponse?.token || '';
+    const refreshToken = normalizedAuthResponse?.refresh_token || normalizedAuthResponse?.refreshToken || '';
     const sessionData = {
-      access_token,
-      token: access_token,
-      token_type: authResponse?.token_type || 'bearer',
-      expires_in_sec: authResponse?.expires_in_sec || authResponse?.expires_in,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      token: accessToken,
+      token_type: normalizedAuthResponse?.token_type || 'bearer',
+      expires_in_sec: normalizedAuthResponse?.expires_in_sec || normalizedAuthResponse?.expires_in || null,
       profile: profile || null
     };
 
+    if (accessToken) {
+      localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    }
+    if (refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    }
     localStorage.setItem(USER_DATA_KEY, JSON.stringify(sessionData));
-    localStorage.setItem('access_token', access_token);
     setTokenInfo(sessionData);
 
     if (profile) {
       setUser(profile);
-    } else {
-      try {
-        const fetchedProfile = await fetchUserProfile();
-        if (fetchedProfile) {
-          sessionData.profile = fetchedProfile;
-          localStorage.setItem(USER_DATA_KEY, JSON.stringify(sessionData));
-          setUser(fetchedProfile);
-        }
-      } catch (err) {
-        console.error('Error fetching profile after login:', err);
-      }
+      return profile;
     }
+
+    try {
+      const fetchedProfile = await fetchUserProfile();
+      if (fetchedProfile) {
+        sessionData.profile = fetchedProfile;
+        localStorage.setItem(USER_DATA_KEY, JSON.stringify(sessionData));
+        setUser(fetchedProfile);
+        return fetchedProfile;
+      }
+    } catch (err) {
+      console.error('Error fetching profile after login:', err);
+      setAuthError('server-unavailable');
+    }
+
+    return null;
   };
 
   const logout = async () => {
+    const { refreshToken } = readStoredSession();
+
     try {
-      await apiCall('/api/v1/sessions/logout', 'POST');
+      await apiCall('/api/v1/sessions/logout', 'POST', refreshToken ? { refresh_token: refreshToken } : null);
     } catch (error) {
       console.warn('Logout API error:', error);
     } finally {
-      localStorage.removeItem(USER_DATA_KEY);
-      localStorage.removeItem('access_token');
-      setUser(null);
-      setTokenInfo(null);
+      clearAuthState();
       toast.success('Logged out successfully');
       return true;
     }
@@ -151,10 +247,13 @@ export const AuthProvider = ({ children }) => {
         user,
         tokenInfo,
         loading,
+        authError,
         login,
         logout,
         checkAuth,
-        fetchUserProfile
+        fetchUserProfile,
+        refreshAccessToken,
+        clearAuthState
       }}
     >
       {children}

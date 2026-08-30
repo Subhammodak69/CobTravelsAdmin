@@ -76,17 +76,17 @@ const Pagination = ({
     if (totalItems === 0) return null;
 
     const navBtnClass =
-        'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-primary text-secondary-foreground transition hover:border-indigo-500/40 hover:bg-indigo-500/5 hover:text-indigo-600 disabled:pointer-events-none disabled:opacity-35 dark:hover:text-indigo-400';
+        'inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-border bg-primary text-secondary-foreground transition hover:border-indigo-500/40 hover:bg-indigo-500/5 hover:text-indigo-600 disabled:pointer-events-none disabled:opacity-35 dark:hover:text-indigo-400';
 
     const pageBtnClass = (active) =>
-        `inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-semibold transition ${active
+        `inline-flex h-8 min-w-8 items-center justify-center rounded-2xl px-2 text-sm font-semibold transition ${active
             ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/25'
             : 'text-secondary-foreground hover:bg-secondary hover:text-indigo-600 dark:hover:text-indigo-400'
         }`;
 
     return (
         <div
-            className={`rounded-lg border border-border bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 dark:border-gray-800/50 px-3 py-3 sm:px-4 sm:py-3.5 ${className}`.trim()}
+            className={`rounded-2xl border border-border bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 dark:border-gray-800/50 px-3 py-3 sm:px-4 sm:py-3.5 ${className}`.trim()}
         >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 {/* Info */}
@@ -200,7 +200,7 @@ const Pagination = ({
                                 const val = e.target.value.replace(/[^0-9]/g, '');
                                 setJumpPage(val);
                             }}
-                            className="h-8 w-12 rounded-lg border border-border bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600/50  text-center text-sm font-semibold text-primary-foreground outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
+                            className="h-8 w-12 rounded-2xl border border-border bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600/50  text-center text-sm font-semibold text-primary-foreground outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
                             aria-label="Go to page"
                         />
                         <span className="text-xs text-secondary-foreground sm:text-sm">

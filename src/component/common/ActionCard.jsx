@@ -20,9 +20,9 @@ function ActionCard({ icon, title, description, buttonText, onClick, gradient, d
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay }}
       whileHover={{ y: -5 }}
-      className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-lg shadow-xl dark:shadow-black/20 border border-gray-100 dark:border-gray-700 p-8 hover:shadow-2xl transition-all duration-300"
+      className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl shadow-xl dark:shadow-black/20 border border-gray-100 dark:border-gray-700 p-8 hover:shadow-2xl transition-all duration-300"
     >
-      <div className={`w-14 h-14 bg-gradient-to-br ${iconGradients[gradient]} rounded-lg flex items-center justify-center mb-6 shadow-lg`}>
+      <div className={`w-14 h-14 bg-gradient-to-br ${iconGradients[gradient]} rounded-2xl flex items-center justify-center mb-6 shadow-lg`}>
         {icon}
       </div>
 
@@ -33,7 +33,7 @@ function ActionCard({ icon, title, description, buttonText, onClick, gradient, d
 
       <button
         onClick={onClick}
-        className={`w-full bg-gradient-to-r ${gradientClasses[gradient]} text-white py-3 rounded-lg font-semibold shadow-lg transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center gap-2`}
+        className={`w-full bg-gradient-to-r ${gradientClasses[gradient]} text-white py-3 rounded-2xl font-semibold shadow-lg transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center gap-2`}
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />

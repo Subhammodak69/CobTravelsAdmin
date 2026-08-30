@@ -1,5 +1,5 @@
 import toast from 'react-hot-toast';
-import { API_BASE, UPLOAD_API_URL, UPLOAD_API_KEY } from './config';
+import { API_BASE, UPLOAD_API_URL } from './config';
 
 export const handleApiError = (error, fallbackMessage = null) => {
   const message =
@@ -121,19 +121,39 @@ export const uploadFile = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
 
+  const userDataStr = localStorage.getItem('admin_data');
+  const accessToken = localStorage.getItem('access_token') || (
+    userDataStr ? JSON.parse(userDataStr)?.access_token || JSON.parse(userDataStr)?.token : null
+  );
+
+  const headers = {};
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
   const response = await fetch(UPLOAD_API_URL, {
     method: 'POST',
-    headers: {
-      key: UPLOAD_API_KEY,
-    },
+    headers,
     body: formData,
   });
 
-  const result = await response.json();
-  if (result.success && result.url) {
-    return result.url;
+  const result = await response.json().catch(() => ({}));
+  const payload = result?.data && typeof result.data === 'object' ? result.data : result;
+  const uploadedUrl = payload?.url || payload?.public_url || payload?.file_url || null;
+
+  if (response.ok && uploadedUrl) {
+    return {
+      url: uploadedUrl,
+      public_id: payload?.public_id || null,
+      folder: payload?.folder || null,
+      resource_type: payload?.resource_type || null,
+      format: payload?.format || null,
+      bytes: payload?.bytes || null,
+      raw: result,
+    };
   }
-  throw new Error(result.message || result.detail || 'Upload failed');
+
+  throw new Error(result?.message || result?.detail || 'Upload failed');
 };
 
 export default apiCall;

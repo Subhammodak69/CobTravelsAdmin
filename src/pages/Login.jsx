@@ -23,6 +23,7 @@ const Login = () => {
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState('REQUEST_OTP'); // 'REQUEST_OTP' | 'VERIFY_OTP'
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -100,10 +101,11 @@ const Login = () => {
       });
 
       const data = await response.json();
+      const authPayload = data?.data && typeof data.data === 'object' ? data.data : data;
 
-      if (response.ok && data?.access_token) {
+      if (response.ok && authPayload?.access_token) {
         toast.success('Authentication successful! Welcome back.');
-        await login(data);
+        await login(authPayload);
         navigate('/dashboard', { replace: true });
       } else {
         const errorText = data?.detail || data?.message || 'Invalid or expired OTP. Please try again.';
@@ -126,17 +128,18 @@ const Login = () => {
       return;
     }
 
-    setLoading(true);
+    setGoogleLoading(true);
     try {
       const response = await apiCall('/api/v1/admin/auth/google', 'POST', {
         id_token: credentialResponse.credential,
       });
 
       const data = await response.json();
+      const authPayload = data?.data && typeof data.data === 'object' ? data.data : data;
 
-      if (response.ok && data?.access_token) {
+      if (response.ok && authPayload?.access_token) {
         toast.success('Signed in with Google successfully!');
-        await login(data);
+        await login(authPayload);
         navigate('/dashboard', { replace: true });
       } else {
         const errorText = data?.detail || data?.message || 'Google authentication failed for admin.';
@@ -148,11 +151,12 @@ const Login = () => {
       handleApiError(err, 'Google authentication service unreachable.');
       setErrorMsg('Google login failed.');
     } finally {
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
   const handleGoogleError = () => {
+    setGoogleLoading(false);
     toast.error('Google authentication dialog was cancelled or encountered an issue.');
   };
 
@@ -208,7 +212,7 @@ const Login = () => {
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     placeholder="Enter email or mobile number"
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                     className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                   />
                 </div>
@@ -219,7 +223,7 @@ const Login = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || googleLoading}
                 className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed group"
               >
                 {loading ? (
@@ -249,7 +253,8 @@ const Login = () => {
                     setOtp('');
                     setErrorMsg('');
                   }}
-                  className="text-blue-400 hover:text-blue-300 font-medium underline shrink-0"
+                  disabled={googleLoading}
+                  className="text-blue-400 hover:text-blue-300 font-medium underline shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Change
                 </button>
@@ -270,7 +275,7 @@ const Login = () => {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                     placeholder="Enter received OTP"
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                     autoFocus
                     className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-base font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                   />
@@ -285,7 +290,7 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={handleRequestOtp}
-                    disabled={loading}
+                    disabled={loading || googleLoading}
                     className="text-blue-400 hover:text-blue-300 font-semibold transition-colors disabled:opacity-50"
                   >
                     Resend OTP
@@ -295,7 +300,7 @@ const Login = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || googleLoading}
                 className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:from-emerald-700 active:to-teal-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed group"
               >
                 {loading ? (
@@ -332,8 +337,16 @@ const Login = () => {
               shape="pill"
               text="continue_with"
               width="100%"
+              disabled={loading || googleLoading}
             />
           </div>
+
+          {googleLoading && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-300">
+              <RotateCw className="h-4 w-4 animate-spin text-blue-400" />
+              <span>Waiting...</span>
+            </div>
+          )}
 
           {/* Security Notice */}
           <div className="mt-8 pt-6 border-t border-slate-800/60 flex items-center justify-center gap-2 text-xs text-slate-500 text-center">

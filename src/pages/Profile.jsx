@@ -60,7 +60,7 @@ const parseUserAgent = (ua) => {
 // ─── Profile Info Field ───────────────────────────────────────────────────────
 const ProfileField = ({ icon: Icon, label, value, mono }) => (
   <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-800/60 transition-all group">
-    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 transition-colors">
+    <div className="p-2 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/40 transition-colors">
       <Icon className="w-4 h-4" />
     </div>
     <div className="min-w-0">
@@ -273,7 +273,7 @@ const Profile = () => {
       <div className="bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+            <div className="p-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
               <Shield className="w-5 h-5" />
             </div>
             <div>
@@ -301,7 +301,7 @@ const Profile = () => {
         {/* Header */}
         <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+            <div className="p-2 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
               <Activity className="w-5 h-5" />
             </div>
             <div>
@@ -375,7 +375,7 @@ const Profile = () => {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${uaInfo.isMobile ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300'}`}>
+                          <div className={`p-2 rounded-2xl ${uaInfo.isMobile ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300'}`}>
                             {uaInfo.isMobile ? <Smartphone className="w-4 h-4" /> : <Laptop className="w-4 h-4" />}
                           </div>
                           <div>
@@ -414,7 +414,7 @@ const Profile = () => {
                           <button
                             onClick={() => handleRevokeSession(session.id)}
                             disabled={revokingId === session.id}
-                            className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-800 disabled:opacity-50"
+                            className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 px-3 py-1.5 rounded-2xl transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-800 disabled:opacity-50"
                           >
                             {revokingId === session.id ? 'Revoking…' : 'Revoke'}
                           </button>

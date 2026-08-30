@@ -95,7 +95,7 @@ const ActionMenu = ({ actions = [], activeId, onToggle, menuId, trigger, anchorC
         zIndex: 9999,
         width: `${MENU_WIDTH}px`,
       }}
-      className="overflow-hidden rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 shadow-xl shadow-slate-200/70 dark:shadow-gray-950/60 backdrop-blur-xl ring-1 ring-slate-900/5 dark:ring-white/10"
+      className="overflow-hidden rounded-2xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-1.5 shadow-xl shadow-slate-200/70 dark:shadow-gray-950/60 backdrop-blur-xl ring-1 ring-slate-900/5 dark:ring-white/10"
     >
       {actions.map((action, index) => (
         <button
@@ -108,7 +108,7 @@ const ActionMenu = ({ actions = [], activeId, onToggle, menuId, trigger, anchorC
           disabled={action.disabled}
           title={action.title || ''}
           className={`
-            flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold
+            flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold
             transition-all duration-150
             ${action.disabled
               ? 'cursor-not-allowed opacity-50 text-gray-400 dark:text-gray-500'
@@ -134,7 +134,7 @@ const ActionMenu = ({ actions = [], activeId, onToggle, menuId, trigger, anchorC
         {trigger || (
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 dark:border-gray-700
+            className="flex h-8 w-8 items-center justify-center rounded-2xl border border-slate-200 dark:border-gray-700
                        bg-white text-slate-500 dark:bg-gray-900 dark:text-gray-400 transition-all hover:border-indigo-300 dark:hover:border-indigo-600
                        hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-300 hover:shadow-sm active:scale-95"
           >

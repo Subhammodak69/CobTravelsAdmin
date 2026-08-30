@@ -1,10 +1,17 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import ProtectedRoute from './component/ProtectedRoute';
 import MainLayout from './component/layout/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import StaffManagement from './pages/StaffManagement';
+import DocumentManagement from './pages/DocumentManagement';
+import TourPackages from './pages/TourPackages';
+import TourVariant from './pages/TourVariant';
+import TourDetails from './pages/TourDetails';
+import ServerUnavailable from './pages/ServerUnavailable';
+import NotFound from './pages/NotFound';
 
 // Fallback placeholder component for other routes
 const UnderConstruction = ({ title }) => (
@@ -20,13 +27,19 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      
+      <Route path="/server-unavailable" element={<ServerUnavailable />} />
+
       {/* Authenticated Protected Routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/staff-management" element={<StaffManagement />} />
+          <Route path="/document-management" element={<DocumentManagement />} />
+          <Route path="/tour-packages" element={<TourPackages />} />
+          <Route path="/tour-variants" element={<TourVariant />} />
+          <Route path="/tour-details" element={<TourDetails />} />
           <Route path="/users" element={<UnderConstruction title="Users" />} />
           <Route path="/projects" element={<UnderConstruction title="Projects" />} />
           <Route path="/qr-codes" element={<UnderConstruction title="QR Codes" />} />
@@ -36,12 +49,12 @@ function App() {
           <Route path="/custom-pricing" element={<UnderConstruction title="Custom Pricing" />} />
           <Route path="/ai-providers" element={<UnderConstruction title="AI Providers" />} />
           <Route path="/ai-pricing" element={<UnderConstruction title="AI Pricing" />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
 
       {/* Wildcard Fallback */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

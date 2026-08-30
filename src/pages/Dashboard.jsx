@@ -336,7 +336,7 @@ const Dashboard = () => {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg capitalize transition-all ${
+                className={`text-xs font-semibold px-3 py-1.5 rounded-2xl capitalize transition-all ${
                   activeTab === tab
                     ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -377,7 +377,7 @@ const Dashboard = () => {
                       <td className="px-6 py-4 font-mono text-xs text-indigo-600 dark:text-indigo-400 font-semibold">{bk.id}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+                          <div className={`w-8 h-8 rounded-2xl bg-gradient-to-br ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
                             {bk.avatar}
                           </div>
                           <span className="font-semibold text-gray-900 dark:text-white text-sm">{bk.user}</span>

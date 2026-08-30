@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
   House,
-  Users,
-  Briefcase,
   Package,
-  Gift,
-  Bot,
-  Coins,
-  QrCode,
-  Server,
-  UserCircle,
+  FileText,
+  ShieldCheck,
+  Route,
+  Layers3,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -29,6 +25,31 @@ const Sidebar = ({
       icon: House,
       label: "Dashboard",
       path: "/",
+    },
+    {
+      icon: ShieldCheck,
+      label: "Staff Management",
+      path: "/staff-management",
+    },
+    {
+      icon: FileText,
+      label: "Document Management",
+      path: "/document-management",
+    },
+    {
+      icon: Package,
+      label: "Tour Packages",
+      path: "/tour-packages",
+    },
+    {
+      icon: Route,
+      label: "Tour Variants",
+      path: "/tour-variants",
+    },
+    {
+      icon: Layers3,
+      label: "Tour Details",
+      path: "/tour-details",
     },
   ];
 
@@ -65,7 +86,7 @@ const Sidebar = ({
                     to={item.path}
                     onClick={() => toggleSidebar()}
                     className={`
-                      flex items-center px-3 py-3 rounded-lg transition-all duration-200 mb-1
+                      flex items-center px-3 py-3 rounded-2xl transition-all duration-200 mb-1
                       ${isActive
                         ? "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 text-blue-700 dark:text-blue-300"
                         : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-blue-600 dark:hover:text-blue-400"
@@ -74,7 +95,7 @@ const Sidebar = ({
                   >
                     <div
                       className={`
-                      p-2 rounded-lg mr-3
+                      p-2 rounded-2xl mr-3
                       ${isActive
                           ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
                           : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
@@ -105,7 +126,7 @@ const Sidebar = ({
         key={item.label}
         to={item.path}
         className={`
-          flex items-center rounded-lg transition-all duration-200 group
+          flex items-center rounded-2xl transition-all duration-200 group
           ${isExpandedState ? "px-3 py-2.5 gap-3" : "px-0 py-2.5 justify-center"}
           ${isActive
             ? "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300"
@@ -116,7 +137,7 @@ const Sidebar = ({
       >
         <div
           className={`
-          p-2 rounded-lg transition-all duration-200
+          p-2 rounded-2xl transition-all duration-200
           ${isExpandedState ? "" : "mx-auto"}
           ${isActive
               ? "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"

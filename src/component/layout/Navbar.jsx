@@ -39,7 +39,7 @@ const Navbar = ({
             <div className="flex items-center space-x-4">
               <button
                 onClick={toggleSidebar}
-                className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none flex-shrink-0
+                className={`w-10 h-10 flex items-center justify-center rounded-2xl transition-all duration-200 focus:outline-none flex-shrink-0
                   ${isSidebarOpen ? "text-gray-600 dark:text-gray-300" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"}`}
                 aria-label="Toggle menu"
               >
@@ -49,7 +49,7 @@ const Navbar = ({
               <button
                 type="button"
                 onClick={() => navigate("/dashboard")}
-                className="flex items-center gap-1 rounded-lg transition-opacity duration-200 hover:opacity-90 focus:outline-none"
+                className="flex items-center gap-1 rounded-2xl transition-opacity duration-200 hover:opacity-90 focus:outline-none"
               >
                 <div>
                   <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight">
@@ -63,16 +63,16 @@ const Navbar = ({
             </div>
 
             <div className="flex items-center space-x-2">
-              <button type="button" onClick={toggleTheme} className="p-2.5 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+              <button type="button" onClick={toggleTheme} className="p-2.5 rounded-2xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
               <div className="relative">
                 <button
                   onClick={() => setOpenDropdown(!openDropdown)}
-                  className="flex items-center space-x-3 p-1.5 pr-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 group"
+                  className="flex items-center space-x-3 p-1.5 pr-3 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 group"
                 >
                   <div className="relative">
-                    <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center shadow-md bg-gradient-to-br from-blue-500 to-indigo-600">
+                    <div className="w-9 h-9 rounded-2xl overflow-hidden flex items-center justify-center shadow-md bg-gradient-to-br from-blue-500 to-indigo-600">
                       <span className="text-white font-bold text-sm">
                         {user?.name?.[0]?.toUpperCase() || "A"}
                       </span>
@@ -97,9 +97,9 @@ const Navbar = ({
                       className="fixed inset-0 z-40"
                       onClick={() => setOpenDropdown(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
                       <div className="md:hidden p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                           <span className="text-white font-bold">
                             {user?.name?.[0]?.toUpperCase() || "A"}
                           </span>
