@@ -117,9 +117,13 @@ const DragDropUpload = ({
       </div>
 
       {preview && (
+        <>
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Preview:</p>
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900/40">
           <img src={preview} alt="Preview" className="h-64 w-full rounded-xl object-cover" />
         </div>
+        </>
+        
       )}
 
       {error && (

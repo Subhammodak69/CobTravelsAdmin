@@ -163,7 +163,7 @@ const Profile = () => {
   ];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className=" space-y-3 pb-6">
 
       {/* ── Profile Hero ── */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-700 text-white shadow-xl shadow-blue-500/20 p-6 md:p-8">

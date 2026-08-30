@@ -125,7 +125,7 @@ const DocumentManagement = () => {
   }, [currentPage, totalPages]);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className=" space-y-3 pb-6">
       <div className="rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 p-6 text-white shadow-xl shadow-emerald-500/20">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -144,7 +144,7 @@ const DocumentManagement = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="mt-5 ">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm text-gray-600 dark:text-gray-300">{documents.length} total documents</div>
           <button

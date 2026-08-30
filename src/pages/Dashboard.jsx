@@ -149,7 +149,7 @@ const Dashboard = () => {
     : RECENT_BOOKINGS.filter(b => b.status === activeTab);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className=" space-y-3 pb-6">
 
       {/* ── Hero Banner ── */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white shadow-xl shadow-indigo-500/20 p-6 md:p-8">

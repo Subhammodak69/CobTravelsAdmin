@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Package2, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
+import { Plus, Package2, Pencil, Trash2, Search, RefreshCw, ChevronRight } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
@@ -21,6 +22,7 @@ const defaultForm = {
 };
 
 const TourPackages = () => {
+  const navigate = useNavigate();
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -74,6 +76,13 @@ const TourPackages = () => {
       is_active: row?.is_active !== false,
     });
     setIsModalOpen(true);
+  };
+
+  // Navigates to the details page for this package. The package row is
+  // passed along as router state so the details page can render a header
+  // (title / destination / tour code) without an extra network round trip.
+  const goToDetails = (row) => {
+    navigate(`/tour-packages/${row.id}/details`, { state: { package: row } });
   };
 
   const handleFieldChange = (field, value) => {
@@ -159,7 +168,7 @@ const TourPackages = () => {
   }, [currentPage, totalPages]);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className=" space-y-3 pb-6">
       <div className="rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 p-6 text-white shadow-xl shadow-violet-500/20">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -178,7 +187,7 @@ const TourPackages = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="mt-5 ">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="relative w-full md:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -220,7 +229,12 @@ const TourPackages = () => {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {paginatedPackages.map((tour) => (
-                  <tr key={tour.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr
+                    key={tour.id}
+                    onClick={() => goToDetails(tour)}
+                    title="Click to manage tour details"
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  >
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300">
@@ -259,7 +273,10 @@ const TourPackages = () => {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => openEditModal(tour)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEditModal(tour);
+                          }}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-violet-50 hover:text-violet-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-violet-900/20"
                           title="Edit package"
                         >
@@ -267,12 +284,16 @@ const TourPackages = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(tour)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDelete(tour);
+                          }}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
                           title="Delete package"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
+                        <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600" />
                       </div>
                     </td>
                   </tr>

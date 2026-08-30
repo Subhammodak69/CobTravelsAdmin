@@ -46,11 +46,6 @@ const Sidebar = ({
       label: "Tour Variants",
       path: "/tour-variants",
     },
-    {
-      icon: Layers3,
-      label: "Tour Details",
-      path: "/tour-details",
-    },
   ];
 
   const isActiveRoute = (itemPath) => {

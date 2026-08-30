@@ -177,7 +177,7 @@ const TourVariant = () => {
   }, [currentPage, totalPages]);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className=" space-y-3 pb-6">
       <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-6 text-white shadow-xl shadow-cyan-500/20">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -196,7 +196,7 @@ const TourVariant = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="mt-5 ">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="relative w-full md:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
