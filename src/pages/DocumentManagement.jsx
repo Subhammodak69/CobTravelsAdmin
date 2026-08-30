@@ -144,7 +144,7 @@ const DocumentManagement = () => {
         </div>
       </div>
 
-      <div className="mt-5 ">
+      <div className="mt-5 px-4">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm text-gray-600 dark:text-gray-300">{documents.length} total documents</div>
           <button
