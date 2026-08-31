@@ -152,7 +152,7 @@ const Dashboard = () => {
     <div className=" space-y-3 pb-6">
 
       {/* ── Hero Banner ── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-700 text-white shadow-xl shadow-indigo-500/20 p-6 md:p-8">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 md:p-8">
         {/* decorative blobs */}
         <div className="absolute -right-10 -top-10 w-72 h-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
         <div className="absolute left-1/2 -bottom-16 w-56 h-56 rounded-full bg-violet-500/20 blur-2xl pointer-events-none" />

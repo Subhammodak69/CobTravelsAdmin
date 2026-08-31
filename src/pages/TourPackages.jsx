@@ -6,6 +6,7 @@ import Modal from '../component/common/Modal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { getPackageVariantsPath } from '../utils/tourNavigation';
 
 const packageTypes = ['DOMESTIC', 'INTERNATIONAL'];
 const packageTypeOptions = packageTypes.map((type) => ({ value: type, label: type }));
@@ -78,11 +79,10 @@ const TourPackages = () => {
     setIsModalOpen(true);
   };
 
-  // Navigates to the details page for this package. The package row is
-  // passed along as router state so the details page can render a header
-  // (title / destination / tour code) without an extra network round trip.
-  const goToDetails = (row) => {
-    navigate(`/tour-packages/${row.id}/details`, { state: { package: row } });
+  // Navigates to the package's variants list. Selecting a package should
+  // open the related variant catalog before the user can open any details.
+  const goToPackageVariants = (row) => {
+    navigate(getPackageVariantsPath(row.id), { state: { package: row } });
   };
 
   const handleFieldChange = (field, value) => {
@@ -169,7 +169,7 @@ const TourPackages = () => {
 
   return (
     <div className=" space-y-3 pb-6">
-      <div className="rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 p-6 text-white shadow-xl shadow-violet-500/20">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-100">Catalog</p>
@@ -231,8 +231,8 @@ const TourPackages = () => {
                 {paginatedPackages.map((tour) => (
                   <tr
                     key={tour.id}
-                    onClick={() => goToDetails(tour)}
-                    title="Click to manage tour details"
+                    onClick={() => goToPackageVariants(tour)}
+                    title="Click to view tour variants"
                     className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   >
                     <td className="px-4 py-4">

@@ -39,7 +39,8 @@ function App() {
           <Route path="/document-management" element={<DocumentManagement />} />
           <Route path="/tour-packages" element={<TourPackages />} />
           <Route path="/tour-variants" element={<TourVariant />} />
-          <Route path="tour-packages/:id/details" element={<TourDetails />} />
+          <Route path="/tour-packages/:packageId/variants" element={<TourVariant />} />
+          <Route path="/tour-packages/:packageId/variants/:variantId/details" element={<TourDetails />} />
           <Route path="/users" element={<UnderConstruction title="Users" />} />
           <Route path="/projects" element={<UnderConstruction title="Projects" />} />
           <Route path="/qr-codes" element={<UnderConstruction title="QR Codes" />} />

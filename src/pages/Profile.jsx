@@ -166,7 +166,7 @@ const Profile = () => {
     <div className=" space-y-3 pb-6">
 
       {/* ── Profile Hero ── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-700 text-white shadow-xl shadow-blue-500/20 p-6 md:p-8">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 md:p-8">
         <div className="absolute -right-12 -top-12 w-72 h-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
         <div className="absolute left-1/3 -bottom-16 w-48 h-48 rounded-full bg-indigo-400/20 blur-2xl pointer-events-none" />
 

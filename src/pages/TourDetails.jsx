@@ -56,13 +56,13 @@ const EmptyState = ({ text }) => (
 );
 
 const TourDetails = () => {
-  // The route is expected to look like /admin/tour-packages/:id/details —
-  // :id is the tour package's id, and it is what's sent to the API both to
-  // look up existing details and as `variant_id` when creating new ones.
-  const { id: packageId } = useParams();
+  // The route is /tour-packages/:packageId/variants/:variantId/details.
+  // The API detail resource is keyed by the selected variant id, not the package id.
+  const { packageId, variantId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const packageInfo = location.state?.package || null;
+  const variantInfo = location.state?.variant || null;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,11 +73,11 @@ const TourDetails = () => {
   const [activeSection, setActiveSection] = useState('banner');
 
   useEffect(() => {
-    if (packageId) {
+    if (variantId) {
       loadDetails();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [packageId]);
+  }, [variantId]);
 
   const applyDetailToDraft = (detailData) => {
     setDraft({
@@ -95,7 +95,7 @@ const TourDetails = () => {
   const loadDetails = async () => {
     setLoading(true);
     try {
-      const response = await apiCall(`/api/v1/admin/tour-details/${packageId}`, 'GET');
+      const response = await apiCall(`/api/v1/admin/tour-details/${variantId}`, 'GET');
 
       if (response.status === 404) {
         // No details created for this package yet — that's a normal state,
@@ -167,10 +167,10 @@ const TourDetails = () => {
       if (notFound) {
         response = await apiCall('/api/v1/admin/tour-details', 'POST', {
           ...payload,
-          variant_id: packageId,
+          variant_id: variantId,
         });
       } else {
-        response = await apiCall(`/api/v1/admin/tour-details/${packageId}`, 'PATCH', payload);
+        response = await apiCall(`/api/v1/admin/tour-details/${variantId}`, 'PATCH', payload);
       }
 
       const result = await response.json().catch(() => ({}));
@@ -196,7 +196,7 @@ const TourDetails = () => {
 
     setDeleting(true);
     try {
-      const response = await apiCall(`/api/v1/admin/tour-details/${packageId}`, 'DELETE');
+      const response = await apiCall(`/api/v1/admin/tour-details/${variantId}`, 'DELETE');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete tour details');
@@ -443,40 +443,42 @@ const TourDetails = () => {
     }
   };
 
-  if (!packageId) {
+  if (!variantId) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 p-12 text-center text-sm text-gray-500 dark:border-gray-700">
-        No tour package selected. Go back to Tour Packages and click a row to manage its details.
+        No tour variant selected. Go back to the package variants page and click a row to open its details.
       </div>
     );
   }
 
-  const headerTitle = packageInfo?.title || 'Tour details';
-  const headerSubtitle = packageInfo
-    ? [packageInfo.tour_code, packageInfo.destination].filter(Boolean).join(' • ')
-    : packageId;
+  const headerTitle = variantInfo?.name || packageInfo?.title || 'Tour details';
+  const headerSubtitle = [packageInfo?.tour_code, packageInfo?.destination, variantInfo?.season_name].filter(Boolean).join(' • ') || variantId;
 
   return (
-    <div className=" space-y-3 pb-6">
-      <div className="rounded-2xl bg-gradient-to-r from-orange-600 via-amber-500 to-yellow-400 p-6 text-white shadow-xl shadow-orange-500/20">
+    <div className="space-y-3 pb-6">
+      <div className="rounded-2xl border border-slate-200 bg-slate-100/80 p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+          <div className="space-y-3">
             <button
               type="button"
-              onClick={() => navigate('/admin/tour-packages')}
-              className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-orange-100 hover:text-white"
+              onClick={() => navigate(packageId ? `/tour-packages/${encodeURIComponent(packageId)}/variants` : '/tour-packages', { state: packageInfo ? { package: packageInfo } : undefined })}
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to tour packages
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back to tour packages</span>
             </button>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-100">Content</p>
-            <h1 className="mt-1 text-2xl font-bold md:text-3xl">{headerTitle}</h1>
-            <p className="mt-1 text-sm text-orange-100">{headerSubtitle}</p>
+
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Content</p>
+              <h1 className="mt-2 text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-white md:text-5xl">{headerTitle}</h1>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{headerSubtitle}</p>
+            </div>
           </div>
 
           <span
             className={[
-              'w-fit rounded-full border px-3 py-1.5 text-xs font-semibold',
-              notFound ? 'border-white/40 bg-white/10 text-white' : 'border-emerald-200/60 bg-emerald-500/20 text-white',
+              'inline-flex w-fit items-center rounded-full border px-3.5 py-1.5 text-sm font-semibold',
+              notFound ? 'border-slate-300 bg-slate-200 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200' : 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
             ].join(' ')}
           >
             {notFound ? 'Not created yet' : 'Details saved'}

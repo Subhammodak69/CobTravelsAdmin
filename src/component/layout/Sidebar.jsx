@@ -5,7 +5,6 @@ import {
   FileText,
   ShieldCheck,
   Route,
-  Layers3,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -40,11 +39,6 @@ const Sidebar = ({
       icon: Package,
       label: "Tour Packages",
       path: "/tour-packages",
-    },
-    {
-      icon: Route,
-      label: "Tour Variants",
-      path: "/tour-variants",
     },
   ];
 

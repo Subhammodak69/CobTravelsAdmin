@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Route, Pencil, Trash2, Search, RefreshCw, CalendarDays } from 'lucide-react';
+import { Plus, Route, Pencil, Trash2, Search, RefreshCw, CalendarDays, ArrowLeft } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { getVariantDetailsPath } from '../utils/tourNavigation';
 
 const availabilityOptions = ['AVAILABLE', 'LOW', 'SOLD_OUT'];
 const availabilitySelectOptions = availabilityOptions.map((option) => ({ value: option, label: option }));
@@ -27,6 +29,11 @@ const defaultForm = {
 };
 
 const TourVariant = () => {
+  const navigate = useNavigate();
+  const { packageId } = useParams();
+  const location = useLocation();
+  const packageInfo = location.state?.package || null;
+
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -37,25 +44,27 @@ const TourVariant = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [formState, setFormState] = useState(defaultForm);
 
-  const loadVariants = async () => {
+  const loadVariants = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await apiCall('/api/v1/admin/tour-variants', 'GET');
+      const endpoint = packageId ? `/api/v1/admin/tour-variants?tour_id=${encodeURIComponent(packageId)}` : '/api/v1/admin/tour-variants';
+      const response = await apiCall(endpoint, 'GET');
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload?.message || payload?.detail || 'Unable to fetch tour variants');
       }
-      setVariants(Array.isArray(payload?.data) ? payload.data : []);
+      const nextVariants = Array.isArray(payload?.data) ? payload.data : [];
+      setVariants(nextVariants);
     } catch (error) {
       handleApiError(error, 'Unable to fetch tour variants');
     } finally {
       setLoading(false);
     }
-  };
+  }, [packageId]);
 
   useEffect(() => {
     loadVariants();
-  }, []);
+  }, [loadVariants]);
 
   const resetForm = () => {
     setFormState(defaultForm);
@@ -90,6 +99,13 @@ const TourVariant = () => {
 
   const handleFieldChange = (field, value) => {
     setFormState((current) => ({ ...current, [field]: value }));
+  };
+
+  const goToDetails = (variant) => {
+    if (!variant?.id) return;
+    navigate(getVariantDetailsPath(packageId || packageInfo?.id, variant.id), {
+      state: { package: packageInfo, variant },
+    });
   };
 
   const handleSubmit = async (event) => {
@@ -178,11 +194,25 @@ const TourVariant = () => {
 
   return (
     <div className=" space-y-3 pb-6">
-      <div className="rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-700 p-6 text-white shadow-xl shadow-cyan-500/20">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
+            {packageInfo && (
+              <button
+                type="button"
+                onClick={() => navigate('/tour-packages')}
+                className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-100 hover:text-white"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Back to packages
+              </button>
+            )}
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">Inventory</p>
-            <h1 className="mt-2 text-2xl font-bold md:text-3xl">Tour Variants</h1>
+            <h1 className="mt-2 text-2xl font-bold md:text-3xl">
+              {packageInfo ? `${packageInfo.title} variants` : 'Tour Variants'}
+            </h1>
+            {packageInfo && (
+              <p className="mt-1 text-sm text-cyan-100">{packageInfo.destination || packageInfo.tour_code || packageId}</p>
+            )}
           </div>
 
           <button
@@ -238,7 +268,12 @@ const TourVariant = () => {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {paginatedVariants.map((variant) => (
-                  <tr key={variant.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr
+                    key={variant.id}
+                    onClick={() => goToDetails(variant)}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    title="Click to view variant details"
+                  >
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300">
@@ -268,7 +303,10 @@ const TourVariant = () => {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => openEditModal(variant)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openEditModal(variant);
+                          }}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-cyan-50 hover:text-cyan-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-cyan-900/20"
                           title="Edit variant"
                         >
@@ -276,7 +314,10 @@ const TourVariant = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(variant)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleDelete(variant);
+                          }}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
                           title="Delete variant"
                         >
