@@ -194,24 +194,23 @@ const TourVariant = () => {
 
   return (
     <div className=" space-y-3 pb-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="px-2 text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
             {packageInfo && (
               <button
                 type="button"
                 onClick={() => navigate('/tour-packages')}
-                className="mb-3 inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-100 hover:text-white"
+                className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
               >
-                <ArrowLeft className="h-3.5 w-3.5" /> Back to packages
+                <ArrowLeft className="h-4 w-4" /> Back to packages
               </button>
             )}
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">Inventory</p>
-            <h1 className="mt-2 text-2xl font-bold md:text-3xl">
+            <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">
               {packageInfo ? `${packageInfo.title} variants` : 'Tour Variants'}
             </h1>
             {packageInfo && (
-              <p className="mt-1 text-sm text-cyan-100">{packageInfo.destination || packageInfo.tour_code || packageId}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{packageInfo.destination || packageInfo.tour_code || packageId}</p>
             )}
           </div>
 

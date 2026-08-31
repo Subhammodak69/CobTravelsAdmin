@@ -456,9 +456,9 @@ const TourDetails = () => {
 
   return (
     <div className="space-y-3 pb-6">
-      <div className="rounded-2xl border border-slate-200 bg-slate-100/80 p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-3">
+      <div className="px-2 text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-1.5">
             <button
               type="button"
               onClick={() => navigate(packageId ? `/tour-packages/${encodeURIComponent(packageId)}/variants` : '/tour-packages', { state: packageInfo ? { package: packageInfo } : undefined })}
@@ -469,15 +469,15 @@ const TourDetails = () => {
             </button>
 
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Content</p>
-              <h1 className="mt-2 text-4xl font-black tracking-[-0.04em] text-slate-900 dark:text-white md:text-5xl">{headerTitle}</h1>
-              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{headerSubtitle}</p>
+              <p className="">Content</p>
+              <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white md:text-4xl">{headerTitle}</h1>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{headerSubtitle}</p>
             </div>
           </div>
 
           <span
             className={[
-              'inline-flex w-fit items-center rounded-full border px-3.5 py-1.5 text-sm font-semibold',
+              'inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-semibold',
               notFound ? 'border-slate-300 bg-slate-200 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200' : 'border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
             ].join(' ')}
           >

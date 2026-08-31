@@ -126,11 +126,11 @@ const DocumentManagement = () => {
 
   return (
     <div className=" space-y-3 pb-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="px-2 text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">Records</p>
-            <h1 className="mt-2 text-2xl font-bold md:text-3xl">Document Management</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">Document Management</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage all uploaded traveler and booking documents in one place.</p>
           </div>
 
           <button

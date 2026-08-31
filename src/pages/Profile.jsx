@@ -165,57 +165,65 @@ const Profile = () => {
   return (
     <div className=" space-y-3 pb-6">
 
-      {/* ── Profile Hero ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 md:p-8">
-        <div className="absolute -right-12 -top-12 w-72 h-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 -bottom-16 w-48 h-48 rounded-full bg-indigo-400/20 blur-2xl pointer-events-none" />
+      {/* ── Profile Header ── */}
+      <div className="px-2 text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              Profile
+            </p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white md:text-4xl">
+              {user?.name || 'Administrator'}
+            </h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2">
+              <span>{user?.email || 'admin@coochbehartravels.com'}</span>
+              {user?.mobile && <span>· {user.mobile}</span>}
+              {user?.user_code && <span className="font-mono text-xs">({user.user_code})</span>}
+            </p>
+          </div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          {/* Avatar + Info */}
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2 flex-wrap">
+            {user?.role && (
+              <span className="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                {user.role}
+              </span>
+            )}
+            {user?.is_active !== false && (
+              <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                Active
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               {user?.profile_pic ? (
                 <img
                   src={user.profile_pic}
                   alt={user.name}
-                  className="w-20 h-20 rounded-2xl object-cover ring-4 ring-white/25 shadow-lg"
+                  className="w-20 h-20 rounded-2xl object-cover ring-4 ring-slate-100 shadow-sm dark:ring-slate-800"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-md ring-4 ring-white/25 flex items-center justify-center text-3xl font-extrabold text-white shadow-lg">
+                <div className="w-20 h-20 rounded-2xl bg-slate-200 text-slate-700 flex items-center justify-center text-3xl font-extrabold shadow-sm dark:bg-slate-800 dark:text-slate-200">
                   {user?.name?.[0]?.toUpperCase() || 'A'}
                 </div>
               )}
               <span
-                className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-emerald-400 border-[3px] border-blue-700 rounded-full shadow"
+                className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-emerald-400 border-[3px] border-white rounded-full shadow"
                 title="Online"
               />
             </div>
 
             <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-                  {user?.name || 'Administrator'}
-                </h1>
-                <span className="bg-white/20 text-white text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider border border-white/20">
-                  {user?.role || 'ADMIN'}
-                </span>
-                {user?.is_active !== false && (
-                  <span className="bg-emerald-400/20 text-emerald-200 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-emerald-400/30">
-                    Active
-                  </span>
-                )}
-              </div>
-              <p className="text-blue-200 text-sm mt-1.5 flex items-center gap-2 flex-wrap">
-                <span>{user?.email || 'admin@coochbehartravels.com'}</span>
-                {user?.mobile && <span className="opacity-70">· {user.mobile}</span>}
-                {user?.user_code && (
-                  <span className="font-mono text-xs opacity-60">({user.user_code})</span>
-                )}
-              </p>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{user?.name || 'Administrator'}</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Admin profile overview</p>
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex items-center gap-3 flex-wrap self-start md:self-auto">
             <button
               onClick={handleRefreshProfile}

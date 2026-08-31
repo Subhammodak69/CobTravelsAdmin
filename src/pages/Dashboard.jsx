@@ -148,46 +148,39 @@ const Dashboard = () => {
     ? RECENT_BOOKINGS
     : RECENT_BOOKINGS.filter(b => b.status === activeTab);
 
+  const currentDateLabel = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
     <div className=" space-y-3 pb-6">
 
-      {/* ── Hero Banner ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-slate-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 md:p-8">
-        {/* decorative blobs */}
-        <div className="absolute -right-10 -top-10 w-72 h-72 rounded-full bg-white/10 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/2 -bottom-16 w-56 h-56 rounded-full bg-violet-500/20 blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="p-3.5 rounded-2xl bg-white/15 backdrop-blur-md ring-1 ring-white/20 shadow-lg">
-              <MapPin className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <p className="text-blue-200 text-sm font-medium mb-1 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                COB Travels Admin — Live Dashboard
-              </p>
-              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-                Travel Operations Overview
-              </h1>
-              <p className="text-blue-200 text-sm mt-1">
-                August 2026 · Cooch Behar District &amp; Beyond
-              </p>
-            </div>
+      {/* ── Header ── */}
+      <div className="text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white md:text-4xl">
+              Travel Operations Overview
+            </h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {currentDateLabel} · Cooch Behar District &amp; Beyond
+            </p>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20 text-center">
-              <p className="text-xs text-blue-200">Today's Bookings</p>
-              <p className="text-xl font-bold text-white">38</p>
+          <div className="flex items-center gap-3 flex-wrap text-sm">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Today's Bookings</p>
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">38</p>
             </div>
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20 text-center">
-              <p className="text-xs text-blue-200">Today's Revenue</p>
-              <p className="text-xl font-bold text-white">₹1.2L</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Today's Revenue</p>
+              <p className="mt-1 text-lg font-bold text-slate-900 dark:text-white">₹1.2L</p>
             </div>
-            <div className="bg-white/15 backdrop-blur-sm rounded-xl px-4 py-2.5 border border-white/20 text-center">
-              <p className="text-xs text-blue-200">Pending Actions</p>
-              <p className="text-xl font-bold text-amber-300">12</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Pending Actions</p>
+              <p className="mt-1 text-lg font-bold text-amber-600 dark:text-amber-400">12</p>
             </div>
           </div>
         </div>
