@@ -222,6 +222,9 @@ const TourDetails = () => {
   const [itineraryForm, setItineraryForm] = useState({ day: 1, title: '', description: '' });
   const [routeModalOpen, setRouteModalOpen] = useState(false);
   const [routeForm, setRouteForm] = useState({ city: '', nights: 1 });
+  const [extrasModalOpen, setExtrasModalOpen] = useState(false);
+  const [extrasModalType, setExtrasModalType] = useState('inclusion');
+  const [extrasForm, setExtrasForm] = useState({ value: '', date: '' });
 
   useEffect(() => {
     if (variantId) {
@@ -484,6 +487,42 @@ const TourDetails = () => {
     setRouteForm({ city: '', nights: 1 });
   };
 
+  const openExtrasModal = (type) => {
+    setExtrasModalType(type);
+    setExtrasForm({ value: '', date: '' });
+    setExtrasModalOpen(true);
+  };
+
+  const submitExtrasModal = () => {
+    if (extrasModalType === 'departure_date') {
+      if (!extrasForm.date) {
+        toast.error('Please select a departure date.');
+        return;
+      }
+
+      setDraft((current) => ({
+        ...current,
+        departure_dates: [...(current.departure_dates || []), { id: generateId(), date: extrasForm.date }],
+      }));
+    } else if (!extrasForm.value.trim()) {
+      toast.error(extrasModalType === 'inclusion' ? 'Please enter an inclusion.' : 'Please enter an exclusion.');
+      return;
+    } else if (extrasModalType === 'inclusion') {
+      setDraft((current) => ({
+        ...current,
+        inclusions: [...(current.inclusions || []), extrasForm.value.trim()],
+      }));
+    } else {
+      setDraft((current) => ({
+        ...current,
+        exclusions: [...(current.exclusions || []), extrasForm.value.trim()],
+      }));
+    }
+
+    setExtrasModalOpen(false);
+    setExtrasForm({ value: '', date: '' });
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case 'banner': {
@@ -691,49 +730,97 @@ const TourDetails = () => {
       case 'extras':
         return (
           <div className="space-y-6">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Inclusions</label>
-              <p className="mb-1.5 text-xs text-gray-500">One item per line.</p>
-              <textarea
-                value={(draft.inclusions || []).join('\n')}
-                onChange={(event) => setDraft((current) => ({ ...current, inclusions: event.target.value.split('\n').filter(Boolean) }))}
-                rows={5}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Exclusions</label>
-              <p className="mb-1.5 text-xs text-gray-500">One item per line.</p>
-              <textarea
-                value={(draft.exclusions || []).join('\n')}
-                onChange={(event) => setDraft((current) => ({ ...current, exclusions: event.target.value.split('\n').filter(Boolean) }))}
-                rows={5}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Departure dates</label>
-              <div className="space-y-2">
-                {(draft.departure_dates || []).length === 0 && <EmptyState text="No departure dates yet." />}
-                {(draft.departure_dates || []).map((item, index) => (
-                  <div key={item.id || index} className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={item.date || ''}
-                      onChange={(event) => updateArrayItem('departure_dates', index, 'date', event.target.value)}
-                      className={inputClass}
-                    />
-                    <button type="button" onClick={() => removeArrayItem('departure_dates', index)} className={removeBtnClass}>
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-                <button type="button" onClick={() => addArrayItem('departure_dates', { date: '' })} className={addBtnClass}>
-                  <Plus className="h-4 w-4" /> Add departure date
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Inclusions</p>
+                <button type="button" onClick={() => openExtrasModal('inclusion')} className={addBtnClass}>
+                  <Plus className="h-4 w-4" /> Add inclusion
                 </button>
               </div>
+
+              {(draft.inclusions || []).length === 0 && <EmptyState text="No inclusions yet." />}
+
+              {(draft.inclusions || []).length > 0 && (
+                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                    <span>Item</span>
+                    <span className="text-right">Action</span>
+                  </div>
+
+                  {(draft.inclusions || []).map((item, index) => (
+                    <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
+                      <div className="flex justify-end">
+                        <button type="button" onClick={() => setDraft((current) => ({ ...current, inclusions: (current.inclusions || []).filter((_, idx) => idx !== index) }))} className={removeBtnClass}>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Exclusions</p>
+                <button type="button" onClick={() => openExtrasModal('exclusion')} className={addBtnClass}>
+                  <Plus className="h-4 w-4" /> Add exclusion
+                </button>
+              </div>
+
+              {(draft.exclusions || []).length === 0 && <EmptyState text="No exclusions yet." />}
+
+              {(draft.exclusions || []).length > 0 && (
+                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                    <span>Item</span>
+                    <span className="text-right">Action</span>
+                  </div>
+
+                  {(draft.exclusions || []).map((item, index) => (
+                    <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
+                      <div className="flex justify-end">
+                        <button type="button" onClick={() => setDraft((current) => ({ ...current, exclusions: (current.exclusions || []).filter((_, idx) => idx !== index) }))} className={removeBtnClass}>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Departure dates</p>
+                <button type="button" onClick={() => openExtrasModal('departure_date')} className={addBtnClass}>
+                  <Plus className="h-4 w-4" /> Add date
+                </button>
+              </div>
+
+              {(draft.departure_dates || []).length === 0 && <EmptyState text="No departure dates yet." />}
+
+              {(draft.departure_dates || []).length > 0 && (
+                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                    <span>Date</span>
+                    <span className="text-right">Action</span>
+                  </div>
+
+                  {(draft.departure_dates || []).map((item, index) => (
+                    <div key={item.id || index} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{item.date || 'No date'}</span>
+                      <div className="flex justify-end">
+                        <button type="button" onClick={() => removeArrayItem('departure_dates', index)} className={removeBtnClass}>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -856,6 +943,33 @@ const TourDetails = () => {
         </div>
       </Modal>
 
+      <Modal
+        isOpen={extrasModalOpen}
+        onClose={() => setExtrasModalOpen(false)}
+        title={extrasModalType === 'inclusion' ? 'Add inclusion' : extrasModalType === 'exclusion' ? 'Add exclusion' : 'Add departure date'}
+        size="md"
+        confirmText={extrasModalType === 'departure_date' ? 'Add date' : 'Add item'}
+        onConfirm={submitExtrasModal}
+      >
+        <div className="space-y-4 p-4">
+          {extrasModalType === 'departure_date' ? (
+            <input
+              type="date"
+              value={extrasForm.date}
+              onChange={(event) => setExtrasForm((current) => ({ ...current, date: event.target.value }))}
+              className={inputClass}
+            />
+          ) : (
+            <input
+              value={extrasForm.value}
+              onChange={(event) => setExtrasForm((current) => ({ ...current, value: event.target.value }))}
+              placeholder={extrasModalType === 'inclusion' ? 'Enter inclusion' : 'Enter exclusion'}
+              className={inputClass}
+            />
+          )}
+        </div>
+      </Modal>
+
       <div className="px-2 text-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-1.5">
@@ -915,7 +1029,6 @@ const TourDetails = () => {
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Editor</p>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 {sections.find((section) => section.key === activeSection)?.label} settings
               </h2>
