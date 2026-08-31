@@ -14,6 +14,23 @@ const clearAuthStorage = () => {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 };
 
+const getTokenLifetimeSeconds = (session = {}) => {
+  const value = Number(session?.expires_in_sec ?? session?.expires_in ?? 900);
+  return Number.isFinite(value) && value > 0 ? value : 900;
+};
+
+const getExpiryTimestamp = (session = {}) => {
+  if (session?.expires_at) {
+    const parsedDate = new Date(session.expires_at);
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return parsedDate.getTime();
+    }
+  }
+
+  const expiresInSec = getTokenLifetimeSeconds(session);
+  return Date.now() + expiresInSec * 1000;
+};
+
 const readStoredSession = () => {
   const rawUserData = localStorage.getItem(USER_DATA_KEY);
   let parsed = null;
@@ -30,10 +47,14 @@ const readStoredSession = () => {
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY) || parsed?.access_token || parsed?.token || '';
   const refreshToken = parsed?.refresh_token || localStorage.getItem(REFRESH_TOKEN_KEY) || '';
 
+  const expiresAt = getExpiryTimestamp(parsed || {});
+
   return {
     parsed,
     accessToken: typeof accessToken === 'string' ? accessToken.trim() : '',
-    refreshToken: typeof refreshToken === 'string' ? refreshToken.trim() : ''
+    refreshToken: typeof refreshToken === 'string' ? refreshToken.trim() : '',
+    expiresAt,
+    expiresInSec: getTokenLifetimeSeconds(parsed || {})
   };
 };
 
@@ -84,13 +105,15 @@ export const AuthProvider = ({ children }) => {
       if (response.ok && (data?.access_token || data?.token)) {
         const renewedAccessToken = data.access_token || data.token;
         const renewedRefreshToken = data.refresh_token || refreshToken;
+        const expiresInSec = Number(data?.expires_in_sec ?? data?.expires_in ?? 900) || 900;
         const nextSession = {
           ...(parsed || {}),
           access_token: renewedAccessToken,
           refresh_token: renewedRefreshToken,
           token: renewedAccessToken,
           token_type: data?.token_type || parsed?.token_type || 'bearer',
-          expires_in_sec: data?.expires_in_sec || data?.expires_in || parsed?.expires_in_sec || parsed?.expires_in,
+          expires_in_sec: expiresInSec,
+          expires_at: new Date(Date.now() + expiresInSec * 1000).toISOString(),
           profile: parsed?.profile || parsed?.user || null
         };
 
@@ -172,6 +195,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkAuth();
 
+    const refreshTimer = window.setInterval(() => {
+      const { accessToken, refreshToken, expiresAt } = readStoredSession();
+      if (!accessToken && !refreshToken) return;
+
+      const minutesRemaining = (expiresAt - Date.now()) / 60000;
+      if (minutesRemaining <= 2) {
+        refreshAccessToken().catch(() => undefined);
+      }
+    }, 60000);
+
     const handleStorage = (e) => {
       if (!e || e.key === USER_DATA_KEY || e.key === 'access_token' || e.key === REFRESH_TOKEN_KEY) {
         checkAuth();
@@ -180,20 +213,23 @@ export const AuthProvider = ({ children }) => {
 
     window.addEventListener('storage', handleStorage);
     return () => {
+      window.clearInterval(refreshTimer);
       window.removeEventListener('storage', handleStorage);
     };
-  }, [checkAuth]);
+  }, [checkAuth, refreshAccessToken]);
 
   const login = async (authResponse, profile = null) => {
     const normalizedAuthResponse = authResponse?.data && typeof authResponse.data === 'object' ? authResponse.data : authResponse;
     const accessToken = normalizedAuthResponse?.access_token || normalizedAuthResponse?.token || '';
     const refreshToken = normalizedAuthResponse?.refresh_token || normalizedAuthResponse?.refreshToken || '';
+    const expiresInSec = Number(normalizedAuthResponse?.expires_in_sec ?? normalizedAuthResponse?.expires_in ?? 900) || 900;
     const sessionData = {
       access_token: accessToken,
       refresh_token: refreshToken,
       token: accessToken,
       token_type: normalizedAuthResponse?.token_type || 'bearer',
-      expires_in_sec: normalizedAuthResponse?.expires_in_sec || normalizedAuthResponse?.expires_in || null,
+      expires_in_sec: expiresInSec,
+      expires_at: new Date(Date.now() + expiresInSec * 1000).toISOString(),
       profile: profile || null
     };
 

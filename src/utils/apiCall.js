@@ -13,6 +13,96 @@ export const handleApiError = (error, fallbackMessage = null) => {
   toast.error(typeof message === 'string' ? message : JSON.stringify(message));
 };
 
+const getSessionRefreshLock = () => window.__session_refresh_lock__ || null;
+const setSessionRefreshLock = (value) => {
+  window.__session_refresh_lock__ = value;
+};
+
+const getStoredSessionSnapshot = () => {
+  const rawUserData = localStorage.getItem('admin_data');
+  let parsed = null;
+
+  try {
+    parsed = rawUserData ? JSON.parse(rawUserData) : null;
+  } catch (error) {
+    console.warn('Failed to parse admin_data while refreshing session:', error);
+  }
+
+  const accessToken = localStorage.getItem('access_token') || parsed?.access_token || parsed?.token || '';
+  const refreshToken = parsed?.refresh_token || localStorage.getItem('refresh_token') || '';
+  const expiresInSec = Number(parsed?.expires_in_sec ?? parsed?.expires_in ?? 900) || 900;
+  const expiresAt = parsed?.expires_at ? new Date(parsed.expires_at).getTime() : Date.now() + expiresInSec * 1000;
+
+  return {
+    accessToken: typeof accessToken === 'string' ? accessToken.trim() : '',
+    refreshToken: typeof refreshToken === 'string' ? refreshToken.trim() : '',
+    expiresAt,
+    expiresInSec
+  };
+};
+
+const persistSessionAfterRefresh = (nextAccessToken, nextRefreshToken, expiresInSec) => {
+  const existingUserData = localStorage.getItem('admin_data');
+  let parsed = null;
+
+  try {
+    parsed = existingUserData ? JSON.parse(existingUserData) : null;
+  } catch (error) {
+    console.warn('Failed to parse admin_data after refresh:', error);
+  }
+
+  const normalizedSession = {
+    ...(parsed || {}),
+    access_token: nextAccessToken,
+    refresh_token: nextRefreshToken,
+    token: nextAccessToken,
+    token_type: parsed?.token_type || 'bearer',
+    expires_in_sec: expiresInSec,
+    expires_at: new Date(Date.now() + expiresInSec * 1000).toISOString(),
+  };
+
+  localStorage.setItem('admin_data', JSON.stringify(normalizedSession));
+  localStorage.setItem('access_token', nextAccessToken);
+  if (nextRefreshToken) localStorage.setItem('refresh_token', nextRefreshToken);
+};
+
+const refreshAccessTokenSilently = async () => {
+  const { refreshToken } = getStoredSessionSnapshot();
+  if (!refreshToken) return null;
+
+  if (getSessionRefreshLock()) {
+    return getSessionRefreshLock();
+  }
+
+  const promise = (async () => {
+    const response = await fetch(`${API_BASE}/api/v1/sessions/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !(data?.access_token || data?.token)) {
+      throw new Error(data?.message || data?.detail || 'Refresh token failed');
+    }
+
+    const nextAccessToken = data.access_token || data.token;
+    const nextRefreshToken = data.refresh_token || refreshToken;
+    const expiresInSec = Number(data?.expires_in_sec ?? data?.expires_in ?? 900) || 900;
+
+    persistSessionAfterRefresh(nextAccessToken, nextRefreshToken, expiresInSec);
+    return nextAccessToken;
+  })();
+
+  setSessionRefreshLock(promise);
+
+  try {
+    return await promise;
+  } finally {
+    setSessionRefreshLock(null);
+  }
+};
+
 // Endpoints that should not include Authorization header
 const PUBLIC_AUTH_ENDPOINTS = [
   '/api/v1/admin/auth/otp/request',
@@ -95,11 +185,30 @@ export const apiCall = async (endpoint, method = 'GET', body = null, customHeade
     const response = await fetch(url, options);
 
     // Global 401 Unauthorized handler (only for protected endpoints, not public auth)
-    if (response.status === 401 && !isPublicAuth) {
+    if (response.status === 401 && !isPublicAuth && !formattedEndpoint.includes('/api/v1/sessions/refresh') && !formattedEndpoint.includes('/api/v1/sessions/logout')) {
+      try {
+        const refreshedToken = await refreshAccessTokenSilently();
+        if (refreshedToken) {
+          const retryHeaders = {
+            ...headers,
+            Authorization: `Bearer ${refreshedToken}`,
+          };
+
+          const retryResponse = await fetch(url, {
+            ...options,
+            headers: retryHeaders,
+          });
+
+          return retryResponse;
+        }
+      } catch (refreshError) {
+        console.warn('Silent token refresh failed:', refreshError);
+      }
+
       localStorage.removeItem('admin_data');
       localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
 
-      // Redirect to login page if not already there
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
