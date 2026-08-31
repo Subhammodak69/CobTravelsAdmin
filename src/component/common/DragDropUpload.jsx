@@ -2,6 +2,19 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CloudUpload, Loader2, X } from 'lucide-react';
 import { uploadFile } from '../../utils/apiCall';
 
+const isVideoUrl = (url = '') => {
+  if (!url) return false;
+  const lowerUrl = String(url).toLowerCase();
+  return (
+    lowerUrl.includes('.mp4') ||
+    lowerUrl.includes('.mov') ||
+    lowerUrl.includes('.webm') ||
+    lowerUrl.includes('.ogg') ||
+    lowerUrl.includes('video/upload') ||
+    lowerUrl.includes('video')
+  );
+};
+
 const DragDropUpload = ({
   label = 'Upload file',
   value = '',
@@ -61,16 +74,16 @@ const DragDropUpload = ({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <div className="flex items-center justify-between gap-3">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
         {preview && !disabled && (
           <button
             type="button"
             onClick={clearPreview}
-            className="inline-flex items-center gap-1 rounded-2xl border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
+            className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3 w-3" />
             Remove
           </button>
         )}
@@ -85,45 +98,33 @@ const DragDropUpload = ({
         disabled={disabled || loading}
       />
 
-      <div
+      <button
+        type="button"
         onClick={openPicker}
-        onDragOver={(event) => {
-          event.preventDefault();
-          if (!disabled) setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setIsDragging(false);
-          if (!disabled) handleFiles(event.dataTransfer.files);
-        }}
+        disabled={disabled || loading}
         className={[
-          'relative min-h-[220px] cursor-pointer overflow-hidden rounded-2xl border border-dashed p-5 transition-all duration-200',
+          'inline-flex max-w-[22rem] items-center justify-between gap-2 rounded-xl border border-dashed px-3 py-2 text-left transition-all duration-200',
           isDragging ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20' : 'border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40',
-          disabled ? 'cursor-not-allowed opacity-60' : '',
+          disabled || loading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-900/20',
         ].join(' ')}
       >
-        <div className="flex h-full min-h-[180px] items-center justify-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 shadow-inner shadow-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-400">
-            {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <CloudUpload className="h-6 w-6" />}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-              {loading ? 'Uploading...' : 'Drag & drop or click to upload'}
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{helperText}</p>
-          </div>
-        </div>
-      </div>
+        <span className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CloudUpload className="h-3.5 w-3.5" />}
+          </span>
+          <span className="font-medium">{loading ? 'Uploading...' : 'Choose file'}</span>
+        </span>
+        <span className="text-[10px] text-gray-500 dark:text-gray-400">{helperText}</span>
+      </button>
 
       {preview && (
-        <>
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Preview:</p>
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900/40">
-          <img src={preview} alt="Preview" className="h-64 w-full rounded-xl object-cover" />
+        <div className="w-fit max-w-[12rem] rounded-xl border border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-900/40">
+          {isVideoUrl(preview) ? (
+            <video src={preview} controls className="h-20 w-32 rounded-md object-cover bg-slate-100" />
+          ) : (
+            <img src={preview} alt="Preview" className="h-20 w-32 rounded-md object-cover" />
+          )}
         </div>
-        </>
-        
       )}
 
       {error && (

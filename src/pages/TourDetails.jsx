@@ -15,10 +15,12 @@ import {
   X,
 } from 'lucide-react';
 import DragDropUpload from '../component/common/DragDropUpload';
+import Modal from '../component/common/Modal';
+import SelectField from '../component/common/SelectField';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
 const createEmptyDraft = () => ({
-  banner: { image: '', video: '' },
+  banner: { items: [], cover_image: '', image: '', video: '' },
   gallery: [],
   highlights: [],
   inclusions: [],
@@ -27,6 +29,148 @@ const createEmptyDraft = () => ({
   itinerary: [],
   route: [],
 });
+
+const normalizeMediaUrl = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'object') {
+    return (
+      value.url ||
+      value.image ||
+      value.image_url ||
+      value.imageUrl ||
+      value.src ||
+      value.path ||
+      value.video ||
+      value.video_url ||
+      value.videoUrl ||
+      ''
+    );
+  }
+  return String(value).trim();
+};
+
+const getMediaTypeFromUrl = (url, fallbackType = 'image') => {
+  if (!url) return fallbackType;
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || lowerUrl.includes('.webm') || lowerUrl.includes('.ogg') || lowerUrl.includes('video/upload')) {
+    return 'video';
+  }
+  return fallbackType;
+};
+
+const normalizeBannerItem = (item, fallbackIndex = 0) => {
+  const url = normalizeMediaUrl(
+    item?.url ??
+    item?.image ??
+    item?.media_url ??
+    item?.image_url ??
+    item?.imageUrl ??
+    item?.src ??
+    item?.video ??
+    item?.video_url ??
+    item?.videoUrl ??
+    item?.path ??
+    ''
+  );
+
+  const type = (item?.type || item?.media_type || item?.kind || getMediaTypeFromUrl(url, 'image')).toLowerCase();
+
+  return {
+    id: item?.id || generateId(),
+    url,
+    type: type === 'video' ? 'video' : 'image',
+    alt: item?.alt || '',
+    cover_image: Boolean(item?.cover_image),
+    display_order: item?.display_order ?? fallbackIndex + 1,
+  };
+};
+
+const normalizeDetailData = (detailData = {}) => {
+  const bannerSource = detailData.banner || {};
+  const bannerItems = Array.isArray(bannerSource)
+    ? bannerSource.map((item, index) => normalizeBannerItem(item, index))
+    : Array.isArray(bannerSource.items)
+      ? bannerSource.items.map((item, index) => normalizeBannerItem(item, index))
+      : [
+          bannerSource.image,
+          bannerSource.video,
+          bannerSource.cover_image,
+          bannerSource.url,
+          bannerSource.media_url,
+          bannerSource.image_url,
+          bannerSource.video_url,
+          bannerSource.imageUrl,
+          bannerSource.videoUrl,
+        ]
+          .filter(Boolean)
+          .map((entry, index) => {
+            const isVideo = getMediaTypeFromUrl(String(entry), 'image') === 'video';
+            return normalizeBannerItem({
+              id: generateId(),
+              type: isVideo ? 'video' : 'image',
+              url: entry,
+              cover_image: entry === bannerSource.cover_image,
+            }, index);
+          });
+
+  const normalizedBanner = {
+    items: bannerItems.length ? bannerItems : [
+      normalizeBannerItem({
+        type: getMediaTypeFromUrl(normalizeMediaUrl(bannerSource.video || bannerSource.url || bannerSource.image || ''), 'image'),
+        url: normalizeMediaUrl(bannerSource.video || bannerSource.url || bannerSource.image || ''),
+        cover_image: Boolean(bannerSource.cover_image),
+      }, 0),
+    ].filter((item) => item.url),
+    cover_image: normalizeMediaUrl(
+      bannerSource.cover_image ??
+      bannerSource.image ??
+      bannerSource.url ??
+      detailData.cover_image ??
+      detailData.banner_image ??
+      ''
+    ),
+    image: normalizeMediaUrl(
+      bannerSource.image ??
+      bannerSource.url ??
+      bannerSource.image_url ??
+      bannerSource.imageUrl ??
+      bannerSource.src ??
+      detailData.banner_image ??
+      detailData.bannerUrl ??
+      detailData.image_url ??
+      ''
+    ),
+    video: normalizeMediaUrl(
+      bannerSource.video ??
+      bannerSource.video_url ??
+      bannerSource.videoUrl ??
+      detailData.video_url ??
+      detailData.videoUrl ??
+      ''
+    ),
+  };
+
+  const normalizedGallery = (detailData.gallery || []).map((item, index) => ({
+    ...item,
+    id: item.id || generateId(),
+    alt: item.alt || '',
+    url: normalizeMediaUrl(item.url ?? item.image ?? item.image_url ?? item.imageUrl ?? item.src ?? ''),
+    type: (item.type || item.media_type || getMediaTypeFromUrl(normalizeMediaUrl(item.url ?? item.image ?? item.image_url ?? item.imageUrl ?? item.src ?? ''), 'image')).toLowerCase(),
+    display_order: item.display_order ?? index + 1,
+  }));
+
+  return {
+    banner: normalizedBanner,
+    gallery: normalizedGallery,
+    highlights: detailData.highlights || [],
+    inclusions: detailData.inclusions || [],
+    exclusions: detailData.exclusions || [],
+    departure_dates: detailData.departure_dates || [],
+    itinerary: detailData.itinerary || [],
+    route: detailData.route || [],
+  };
+};
 
 // Generates a stable client-side id for freshly added sub-items (gallery
 // entries, highlights, itinerary days, route stops, departure dates) so the
@@ -71,6 +215,13 @@ const TourDetails = () => {
   const [details, setDetails] = useState(null);
   const [draft, setDraft] = useState(createEmptyDraft());
   const [activeSection, setActiveSection] = useState('banner');
+  const [mediaModalOpen, setMediaModalOpen] = useState(false);
+  const [mediaModalContext, setMediaModalContext] = useState('banner');
+  const [mediaForm, setMediaForm] = useState({ type: 'image', url: '', alt: '', cover_image: false });
+  const [itineraryModalOpen, setItineraryModalOpen] = useState(false);
+  const [itineraryForm, setItineraryForm] = useState({ day: 1, title: '', description: '' });
+  const [routeModalOpen, setRouteModalOpen] = useState(false);
+  const [routeForm, setRouteForm] = useState({ city: '', nights: 1 });
 
   useEffect(() => {
     if (variantId) {
@@ -80,15 +231,16 @@ const TourDetails = () => {
   }, [variantId]);
 
   const applyDetailToDraft = (detailData) => {
+    const normalized = normalizeDetailData(detailData || {});
     setDraft({
-      banner: detailData?.banner || { image: '', video: '' },
-      gallery: detailData?.gallery || [],
-      highlights: detailData?.highlights || [],
-      inclusions: detailData?.inclusions || [],
-      exclusions: detailData?.exclusions || [],
-      departure_dates: detailData?.departure_dates || [],
-      itinerary: detailData?.itinerary || [],
-      route: detailData?.route || [],
+      banner: normalized.banner,
+      gallery: normalized.gallery,
+      highlights: normalized.highlights,
+      inclusions: normalized.inclusions,
+      exclusions: normalized.exclusions,
+      departure_dates: normalized.departure_dates,
+      itinerary: normalized.itinerary,
+      route: normalized.route,
     });
   };
 
@@ -123,40 +275,53 @@ const TourDetails = () => {
     }
   };
 
-  const buildPayload = () => ({
-    banner: {
-      image: draft.banner?.image || '',
-      video: draft.banner?.video || '',
-    },
-    gallery: (draft.gallery || []).map((item, index) => ({
+  const buildPayload = () => {
+    const bannerItems = (draft.banner?.items || []).map((item, index) => ({
       id: item.id || generateId(),
-      alt: item.alt || '',
       url: item.url || '',
-      type: item.type || '',
+      type: item.type || getMediaTypeFromUrl(item.url || '', 'image'),
+      alt: item.alt || '',
+      cover_image: Boolean(item.cover_image),
       display_order: item.display_order ?? index + 1,
-    })),
-    highlights: (draft.highlights || []).map((item) => ({
-      id: item.id || generateId(),
-      text: item.text || '',
-    })),
-    inclusions: draft.inclusions || [],
-    exclusions: draft.exclusions || [],
-    departure_dates: (draft.departure_dates || []).map((item) => ({
-      id: item.id || generateId(),
-      date: item.date || '',
-    })),
-    itinerary: (draft.itinerary || []).map((item) => ({
-      id: item.id || generateId(),
-      day: item.day || 1,
-      title: item.title || '',
-      description: item.description || '',
-    })),
-    route: (draft.route || []).map((item) => ({
-      id: item.id || generateId(),
-      city: item.city || '',
-      nights: item.nights || 1,
-    })),
-  });
+    }));
+
+    return {
+      banner: {
+        items: bannerItems,
+        image: draft.banner?.image || '',
+        video: draft.banner?.video || '',
+        cover_image: draft.banner?.cover_image || '',
+      },
+      gallery: (draft.gallery || []).map((item, index) => ({
+        id: item.id || generateId(),
+        alt: item.alt || '',
+        url: item.url || '',
+        type: item.type || '',
+        display_order: item.display_order ?? index + 1,
+      })),
+      highlights: (draft.highlights || []).map((item) => ({
+        id: item.id || generateId(),
+        text: item.text || '',
+      })),
+      inclusions: draft.inclusions || [],
+      exclusions: draft.exclusions || [],
+      departure_dates: (draft.departure_dates || []).map((item) => ({
+        id: item.id || generateId(),
+        date: item.date || '',
+      })),
+      itinerary: (draft.itinerary || []).map((item) => ({
+        id: item.id || generateId(),
+        day: item.day || 1,
+        title: item.title || '',
+        description: item.description || '',
+      })),
+      route: (draft.route || []).map((item) => ({
+        id: item.id || generateId(),
+        city: item.city || '',
+        nights: item.nights || 1,
+      })),
+    };
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -234,69 +399,195 @@ const TourDetails = () => {
     }));
   };
 
+  const openMediaModal = (context) => {
+    setMediaModalContext(context);
+    setMediaForm({ type: 'image', url: '', alt: '', cover_image: false });
+    setMediaModalOpen(true);
+  };
+
+  const submitMediaModal = () => {
+    if (!mediaForm.url) {
+      toast.error('Please choose a media file first.');
+      return;
+    }
+
+    const payloadItem = {
+      id: generateId(),
+      url: mediaForm.url,
+      type: mediaForm.type,
+      alt: mediaForm.alt || '',
+      cover_image: Boolean(mediaForm.cover_image),
+      display_order: ((mediaModalContext === 'banner' ? draft.banner?.items : draft.gallery) || []).length + 1,
+    };
+
+    if (mediaModalContext === 'banner') {
+      setDraft((current) => ({
+        ...current,
+        banner: {
+          ...current.banner,
+          image: mediaForm.type === 'image' ? mediaForm.url : current.banner?.image || '',
+          video: mediaForm.type === 'video' ? mediaForm.url : current.banner?.video || '',
+          items: [...(current.banner?.items || []), payloadItem],
+        },
+      }));
+    } else {
+      setDraft((current) => ({
+        ...current,
+        gallery: [...(current.gallery || []), { ...payloadItem, display_order: (current.gallery || []).length + 1 }],
+      }));
+    }
+
+    setMediaModalOpen(false);
+    setMediaForm({ type: 'image', url: '', alt: '', cover_image: false });
+  };
+
+  const submitItineraryModal = () => {
+    if (!itineraryForm.title.trim()) {
+      toast.error('Please enter an itinerary title.');
+      return;
+    }
+
+    const newItem = {
+      id: generateId(),
+      day: Number(itineraryForm.day) || 1,
+      title: itineraryForm.title.trim(),
+      description: itineraryForm.description.trim(),
+    };
+
+    setDraft((current) => ({
+      ...current,
+      itinerary: [...(current.itinerary || []), newItem],
+    }));
+
+    setItineraryModalOpen(false);
+    setItineraryForm({ day: (draft.itinerary || []).length + 1, title: '', description: '' });
+  };
+
+  const submitRouteModal = () => {
+    if (!routeForm.city.trim()) {
+      toast.error('Please enter a city name.');
+      return;
+    }
+
+    const newItem = {
+      id: generateId(),
+      city: routeForm.city.trim(),
+      nights: Number(routeForm.nights) || 1,
+    };
+
+    setDraft((current) => ({
+      ...current,
+      route: [...(current.route || []), newItem],
+    }));
+
+    setRouteModalOpen(false);
+    setRouteForm({ city: '', nights: 1 });
+  };
+
   const renderSection = () => {
     switch (activeSection) {
-      case 'banner':
+      case 'banner': {
+        const bannerItems = draft.banner?.items || [];
         return (
           <div className="space-y-4">
-            <DragDropUpload
-              label="Banner image"
-              value={draft.banner?.image || ''}
-              onChange={(url) => setDraft((current) => ({ ...current, banner: { ...current.banner, image: url } }))}
-              helperText="Upload a tour banner image"
-            />
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Banner video URL</label>
-              <input
-                value={draft.banner?.video || ''}
-                onChange={(event) => setDraft((current) => ({ ...current, banner: { ...current.banner, video: event.target.value } }))}
-                className={inputClass}
-                placeholder="https://..."
-              />
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Media list</p>
+              <button type="button" onClick={() => openMediaModal('banner')} className={addBtnClass}>
+                <Plus className="h-4 w-4" /> Add media
+              </button>
             </div>
+
+            {bannerItems.length === 0 && <EmptyState text="No banner media yet." />}
+
+            {bannerItems.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-[110px_minmax(0,1fr)_56px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                  <span>Type</span>
+                  <span>Media</span>
+                  <span className="text-right">Action</span>
+                </div>
+
+                {bannerItems.map((item, index) => (
+                  <div key={item.id || index} className="grid grid-cols-[110px_minmax(0,1fr)_56px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                    <span className="text-sm font-medium capitalize text-gray-700 dark:text-gray-200">{item.type || 'image'}</span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      {item.type === 'video' ? (
+                        <video src={item.url} controls className="h-12 w-20 rounded-lg object-cover bg-slate-100" />
+                      ) : (
+                        <img src={item.url} alt={item.alt || 'Banner media'} className="h-12 w-20 rounded-lg object-cover" />
+                      )}
+                      <span className="truncate text-xs text-gray-500 dark:text-gray-400">{item.url}</span>
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setDraft((current) => ({
+                          ...current,
+                          banner: {
+                            ...current.banner,
+                            items: (current.banner?.items || []).filter((_, idx) => idx !== index),
+                          },
+                        }))}
+                        className={removeBtnClass}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
+      }
 
-      case 'gallery':
+      case 'gallery': {
+        const galleryItems = draft.gallery || [];
         return (
           <div className="space-y-4">
-            {(draft.gallery || []).length === 0 && <EmptyState text="No gallery images yet." />}
-            {(draft.gallery || []).map((item, index) => (
-              <div key={item.id || index} className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input value={item.alt || ''} onChange={(event) => updateArrayItem('gallery', index, 'alt', event.target.value)} placeholder="Alt text" className={inputClass} />
-                  <input value={item.type || ''} onChange={(event) => updateArrayItem('gallery', index, 'type', event.target.value)} placeholder="Type (e.g. image, video)" className={inputClass} />
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Media list</p>
+              <button type="button" onClick={() => openMediaModal('gallery')} className={addBtnClass}>
+                <Plus className="h-4 w-4" /> Add media
+              </button>
+            </div>
+
+            {galleryItems.length === 0 && <EmptyState text="No gallery media yet." />}
+
+            {galleryItems.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-[110px_minmax(0,1fr)_56px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                  <span>Type</span>
+                  <span>Media</span>
+                  <span className="text-right">Action</span>
                 </div>
-                <DragDropUpload
-                  label="Gallery image"
-                  value={item.url || ''}
-                  onChange={(url) => updateArrayItem('gallery', index, 'url', url)}
-                  helperText="Upload gallery image"
-                />
-                <div className="flex items-center justify-between">
-                  <input
-                    type="number"
-                    min={1}
-                    value={item.display_order ?? index + 1}
-                    onChange={(event) => updateArrayItem('gallery', index, 'display_order', Number(event.target.value))}
-                    placeholder="Order"
-                    className="w-28 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                  />
-                  <button type="button" onClick={() => removeArrayItem('gallery', index)} className={removeBtnClass}>
-                    <X className="h-3.5 w-3.5" /> Remove
-                  </button>
-                </div>
+
+                {galleryItems.map((item, index) => (
+                  <div key={item.id || index} className="grid grid-cols-[110px_minmax(0,1fr)_56px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                    <span className="text-sm font-medium capitalize text-gray-700 dark:text-gray-200">{item.type || 'image'}</span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      {item.type === 'video' ? (
+                        <video src={item.url} controls className="h-12 w-20 rounded-lg object-cover bg-slate-100" />
+                      ) : (
+                        <img src={item.url} alt={item.alt || 'Gallery media'} className="h-12 w-20 rounded-lg object-cover" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">{item.alt || 'Untitled'}</p>
+                        <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{item.url}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <button type="button" onClick={() => removeArrayItem('gallery', index)} className={removeBtnClass}>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => addArrayItem('gallery', { alt: '', url: '', type: '', display_order: (draft.gallery || []).length + 1 })}
-              className={addBtnClass}
-            >
-              <Plus className="h-4 w-4" /> Add gallery item
-            </button>
+            )}
           </div>
         );
+      }
 
       case 'highlights':
         return (
@@ -321,70 +612,79 @@ const TourDetails = () => {
           </div>
         );
 
-      case 'itinerary':
+      case 'itinerary': {
+        const itineraryItems = draft.itinerary || [];
         return (
           <div className="space-y-4">
-            {(draft.itinerary || []).length === 0 && <EmptyState text="No itinerary days yet." />}
-            {(draft.itinerary || []).map((item, index) => (
-              <div key={item.id || index} className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input
-                    type="number"
-                    min={1}
-                    value={item.day || ''}
-                    onChange={(event) => updateArrayItem('itinerary', index, 'day', Number(event.target.value))}
-                    placeholder="Day"
-                    className={inputClass}
-                  />
-                  <input value={item.title || ''} onChange={(event) => updateArrayItem('itinerary', index, 'title', event.target.value)} placeholder="Title" className={inputClass} />
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Itinerary list</p>
+              <button type="button" onClick={() => setItineraryModalOpen(true)} className={addBtnClass}>
+                <Plus className="h-4 w-4" /> Add itinerary day
+              </button>
+            </div>
+
+            {itineraryItems.length === 0 && <EmptyState text="No itinerary days yet." />}
+
+            {itineraryItems.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-[90px_minmax(0,1.1fr)_minmax(0,1.5fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                  <span>Day</span>
+                  <span>Title</span>
+                  <span>Description</span>
+                  <span className="text-right">Action</span>
                 </div>
-                <textarea
-                  value={item.description || ''}
-                  onChange={(event) => updateArrayItem('itinerary', index, 'description', event.target.value)}
-                  rows={3}
-                  placeholder="Description"
-                  className={inputClass}
-                />
-                <div className="flex justify-end">
-                  <button type="button" onClick={() => removeArrayItem('itinerary', index)} className={removeBtnClass}>
-                    <X className="h-3.5 w-3.5" /> Remove day
-                  </button>
-                </div>
+
+                {itineraryItems.map((item, index) => (
+                  <div key={item.id || index} className="grid grid-cols-[90px_minmax(0,1.1fr)_minmax(0,1.5fr)_70px] items-start gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Day {item.day || index + 1}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{item.title || 'Untitled'}</span>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{item.description || 'No description provided.'}</p>
+                    <div className="flex justify-end">
+                      <button type="button" onClick={() => removeArrayItem('itinerary', index)} className={removeBtnClass}>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => addArrayItem('itinerary', { day: (draft.itinerary || []).length + 1, title: '', description: '' })}
-              className={addBtnClass}
-            >
-              <Plus className="h-4 w-4" /> Add itinerary day
-            </button>
+            )}
           </div>
         );
+      }
 
       case 'route':
         return (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Route segments</p>
+              <button type="button" onClick={() => setRouteModalOpen(true)} className={addBtnClass}>
+                <Plus className="h-4 w-4" /> Add route segment
+              </button>
+            </div>
+
             {(draft.route || []).length === 0 && <EmptyState text="No route segments yet." />}
-            {(draft.route || []).map((item, index) => (
-              <div key={item.id || index} className="grid gap-3 rounded-xl border border-gray-200 p-4 dark:border-gray-700 md:grid-cols-[1fr_140px_auto] md:items-center">
-                <input value={item.city || ''} onChange={(event) => updateArrayItem('route', index, 'city', event.target.value)} placeholder="City" className={inputClass} />
-                <input
-                  type="number"
-                  min={0}
-                  value={item.nights || ''}
-                  onChange={(event) => updateArrayItem('route', index, 'nights', Number(event.target.value))}
-                  placeholder="Nights"
-                  className={inputClass}
-                />
-                <button type="button" onClick={() => removeArrayItem('route', index)} className={removeBtnClass}>
-                  <X className="h-3.5 w-3.5" /> Remove
-                </button>
+
+            {(draft.route || []).length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-[minmax(0,1.2fr)_110px_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                  <span>City</span>
+                  <span>Nights</span>
+                  <span className="text-right">Action</span>
+                </div>
+
+                {(draft.route || []).map((item, index) => (
+                  <div key={item.id || index} className="grid grid-cols-[minmax(0,1.2fr)_110px_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{item.city || 'Untitled city'}</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">{item.nights || 0} nights</span>
+                    <div className="flex justify-end">
+                      <button type="button" onClick={() => removeArrayItem('route', index)} className={removeBtnClass}>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-            <button type="button" onClick={() => addArrayItem('route', { city: '', nights: 1 })} className={addBtnClass}>
-              <Plus className="h-4 w-4" /> Add route segment
-            </button>
+            )}
           </div>
         );
 
@@ -456,6 +756,106 @@ const TourDetails = () => {
 
   return (
     <div className="space-y-3 pb-6">
+      <Modal
+        isOpen={mediaModalOpen}
+        onClose={() => setMediaModalOpen(false)}
+        title={mediaModalContext === 'banner' ? 'Add banner media' : 'Add gallery media'}
+        size="lg"
+        confirmText="Add item"
+        onConfirm={submitMediaModal}
+      >
+        <div className="space-y-4 p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <SelectField
+              options={[
+                { value: 'image', label: 'Image' },
+                { value: 'video', label: 'Video' },
+              ]}
+              value={{ value: mediaForm.type, label: mediaForm.type === 'video' ? 'Video' : 'Image' }}
+              onChange={(selected) => setMediaForm((current) => ({ ...current, type: selected?.value || 'image' }))}
+              isSearchable={false}
+              menuPlacement="bottom"
+              classNamePrefix="react-select"
+            />
+            <input
+              value={mediaForm.alt}
+              onChange={(event) => setMediaForm((current) => ({ ...current, alt: event.target.value }))}
+              placeholder={mediaModalContext === 'banner' ? 'Alt text' : 'Media title'}
+              className={inputClass}
+            />
+          </div>
+
+          <DragDropUpload
+            label={mediaModalContext === 'banner' ? 'Banner media file' : 'Gallery media file'}
+            value={mediaForm.url}
+            accept="image/*,video/*"
+            onChange={(url) => setMediaForm((current) => ({ ...current, url }))}
+            helperText="Upload image or video file"
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={itineraryModalOpen}
+        onClose={() => setItineraryModalOpen(false)}
+        title="Add itinerary day"
+        size="lg"
+        confirmText="Add day"
+        onConfirm={submitItineraryModal}
+      >
+        <div className="space-y-4 p-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <input
+              type="number"
+              min={1}
+              value={itineraryForm.day}
+              onChange={(event) => setItineraryForm((current) => ({ ...current, day: Number(event.target.value) || 1 }))}
+              placeholder="Day"
+              className={inputClass}
+            />
+            <input
+              value={itineraryForm.title}
+              onChange={(event) => setItineraryForm((current) => ({ ...current, title: event.target.value }))}
+              placeholder="Title"
+              className={inputClass}
+            />
+          </div>
+          <textarea
+            value={itineraryForm.description}
+            onChange={(event) => setItineraryForm((current) => ({ ...current, description: event.target.value }))}
+            rows={5}
+            placeholder="Description"
+            className={inputClass}
+          />
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={routeModalOpen}
+        onClose={() => setRouteModalOpen(false)}
+        title="Add route segment"
+        size="md"
+        confirmText="Add segment"
+        onConfirm={submitRouteModal}
+      >
+        <div className="space-y-4 p-4">
+          <input
+            value={routeForm.city}
+            onChange={(event) => setRouteForm((current) => ({ ...current, city: event.target.value }))}
+            placeholder="City name"
+            className={inputClass}
+          />
+          <input
+            type="number"
+            min={0}
+            value={routeForm.nights}
+            onChange={(event) => setRouteForm((current) => ({ ...current, nights: Number(event.target.value) || 1 }))}
+            placeholder="Nights"
+            className={inputClass}
+          />
+        </div>
+      </Modal>
+
       <div className="px-2 text-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-1.5">
@@ -499,9 +899,9 @@ const TourDetails = () => {
                 aria-selected={activeSection === key}
                 onClick={() => setActiveSection(key)}
                 className={[
-                  'flex w-full whitespace-nowrap items-center gap-2.5 rounded-xl border-l-[3px] px-3 py-2.5 text-left text-sm font-medium transition',
+                  'flex whitespace-nowrap items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition',
                   activeSection === key
-                    ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                    ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-500'
                     : 'border-transparent text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800',
                 ].join(' ')}
               >
