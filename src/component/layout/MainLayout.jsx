@@ -108,7 +108,6 @@ const MainLayout = ({ children }) => {
               overflow-y-auto overflow-x-hidden
             `}
             style={{
-              padding: isMobile ? '0px' : '1rem',
               transition: 'margin-left 0.3s ease-out',
               maxWidth: isMobile ? '100%' : `calc(100vw - ${desktopSidebarCollapsed ? '64px' : '256px'})`,
             }}

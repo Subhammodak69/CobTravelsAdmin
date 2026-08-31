@@ -21,13 +21,15 @@ export const getReactSelectStyles = (theme = 'light') => {
       ...provided,
       backgroundColor: colors.controlBg,
       borderColor: state.isFocused ? '#6366f1' : colors.controlBorder,
-      borderRadius: '0.5rem',
+      borderRadius: '0.625rem',
       boxShadow: state.isFocused ? '0 0 0 4px rgba(99, 102, 241, 0.12)' : 'none',
       '&:hover': {
         borderColor: state.isFocused ? '#6366f1' : colors.controlBorderHover,
       },
-      minHeight: '42px',
-      fontSize: '0.875rem',
+      minHeight: '2.5em',
+      height: '2.5em',
+      fontSize: '0.875em',
+      lineHeight: 1.2,
       transition: 'border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease',
     };
   },
@@ -66,12 +68,14 @@ export const getReactSelectStyles = (theme = 'light') => {
     return {
       ...provided,
       color: colors.controlText,
-      fontSize: '0.875rem'
+      fontSize: '0.875em'
     };
   },
   input: (provided) => ({
     ...provided,
     color: colors.controlText,
+    fontSize: '0.875em',
+    margin: 0,
   }),
   placeholder: (provided) => ({
     ...provided,
@@ -89,7 +93,12 @@ export const getReactSelectStyles = (theme = 'light') => {
   }),
   valueContainer: (provided) => ({
     ...provided,
-    padding: '2px 10px'
+    height: '100%',
+    padding: '0 0.75em',
+  }),
+  indicatorsContainer: (provided) => ({
+    ...provided,
+    height: '100%',
   }),
   indicatorSeparator: () => ({
     display: 'none'
@@ -98,7 +107,7 @@ export const getReactSelectStyles = (theme = 'light') => {
     return {
       ...provided,
       color: colors.placeholder,
-      padding: '4px 8px',
+      padding: '0 0.5em',
       '&:hover': {
         color: isDark ? '#d1d5db' : '#475569',
       }
@@ -108,7 +117,7 @@ export const getReactSelectStyles = (theme = 'light') => {
     return {
       ...provided,
       color: colors.placeholder,
-      padding: '4px 8px',
+      padding: '0 0.5em',
       '&:hover': {
         color: isDark ? '#f3f4f6' : '#334155',
       }

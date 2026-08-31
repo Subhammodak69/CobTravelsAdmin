@@ -172,7 +172,7 @@ const Profile = () => {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
               Profile
             </p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white md:text-4xl">
+            <h1 className="mt-1 bg-gradient-to-r from-slate-900 via-violet-700 to-indigo-600 bg-clip-text text-2xl font-bold tracking-tight text-transparent dark:from-slate-100 dark:via-violet-300 dark:to-indigo-300 md:text-3xl">
               {user?.name || 'Administrator'}
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2">

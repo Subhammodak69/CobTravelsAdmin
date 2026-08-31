@@ -206,7 +206,7 @@ const TourVariant = () => {
                 <ArrowLeft className="h-4 w-4" /> Back to packages
               </button>
             )}
-            <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">
+            <h1 className="mt-1 bg-gradient-to-r from-slate-900 via-violet-700 to-indigo-600 bg-clip-text text-2xl font-bold tracking-tight text-transparent dark:from-slate-100 dark:via-violet-300 dark:to-indigo-300 md:text-3xl">
               {packageInfo ? `${packageInfo.title} variants` : 'Tour Variants'}
             </h1>
             {packageInfo && (
@@ -214,14 +214,24 @@ const TourVariant = () => {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50"
-          >
-            <Plus className="h-4 w-4" />
-            Add variant
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadVariants}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50"
+            >
+              <Plus className="h-4 w-4" />
+              Add variant
+            </button>
+          </div>
         </div>
       </div>
 
@@ -237,14 +247,7 @@ const TourVariant = () => {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={loadVariants}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="text-sm text-gray-600 dark:text-gray-300">{filteredVariants.length} total records</div>
         </div>
       </div>
 

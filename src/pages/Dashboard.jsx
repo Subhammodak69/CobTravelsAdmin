@@ -161,7 +161,7 @@ const Dashboard = () => {
       <div className="text-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white md:text-4xl">
+            <h1 className="mt-1 bg-gradient-to-r from-slate-900 via-violet-700 to-indigo-600 bg-clip-text text-2xl font-bold tracking-tight text-transparent dark:from-slate-100 dark:via-violet-300 dark:to-indigo-300 md:text-3xl">
               Travel Operations Overview
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

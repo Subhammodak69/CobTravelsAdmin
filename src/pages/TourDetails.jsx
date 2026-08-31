@@ -469,8 +469,7 @@ const TourDetails = () => {
             </button>
 
             <div>
-              <p className="">Content</p>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900 dark:text-white md:text-4xl">{headerTitle}</h1>
+              <h1 className="mt-1 bg-gradient-to-r from-slate-900 via-violet-700 to-indigo-600 bg-clip-text text-2xl font-bold tracking-tight text-transparent dark:from-slate-100 dark:via-violet-300 dark:to-indigo-300 md:text-3xl">{headerTitle}</h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{headerSubtitle}</p>
             </div>
           </div>
@@ -486,7 +485,7 @@ const TourDetails = () => {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 mx-4">
         <div className="mt-5">
           <div
             role="tablist"

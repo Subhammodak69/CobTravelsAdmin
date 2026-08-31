@@ -200,7 +200,7 @@ const Pagination = ({
                                 const val = e.target.value.replace(/[^0-9]/g, '');
                                 setJumpPage(val);
                             }}
-                            className="h-8 w-12 rounded-2xl border border-border bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600/50  text-center text-sm font-semibold text-primary-foreground outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
+                            className="h-10 w-14 rounded-2xl border border-border bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600/50 text-center text-sm font-semibold text-primary-foreground outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
                             aria-label="Go to page"
                         />
                         <span className="text-xs text-secondary-foreground sm:text-sm">

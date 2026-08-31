@@ -176,18 +176,28 @@ const StaffManagement = () => {
       <div className="px-2 text-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight md:text-4xl">Staff Management</h1>
+            <h1 className="mt-1 bg-gradient-to-r from-slate-900 via-violet-700 to-indigo-600 bg-clip-text text-2xl font-bold tracking-tight text-transparent md:text-3xl dark:from-slate-100 dark:via-violet-300 dark:to-indigo-300">Staff Management</h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">View, invite, and manage your admin and operations team members.</p>
           </div>
 
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50"
-          >
-            <Plus className="h-4 w-4" />
-            Add staff
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadStaff}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50"
+            >
+              <Plus className="h-4 w-4" />
+              Add staff
+            </button>
+          </div>
         </div>
       </div>
 
@@ -203,14 +213,7 @@ const StaffManagement = () => {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={loadStaff}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="text-sm text-gray-600 dark:text-gray-300">{filteredStaff.length} total records</div>
         </div>
       </div>
 
