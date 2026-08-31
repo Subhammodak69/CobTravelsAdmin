@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CloudUpload, Loader2, X } from 'lucide-react';
 import { uploadFile } from '../../utils/apiCall';
+import MediaPreviewModal from './MediaPreviewModal';
 
 const isVideoUrl = (url = '') => {
   if (!url) return false;
@@ -101,6 +102,16 @@ const DragDropUpload = ({
       <button
         type="button"
         onClick={openPicker}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(event) => {
+          event.preventDefault();
+          setIsDragging(false);
+          handleFiles(event.dataTransfer.files);
+        }}
         disabled={disabled || loading}
         className={[
           'inline-flex max-w-[22rem] items-center justify-between gap-2 rounded-xl border border-dashed px-3 py-2 text-left transition-all duration-200',
@@ -119,11 +130,13 @@ const DragDropUpload = ({
 
       {preview && (
         <div className="w-fit max-w-[12rem] rounded-xl border border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-900/40">
-          {isVideoUrl(preview) ? (
-            <video src={preview} controls className="h-20 w-32 rounded-md object-cover bg-slate-100" />
-          ) : (
-            <img src={preview} alt="Preview" className="h-20 w-32 rounded-md object-cover" />
-          )}
+          <MediaPreviewModal
+            src={preview}
+            alt="Preview"
+            type={isVideoUrl(preview) ? 'video' : 'image'}
+            thumbnailClassName="h-20 w-32 rounded-md object-cover"
+            className="block"
+          />
         </div>
       )}
 

@@ -13,8 +13,11 @@ import {
   Trash2,
   Plus,
   X,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import DragDropUpload from '../component/common/DragDropUpload';
+import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import Modal from '../component/common/Modal';
 import SelectField from '../component/common/SelectField';
 import { apiCall, handleApiError } from '../utils/apiCall';
@@ -225,6 +228,7 @@ const TourDetails = () => {
   const [extrasModalOpen, setExtrasModalOpen] = useState(false);
   const [extrasModalType, setExtrasModalType] = useState('inclusion');
   const [extrasForm, setExtrasForm] = useState({ value: '', date: '' });
+  const [extrasCollapsed, setExtrasCollapsed] = useState({ inclusion: true, exclusion: true });
 
   useEffect(() => {
     if (variantId) {
@@ -550,11 +554,13 @@ const TourDetails = () => {
                   <div key={item.id || index} className="grid grid-cols-[110px_minmax(0,1fr)_56px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
                     <span className="text-sm font-medium capitalize text-gray-700 dark:text-gray-200">{item.type || 'image'}</span>
                     <div className="flex min-w-0 items-center gap-3">
-                      {item.type === 'video' ? (
-                        <video src={item.url} controls className="h-12 w-20 rounded-lg object-cover bg-slate-100" />
-                      ) : (
-                        <img src={item.url} alt={item.alt || 'Banner media'} className="h-12 w-20 rounded-lg object-cover" />
-                      )}
+                      <MediaPreviewModal
+                        src={item.url}
+                        alt={item.alt || 'Banner media'}
+                        type={item.type || 'image'}
+                        thumbnailClassName="h-12 w-20 rounded-lg object-cover"
+                        className="block shrink-0"
+                      />
                       <span className="truncate text-xs text-gray-500 dark:text-gray-400">{item.url}</span>
                     </div>
                     <div className="flex justify-end">
@@ -605,11 +611,13 @@ const TourDetails = () => {
                   <div key={item.id || index} className="grid grid-cols-[110px_minmax(0,1fr)_56px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
                     <span className="text-sm font-medium capitalize text-gray-700 dark:text-gray-200">{item.type || 'image'}</span>
                     <div className="flex min-w-0 items-center gap-3">
-                      {item.type === 'video' ? (
-                        <video src={item.url} controls className="h-12 w-20 rounded-lg object-cover bg-slate-100" />
-                      ) : (
-                        <img src={item.url} alt={item.alt || 'Gallery media'} className="h-12 w-20 rounded-lg object-cover" />
-                      )}
+                      <MediaPreviewModal
+                        src={item.url}
+                        alt={item.alt || 'Gallery media'}
+                        type={item.type || 'image'}
+                        thumbnailClassName="h-12 w-20 rounded-lg object-cover"
+                        className="block shrink-0"
+                      />
                       <div className="min-w-0">
                         <p className="truncate text-xs font-medium text-gray-700 dark:text-gray-200">{item.alt || 'Untitled'}</p>
                         <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{item.url}</p>
@@ -731,64 +739,98 @@ const TourDetails = () => {
         return (
           <div className="space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Inclusions</p>
-                <button type="button" onClick={() => openExtrasModal('inclusion')} className={addBtnClass}>
-                  <Plus className="h-4 w-4" /> Add inclusion
-                </button>
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/60">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExtrasCollapsed((current) => ({ ...current, inclusion: !current.inclusion }))}
+                    className="inline-flex items-center justify-center rounded-lg p-1 text-gray-500 transition hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
+                    aria-label={extrasCollapsed.inclusion ? 'Expand inclusions' : 'Collapse inclusions'}
+                  >
+                    {extrasCollapsed.inclusion ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Inclusions</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => openExtrasModal('inclusion')} className={addBtnClass}>
+                    <Plus className="h-4 w-4" /> Add inclusion
+                  </button>
+                </div>
               </div>
 
-              {(draft.inclusions || []).length === 0 && <EmptyState text="No inclusions yet." />}
+              {!extrasCollapsed.inclusion && (
+                <>
+                  {(draft.inclusions || []).length === 0 && <EmptyState text="No inclusions yet." />}
 
-              {(draft.inclusions || []).length > 0 && (
-                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                    <span>Item</span>
-                    <span className="text-right">Action</span>
-                  </div>
-
-                  {(draft.inclusions || []).map((item, index) => (
-                    <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
-                      <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
-                      <div className="flex justify-end">
-                        <button type="button" onClick={() => setDraft((current) => ({ ...current, inclusions: (current.inclusions || []).filter((_, idx) => idx !== index) }))} className={removeBtnClass}>
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                  {(draft.inclusions || []).length > 0 && (
+                    <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                      <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                        <span>Item</span>
+                        <span className="text-right">Action</span>
                       </div>
+
+                      {(draft.inclusions || []).map((item, index) => (
+                        <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                          <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
+                          <div className="flex justify-end">
+                            <button type="button" onClick={() => setDraft((current) => ({ ...current, inclusions: (current.inclusions || []).filter((_, idx) => idx !== index) }))} className={removeBtnClass}>
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Exclusions</p>
-                <button type="button" onClick={() => openExtrasModal('exclusion')} className={addBtnClass}>
-                  <Plus className="h-4 w-4" /> Add exclusion
-                </button>
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/60">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExtrasCollapsed((current) => ({ ...current, exclusion: !current.exclusion }))}
+                    className="inline-flex items-center justify-center rounded-lg p-1 text-gray-500 transition hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100"
+                    aria-label={extrasCollapsed.exclusion ? 'Expand exclusions' : 'Collapse exclusions'}
+                  >
+                    {extrasCollapsed.exclusion ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Exclusions</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => openExtrasModal('exclusion')} className={addBtnClass}>
+                    <Plus className="h-4 w-4" /> Add exclusion
+                  </button>
+                </div>
               </div>
 
-              {(draft.exclusions || []).length === 0 && <EmptyState text="No exclusions yet." />}
+              {!extrasCollapsed.exclusion && (
+                <>
+                  {(draft.exclusions || []).length === 0 && <EmptyState text="No exclusions yet." />}
 
-              {(draft.exclusions || []).length > 0 && (
-                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                    <span>Item</span>
-                    <span className="text-right">Action</span>
-                  </div>
-
-                  {(draft.exclusions || []).map((item, index) => (
-                    <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
-                      <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
-                      <div className="flex justify-end">
-                        <button type="button" onClick={() => setDraft((current) => ({ ...current, exclusions: (current.exclusions || []).filter((_, idx) => idx !== index) }))} className={removeBtnClass}>
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                  {(draft.exclusions || []).length > 0 && (
+                    <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                      <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                        <span>Item</span>
+                        <span className="text-right">Action</span>
                       </div>
+
+                      {(draft.exclusions || []).map((item, index) => (
+                        <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                          <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
+                          <div className="flex justify-end">
+                            <button type="button" onClick={() => setDraft((current) => ({ ...current, exclusions: (current.exclusions || []).filter((_, idx) => idx !== index) }))} className={removeBtnClass}>
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
 

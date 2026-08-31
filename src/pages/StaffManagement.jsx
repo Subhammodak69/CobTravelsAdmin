@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { Plus, UserCog, Pencil, Trash2, Mail, Phone, ShieldCheck, Search, RefreshCw } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import DragDropUpload from '../component/common/DragDropUpload';
+import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import { apiCall, handleApiError } from '../utils/apiCall';
@@ -242,7 +243,13 @@ const StaffManagement = () => {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         {staff.profile_pic ? (
-                          <img src={staff.profile_pic} alt={staff.name} className="h-10 w-10 rounded-full object-cover ring-2 ring-indigo-100 dark:ring-indigo-950" />
+                          <MediaPreviewModal
+                            src={staff.profile_pic}
+                            alt={staff.name}
+                            type="image"
+                            thumbnailClassName="h-10 w-10 rounded-full object-cover ring-2 ring-indigo-100 dark:ring-indigo-950"
+                            className="block"
+                          />
                         ) : (
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 text-sm font-bold text-white">
                             {staff.name?.[0]?.toUpperCase() || 'S'}
