@@ -100,18 +100,19 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const response = await apiCall('/api/v1/sessions/refresh', 'POST', payload);
-      const data = await response.json().catch(() => ({}));
+      const resPayload = await response.json().catch(() => ({}));
+      const data = resPayload?.data && typeof resPayload.data === 'object' ? resPayload.data : resPayload;
 
       if (response.ok && (data?.access_token || data?.token)) {
         const renewedAccessToken = data.access_token || data.token;
-        const renewedRefreshToken = data.refresh_token || refreshToken;
-        const expiresInSec = Number(data?.expires_in_sec ?? data?.expires_in ?? 900) || 900;
+        const renewedRefreshToken = data.refresh_token || resPayload?.refresh_token || refreshToken;
+        const expiresInSec = Number(data?.expires_in_sec ?? data?.expires_in ?? resPayload?.expires_in_sec ?? resPayload?.expires_in ?? 900) || 900;
         const nextSession = {
           ...(parsed || {}),
           access_token: renewedAccessToken,
           refresh_token: renewedRefreshToken,
           token: renewedAccessToken,
-          token_type: data?.token_type || parsed?.token_type || 'bearer',
+          token_type: data?.token_type || resPayload?.token_type || parsed?.token_type || 'bearer',
           expires_in_sec: expiresInSec,
           expires_at: new Date(Date.now() + expiresInSec * 1000).toISOString(),
           profile: parsed?.profile || parsed?.user || null
@@ -124,10 +125,10 @@ export const AuthProvider = ({ children }) => {
         }
 
         setTokenInfo(nextSession);
-        return { ok: true, data };
+        return { ok: true, data: resPayload };
       }
 
-      return { ok: false, status: response.status, data };
+      return { ok: false, status: response.status, data: resPayload };
     } catch (error) {
       console.error('Refresh token request failed:', error);
       return { ok: false, error };

@@ -81,14 +81,16 @@ const refreshAccessTokenSilently = async () => {
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
-    const data = await response.json().catch(() => ({}));
+    const payload = await response.json().catch(() => ({}));
+    const data = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
+
     if (!response.ok || !(data?.access_token || data?.token)) {
-      throw new Error(data?.message || data?.detail || 'Refresh token failed');
+      throw new Error(payload?.message || payload?.detail || data?.message || data?.detail || 'Refresh token failed');
     }
 
     const nextAccessToken = data.access_token || data.token;
-    const nextRefreshToken = data.refresh_token || refreshToken;
-    const expiresInSec = Number(data?.expires_in_sec ?? data?.expires_in ?? 900) || 900;
+    const nextRefreshToken = data.refresh_token || payload?.refresh_token || refreshToken;
+    const expiresInSec = Number(data?.expires_in_sec ?? data?.expires_in ?? payload?.expires_in_sec ?? payload?.expires_in ?? 900) || 900;
 
     persistSessionAfterRefresh(nextAccessToken, nextRefreshToken, expiresInSec);
     return nextAccessToken;
@@ -108,6 +110,8 @@ const PUBLIC_AUTH_ENDPOINTS = [
   '/api/v1/admin/auth/otp/request',
   '/api/v1/admin/auth/otp/verify',
   '/api/v1/admin/auth/google',
+  '/api/v1/sessions/refresh',
+  '/sessions/refresh',
 ];
 
 /**
