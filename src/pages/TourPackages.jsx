@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Package2, Pencil, Trash2, Search, RefreshCw, ChevronRight } from 'lucide-react';
+import { Plus, Package2, Pencil, Trash2, Search, RefreshCw, ChevronRight, Eye, Layers } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
+import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
 import { getPackageVariantsPath } from '../utils/tourNavigation';
 
@@ -272,31 +273,29 @@ const TourPackages = () => {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openEditModal(tour);
-                          }}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-violet-50 hover:text-violet-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-violet-900/20"
-                          title="Edit package"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDelete(tour);
-                          }}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
-                          title="Delete package"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600" />
+                    <td className="px-4 py-4" onClick={(event) => event.stopPropagation()}>
+                      <div className="flex items-center justify-end">
+                        <ActionMenu
+                          menuId={tour.id}
+                          actions={[
+                            {
+                              label: 'Manage Variants',
+                              icon: <Layers className="h-4 w-4 text-violet-500" />,
+                              onClick: () => navigate(getPackageVariantsPath(tour.id)),
+                            },
+                            {
+                              label: 'Edit Package',
+                              icon: <Pencil className="h-4 w-4 text-blue-500" />,
+                              onClick: () => openEditModal(tour),
+                            },
+                            {
+                              label: 'Delete Package',
+                              icon: <Trash2 className="h-4 w-4 text-red-500" />,
+                              className: 'text-red-600 hover:text-red-700 dark:text-red-400',
+                              onClick: () => handleDelete(tour),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { FileText, Plus, Trash2, RefreshCw, FileX } from 'lucide-react';
+import { FileText, Plus, Trash2, RefreshCw, FileX, Eye } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import MediaViewerModal from '../component/common/MediaViewerModal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
+import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
 const documentTypes = ['ID_PROOF', 'ADDRESS_PROOF', 'PASSPORT', 'PAN_CARD', 'BANK_ACCOUNT'];
@@ -267,16 +268,25 @@ const DocumentManagement = () => {
                     <td className="px-4 py-4 text-xs text-gray-500 dark:text-gray-400">{formatDate(doc.uploaded_at)}</td>
                     <td className="px-4 py-4 text-xs text-gray-500 dark:text-gray-400">{doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : 'N/A'}</td>
 
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(doc)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
-                          title="Delete document"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end">
+                        <ActionMenu
+                          menuId={doc.id}
+                          actions={[
+                            {
+                              label: 'Preview Document',
+                              icon: <Eye className="h-4 w-4 text-emerald-500" />,
+                              onClick: () => doc.file_url && setPreviewDoc(doc),
+                              disabled: !doc.file_url,
+                            },
+                            {
+                              label: 'Delete Document',
+                              icon: <Trash2 className="h-4 w-4 text-red-500" />,
+                              className: 'text-red-600 hover:text-red-700 dark:text-red-400',
+                              onClick: () => handleDelete(doc),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Route, Pencil, Trash2, Search, RefreshCw, CalendarDays, ArrowLeft } from 'lucide-react';
+import { Plus, Route, Pencil, Trash2, Search, RefreshCw, CalendarDays, ArrowLeft, Eye } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
+import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
 import { getVariantDetailsPath } from '../utils/tourNavigation';
 
@@ -301,30 +302,29 @@ const TourVariant = () => {
                         {variant.availability || 'AVAILABLE'}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            openEditModal(variant);
-                          }}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-cyan-50 hover:text-cyan-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-cyan-900/20"
-                          title="Edit variant"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            handleDelete(variant);
-                          }}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
-                          title="Delete variant"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                    <td className="px-4 py-4" onClick={(event) => event.stopPropagation()}>
+                      <div className="flex items-center justify-end">
+                        <ActionMenu
+                          menuId={variant.id}
+                          actions={[
+                            {
+                              label: 'View Details',
+                              icon: <Eye className="h-4 w-4 text-cyan-500" />,
+                              onClick: () => navigate(getVariantDetailsPath(variant.id)),
+                            },
+                            {
+                              label: 'Edit Variant',
+                              icon: <Pencil className="h-4 w-4 text-blue-500" />,
+                              onClick: () => openEditModal(variant),
+                            },
+                            {
+                              label: 'Delete Variant',
+                              icon: <Trash2 className="h-4 w-4 text-red-500" />,
+                              className: 'text-red-600 hover:text-red-700 dark:text-red-400',
+                              onClick: () => handleDelete(variant),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

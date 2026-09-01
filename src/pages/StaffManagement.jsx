@@ -6,6 +6,7 @@ import DragDropUpload from '../component/common/DragDropUpload';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
+import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
 const roleOptions = ['ADMIN', 'MANAGER', 'SUPERVISOR', 'STAFF'];
@@ -290,24 +291,24 @@ const StaffManagement = () => {
                       {formatDate(staff.last_login)}
                     </td>
 
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(staff)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-blue-900/20"
-                          title="Edit staff"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(staff)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
-                          title="Delete staff"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end">
+                        <ActionMenu
+                          menuId={staff.id}
+                          actions={[
+                            {
+                              label: 'Edit Staff',
+                              icon: <Pencil className="h-4 w-4 text-blue-500" />,
+                              onClick: () => openEditModal(staff),
+                            },
+                            {
+                              label: 'Delete Staff',
+                              icon: <Trash2 className="h-4 w-4 text-red-500" />,
+                              className: 'text-red-600 hover:text-red-700 dark:text-red-400',
+                              onClick: () => handleDelete(staff),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

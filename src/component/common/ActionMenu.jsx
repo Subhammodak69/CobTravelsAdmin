@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { FaEllipsisV } from 'react-icons/fa';
+import { MoreVertical } from 'lucide-react';
 
 const MENU_WIDTH = 192;
 const EDGE_PADDING = 8;
@@ -138,7 +138,7 @@ const ActionMenu = ({ actions = [], activeId, onToggle, menuId, trigger, anchorC
                        bg-white text-slate-500 dark:bg-gray-900 dark:text-gray-400 transition-all hover:border-indigo-300 dark:hover:border-indigo-600
                        hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/50 dark:hover:text-indigo-300 hover:shadow-sm active:scale-95"
           >
-            <FaEllipsisV size={14} />
+            <MoreVertical className="h-4 w-4" />
           </button>
         )}
       </div>

@@ -14,10 +14,12 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCheck,
+  Eye,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import SelectField from '../component/common/SelectField';
+import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -407,24 +409,29 @@ const CustomerManagement = () => {
                     </td>
 
                     {/* Actions */}
-                    <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(customer)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-blue-900/20"
-                          title="Edit customer"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(customer)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300"
-                          title="Delete customer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end">
+                        <ActionMenu
+                          menuId={customer.id}
+                          actions={[
+                            {
+                              label: 'View Details',
+                              icon: <Eye className="h-4 w-4 text-indigo-500" />,
+                              onClick: () => navigate(`/customers/${customer.id}`, { state: { customer } }),
+                            },
+                            {
+                              label: 'Edit Customer',
+                              icon: <Pencil className="h-4 w-4 text-blue-500" />,
+                              onClick: () => openEditModal(customer),
+                            },
+                            {
+                              label: 'Delete Customer',
+                              icon: <Trash2 className="h-4 w-4 text-red-500" />,
+                              className: 'text-red-600 hover:text-red-700 dark:text-red-400',
+                              onClick: () => handleDelete(customer),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>
