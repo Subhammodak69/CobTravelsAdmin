@@ -161,36 +161,36 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4 relative overflow-hidden selection:bg-indigo-200 selection:text-indigo-900">
       {/* Dynamic Background Glows */}
-      <div className="absolute top-[-15%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-600/20 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-15%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-600/20 blur-[140px] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-cyan-600/10 blur-[160px] pointer-events-none" />
+      <div className="absolute top-[-15%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-300/30 blur-[130px] pointer-events-none" />
+      <div className="absolute bottom-[-15%] right-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-300/30 blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-cyan-200/20 blur-[160px] pointer-events-none" />
 
       {/* Main Container Card */}
       <div className="w-full max-w-md z-10">
-        <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800/80 rounded-2xl shadow-2xl p-8 transition-all duration-300 hover:border-slate-700/80">
+        <div className="bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl shadow-xl shadow-slate-300/40 p-8 transition-all duration-300 hover:border-slate-300">
           
           {/* Brand Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-indigo-500/25 mb-4 group transition-transform duration-300 hover:scale-105">
               <Compass className="w-7 h-7 text-white animate-[spin_10s_linear_infinite]" />
             </div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 flex items-center justify-center gap-2">
               Coochbehar Travels
-              <span className="text-xs uppercase px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 font-semibold tracking-wider">
+              <span className="text-xs uppercase px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-600 font-semibold tracking-wider">
                 Admin
               </span>
             </h1>
-            <p className="text-sm text-slate-400 mt-1.5">
+            <p className="text-sm text-slate-500 mt-1.5">
               Secure administrative access & management portal
             </p>
           </div>
 
           {/* Error Message Alert */}
           {errorMsg && (
-            <div className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-3 text-rose-400 text-sm">
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-400" />
+            <div className="mb-6 p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-rose-600 text-sm">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-500" />
               <div className="leading-snug">{errorMsg}</div>
             </div>
           )}
@@ -199,11 +199,11 @@ const Login = () => {
           {step === 'REQUEST_OTP' ? (
             <form onSubmit={handleRequestOtp} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
                   Admin Identifier
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <Mail className="w-4 h-4" />
                   </div>
                   <input
@@ -213,10 +213,10 @@ const Login = () => {
                     onChange={(e) => setIdentifier(e.target.value)}
                     placeholder="Enter email or mobile number"
                     disabled={loading || googleLoading}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1.5">
+                <p className="text-[11px] text-slate-400 mt-1.5">
                   We will send a one-time verification passcode to this address.
                 </p>
               </div>
@@ -224,7 +224,7 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading || googleLoading}
-                className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed group"
+                className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed group"
               >
                 {loading ? (
                   <>
@@ -241,9 +241,9 @@ const Login = () => {
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="bg-slate-950/40 border border-slate-800 p-3 rounded-xl flex items-center justify-between text-xs text-slate-300">
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center justify-between text-xs text-slate-600">
                 <div className="flex items-center gap-2 truncate pr-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span className="truncate">{identifier}</span>
                 </div>
                 <button
@@ -254,18 +254,18 @@ const Login = () => {
                     setErrorMsg('');
                   }}
                   disabled={googleLoading}
-                  className="text-blue-400 hover:text-blue-300 font-medium underline shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="text-blue-600 hover:text-blue-500 font-medium underline shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Change
                 </button>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
                   6-Digit OTP Passcode
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <KeyRound className="w-4 h-4" />
                   </div>
                   <input
@@ -277,21 +277,21 @@ const Login = () => {
                     placeholder="Enter received OTP"
                     disabled={loading || googleLoading}
                     autoFocus
-                    className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-base font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 text-base font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                   />
                 </div>
               </div>
 
               <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-slate-400">Didn't receive code?</span>
+                <span className="text-slate-500">Didn't receive code?</span>
                 {resendTimer > 0 ? (
-                  <span className="text-slate-500 font-mono">Resend in {resendTimer}s</span>
+                  <span className="text-slate-400 font-mono">Resend in {resendTimer}s</span>
                 ) : (
                   <button
                     type="button"
                     onClick={handleRequestOtp}
                     disabled={loading || googleLoading}
-                    className="text-blue-400 hover:text-blue-300 font-semibold transition-colors disabled:opacity-50"
+                    className="text-blue-600 hover:text-blue-500 font-semibold transition-colors disabled:opacity-50"
                   >
                     Resend OTP
                   </button>
@@ -301,7 +301,7 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={loading || googleLoading}
-                className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:from-emerald-700 active:to-teal-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed group"
+                className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:from-emerald-700 active:to-teal-700 text-white font-semibold rounded-xl text-sm shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed group"
               >
                 {loading ? (
                   <>
@@ -321,10 +321,10 @@ const Login = () => {
           {/* Social Sign-in Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-800"></div>
+              <div className="w-full border-t border-slate-200"></div>
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-slate-900 px-3 text-slate-500 font-medium">Or continue with</span>
+              <span className="bg-white px-3 text-slate-400 font-medium">Or continue with</span>
             </div>
           </div>
 
@@ -333,7 +333,7 @@ const Login = () => {
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={handleGoogleError}
-              theme="filled_black"
+              theme="outline"
               shape="pill"
               text="continue_with"
               width="100%"
@@ -342,14 +342,14 @@ const Login = () => {
           </div>
 
           {googleLoading && (
-            <div className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-300">
-              <RotateCw className="h-4 w-4 animate-spin text-blue-400" />
+            <div className="mt-3 flex items-center justify-center gap-2 text-sm text-slate-600">
+              <RotateCw className="h-4 w-4 animate-spin text-blue-500" />
               <span>Waiting...</span>
             </div>
           )}
 
           {/* Security Notice */}
-          <div className="mt-8 pt-6 border-t border-slate-800/60 flex items-center justify-center gap-2 text-xs text-slate-500 text-center">
+          <div className="mt-8 pt-6 border-t border-slate-200 flex items-center justify-center gap-2 text-xs text-slate-400 text-center">
             <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
             <span>Authorized Coochbehar Travels personnel only</span>
           </div>
@@ -357,7 +357,7 @@ const Login = () => {
         </div>
 
         {/* Footer info */}
-        <p className="text-center text-xs text-slate-500 mt-6">
+        <p className="text-center text-xs text-slate-400 mt-6">
           Protected by end-to-end token verification &bull; Coochbehar Travels &copy; {new Date().getFullYear()}
         </p>
       </div>
