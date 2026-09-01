@@ -11,8 +11,6 @@ import {
   Mail,
   Phone,
   Shield,
-  ChevronLeft,
-  ChevronRight,
   UserCheck,
   Eye,
 } from 'lucide-react';
@@ -20,6 +18,7 @@ import Modal from '../component/common/Modal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
+import Pagination from '../component/common/PaginationComponent';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -40,8 +39,6 @@ const defaultForm = {
   is_imported: false,
   is_active: true,
 };
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -306,21 +303,6 @@ const CustomerManagement = () => {
                 </button>
               ))}
             </div>
-
-            {/* Page size */}
-            <select
-              value={pageSize}
-              onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-              className="rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-medium text-gray-700 outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-            >
-              {PAGE_SIZE_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s} / page</option>
-              ))}
-            </select>
-
-            <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-              {totalItems} total
-            </span>
           </div>
         </div>
       </div>
@@ -443,51 +425,18 @@ const CustomerManagement = () => {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-2 pt-1">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Page {currentPage} of {totalPages} · {totalItems} customers
-          </p>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
-              let page = i + 1;
-              if (totalPages > 7) {
-                const start = Math.max(1, currentPage - 3);
-                page = start + i;
-                if (page > totalPages) return null;
-              }
-              return (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => setCurrentPage(page)}
-                  className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition ${currentPage === page
-                      ? 'bg-indigo-600 text-white shadow'
-                      : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                    }`}
-                >
-                  {page}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          itemsPerPage={pageSize}
+          availableLimits={[10, 25, 50, 100]}
+          onPageChange={(page) => setCurrentPage(page)}
+          onLimitChange={(limit) => {
+            setPageSize(limit);
+            setCurrentPage(1);
+          }}
+        />
       )}
 
       {/* Create / Edit modal */}
