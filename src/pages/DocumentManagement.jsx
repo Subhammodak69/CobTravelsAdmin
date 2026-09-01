@@ -33,8 +33,53 @@ const getFileType = (url = '', fileName = '') => {
   if (lower.includes('.pdf')) return 'pdf';
   if (lower.match(/\.(mp4|mov|webm|ogg)/) || lower.includes('video/upload') || lower.includes('video')) return 'video';
   if (lower.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|tiff|avif)/)) return 'image';
-  // fallback: try image
   return 'image';
+};
+
+const DocumentPreviewContent = ({ doc }) => {
+  if (!doc) return null;
+  const fileType = getFileType(doc.file_url || '', doc.file_name || '');
+  return (
+    <div
+      style={{ background: '#000' }}
+      className="flex min-h-full w-full flex-col"
+    >
+      {/* dark title strip */}
+      <div
+        style={{ background: 'rgba(0,0,0,0.7)' }}
+        className="flex shrink-0 items-center justify-center px-12 py-2"
+      >
+        <span className="max-w-md truncate text-center text-xs font-medium text-slate-400">
+          {doc.title || doc.file_name || 'Document preview'}
+        </span>
+      </div>
+
+      {/* media area */}
+      <div className="flex flex-1 items-center justify-center p-3">
+        {fileType === 'pdf' ? (
+          <iframe
+            src={doc.file_url}
+            title={doc.title || 'PDF preview'}
+            style={{ border: 'none', background: '#fff' }}
+            className="h-[80vh] w-full max-w-5xl rounded-xl"
+          />
+        ) : fileType === 'video' ? (
+          <video
+            src={doc.file_url}
+            controls
+            autoPlay
+            className="max-h-[80vh] max-w-full rounded-xl object-contain shadow-xl"
+          />
+        ) : (
+          <img
+            src={doc.file_url}
+            alt={doc.title || doc.file_name || 'Document'}
+            className="max-h-[80vh] w-auto max-w-full rounded-xl object-contain shadow-xl"
+          />
+        )}
+      </div>
+    </div>
+  );
 };
 
 const DocumentManagement = () => {
@@ -257,36 +302,7 @@ const DocumentManagement = () => {
 
       {/* Document file preview modal — image / video / PDF */}
       <MediaViewerModal isOpen={!!previewDoc} onClose={() => setPreviewDoc(null)}>
-        {previewDoc && (() => {
-          const fileType = getFileType(previewDoc.file_url || '', previewDoc.file_name || '');
-          return (
-            <div className="flex max-h-[96vh] w-full flex-col items-center justify-center bg-slate-950 p-2 sm:p-4">
-              <p className="mb-3 max-w-xl truncate text-center text-sm font-medium text-slate-300">
-                {previewDoc.title || previewDoc.file_name || 'Document preview'}
-              </p>
-              {fileType === 'pdf' ? (
-                <iframe
-                  src={previewDoc.file_url}
-                  title={previewDoc.title || 'PDF preview'}
-                  className="h-[80vh] w-full max-w-4xl rounded-xl border-0"
-                />
-              ) : fileType === 'video' ? (
-                <video
-                  src={previewDoc.file_url}
-                  controls
-                  autoPlay
-                  className="max-h-[82vh] max-w-full rounded-xl object-contain"
-                />
-              ) : (
-                <img
-                  src={previewDoc.file_url}
-                  alt={previewDoc.title || previewDoc.file_name || 'Document'}
-                  className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-                />
-              )}
-            </div>
-          );
-        })()}
+        <DocumentPreviewContent doc={previewDoc} />
       </MediaViewerModal>
 
       <Modal

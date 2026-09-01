@@ -46,7 +46,7 @@ const Modal = ({ isOpen, onClose, title, icon: Icon, children, onConfirm, confir
         >
           <ModalScrollLock />
           <motion.div
-            className="fixed inset-0 bg-black bg-opacity-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
             variants={backdropVariants}
             onClick={onClose}
           />

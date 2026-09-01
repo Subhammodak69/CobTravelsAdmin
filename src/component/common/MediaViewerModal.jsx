@@ -39,14 +39,15 @@ const MediaViewerModal = ({ isOpen, onClose, children, className = '' }) => {
         >
           <ModalScrollLock />
           <motion.div
-            className="absolute inset-0 bg-black/80"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md"
             variants={backdropVariants}
             onClick={onClose}
           />
 
           <motion.div
             variants={viewerVariants}
-            className={`relative z-10 flex max-h-[96vh] w-full max-w-[96vw] items-center justify-center overflow-hidden rounded-2xl bg-slate-950 shadow-2xl ring-1 ring-white/10 ${className}`}
+            className={`relative z-10 flex flex-col max-h-[96vh] w-full max-w-[96vw] overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10 ${className}`}
+            style={{ background: '#000' }}
             role="dialog"
             aria-modal="true"
           >
@@ -59,7 +60,7 @@ const MediaViewerModal = ({ isOpen, onClose, children, className = '' }) => {
               <X className="h-5 w-5" />
             </button>
 
-            <div className="flex max-h-[96vh] w-full items-center justify-center overflow-hidden bg-slate-950">
+            <div className="flex min-h-0 w-full flex-1 items-start justify-center overflow-y-auto" style={{ background: '#000' }}>
               {children}
             </div>
           </motion.div>

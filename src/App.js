@@ -6,6 +6,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import StaffManagement from './pages/StaffManagement';
+import CustomerManagement from './pages/CustomerManagement';
+import CustomerDetails from './pages/CustomerDetails';
 import DocumentManagement from './pages/DocumentManagement';
 import TourPackages from './pages/TourPackages';
 import TourVariant from './pages/TourVariant';
@@ -36,6 +38,8 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/staff-management" element={<StaffManagement />} />
+          <Route path="/customers" element={<CustomerManagement />} />
+          <Route path="/customers/:customerId" element={<CustomerDetails />} />
           <Route path="/document-management" element={<DocumentManagement />} />
           <Route path="/tour-packages" element={<TourPackages />} />
           <Route path="/tour-variants" element={<TourVariant />} />

@@ -5,6 +5,7 @@ import {
   FileText,
   ShieldCheck,
   Route,
+  Users,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -29,6 +30,11 @@ const Sidebar = ({
       icon: ShieldCheck,
       label: "Staff Management",
       path: "/staff-management",
+    },
+    {
+      icon: Users,
+      label: "Customers",
+      path: "/customers",
     },
     {
       icon: FileText,
