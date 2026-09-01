@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { FileText, Plus, Eye, Trash2, RefreshCw } from 'lucide-react';
+import { FileText, Plus, Trash2, RefreshCw, FileX } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import MediaViewerModal from '../component/common/MediaViewerModal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
@@ -27,6 +28,15 @@ const formatDate = (value) => {
   }
 };
 
+const getFileType = (url = '', fileName = '') => {
+  const lower = (url + fileName).toLowerCase();
+  if (lower.includes('.pdf')) return 'pdf';
+  if (lower.match(/\.(mp4|mov|webm|ogg)/) || lower.includes('video/upload') || lower.includes('video')) return 'video';
+  if (lower.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|tiff|avif)/)) return 'image';
+  // fallback: try image
+  return 'image';
+};
+
 const DocumentManagement = () => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -35,6 +45,7 @@ const DocumentManagement = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formState, setFormState] = useState(defaultForm);
+  const [previewDoc, setPreviewDoc] = useState(null);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -181,7 +192,11 @@ const DocumentManagement = () => {
 
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {paginatedDocuments.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr
+                    key={doc.id}
+                    onClick={() => doc.file_url && setPreviewDoc(doc)}
+                    className={`transition-colors ${doc.file_url ? 'cursor-pointer hover:bg-emerald-50/60 dark:hover:bg-emerald-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                  >
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
@@ -208,18 +223,7 @@ const DocumentManagement = () => {
                     <td className="px-4 py-4 text-xs text-gray-500 dark:text-gray-400">{doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : 'N/A'}</td>
 
                     <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        {doc.file_url && (
-                          <a
-                            href={doc.file_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 hover:bg-emerald-50 hover:text-emerald-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-emerald-900/30"
-                            title="Open document"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </a>
-                        )}
+                      <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => handleDelete(doc)}
@@ -250,6 +254,40 @@ const DocumentManagement = () => {
           }}
         />
       )}
+
+      {/* Document file preview modal — image / video / PDF */}
+      <MediaViewerModal isOpen={!!previewDoc} onClose={() => setPreviewDoc(null)}>
+        {previewDoc && (() => {
+          const fileType = getFileType(previewDoc.file_url || '', previewDoc.file_name || '');
+          return (
+            <div className="flex max-h-[96vh] w-full flex-col items-center justify-center bg-slate-950 p-2 sm:p-4">
+              <p className="mb-3 max-w-xl truncate text-center text-sm font-medium text-slate-300">
+                {previewDoc.title || previewDoc.file_name || 'Document preview'}
+              </p>
+              {fileType === 'pdf' ? (
+                <iframe
+                  src={previewDoc.file_url}
+                  title={previewDoc.title || 'PDF preview'}
+                  className="h-[80vh] w-full max-w-4xl rounded-xl border-0"
+                />
+              ) : fileType === 'video' ? (
+                <video
+                  src={previewDoc.file_url}
+                  controls
+                  autoPlay
+                  className="max-h-[82vh] max-w-full rounded-xl object-contain"
+                />
+              ) : (
+                <img
+                  src={previewDoc.file_url}
+                  alt={previewDoc.title || previewDoc.file_name || 'Document'}
+                  className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
+                />
+              )}
+            </div>
+          );
+        })()}
+      </MediaViewerModal>
 
       <Modal
         isOpen={isModalOpen}
