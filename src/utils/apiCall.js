@@ -29,8 +29,8 @@ const getStoredSessionSnapshot = () => {
   }
 
   const accessToken = localStorage.getItem('access_token') || parsed?.access_token || parsed?.token || '';
-  const refreshToken = parsed?.refresh_token || localStorage.getItem('refresh_token') || '';
-  const expiresInSec = Number(parsed?.expires_in_sec ?? parsed?.expires_in ?? 900) || 900;
+  const refreshToken = localStorage.getItem('refresh_token') || parsed?.refresh_token || '';
+  const expiresInSec = Number(parsed?.expires_in ?? parsed?.expires_in_sec ?? 900) || 900;
   const expiresAt = parsed?.expires_at ? new Date(parsed.expires_at).getTime() : Date.now() + expiresInSec * 1000;
 
   return {
@@ -57,6 +57,7 @@ const persistSessionAfterRefresh = (nextAccessToken, nextRefreshToken, expiresIn
     refresh_token: nextRefreshToken,
     token: nextAccessToken,
     token_type: parsed?.token_type || 'bearer',
+    expires_in: expiresInSec,
     expires_in_sec: expiresInSec,
     expires_at: new Date(Date.now() + expiresInSec * 1000).toISOString(),
   };
@@ -78,7 +79,7 @@ const refreshAccessTokenSilently = async () => {
     const response = await fetch(`${API_BASE}/api/v1/sessions/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      body: JSON.stringify({ refresh_token: refreshToken || '' }),
     });
 
     const payload = await response.json().catch(() => ({}));
@@ -90,7 +91,7 @@ const refreshAccessTokenSilently = async () => {
 
     const nextAccessToken = data.access_token || data.token;
     const nextRefreshToken = data.refresh_token || payload?.refresh_token || refreshToken;
-    const expiresInSec = Number(data?.expires_in_sec ?? data?.expires_in ?? payload?.expires_in_sec ?? payload?.expires_in ?? 900) || 900;
+    const expiresInSec = Number(data?.expires_in ?? data?.expires_in_sec ?? payload?.expires_in ?? payload?.expires_in_sec ?? 900) || 900;
 
     persistSessionAfterRefresh(nextAccessToken, nextRefreshToken, expiresInSec);
     return nextAccessToken;
@@ -112,6 +113,8 @@ const PUBLIC_AUTH_ENDPOINTS = [
   '/api/v1/admin/auth/google',
   '/api/v1/sessions/refresh',
   '/sessions/refresh',
+  '/api/v1/sessions/logout',
+  '/sessions/logout',
 ];
 
 /**
@@ -157,7 +160,7 @@ export const apiCall = async (endpoint, method = 'GET', body = null, customHeade
     delete headers['Authorization'];
   }
 
-  if (!(body instanceof FormData) && !headers['Content-Type']) {
+  if (body != null && !(body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
 

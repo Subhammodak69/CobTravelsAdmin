@@ -3,14 +3,10 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Plus, Route, Pencil, Trash2, Search, RefreshCw, CalendarDays, ArrowLeft, Eye } from 'lucide-react';
 import Modal from '../component/common/Modal';
-import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
 import { getVariantDetailsPath } from '../utils/tourNavigation';
-
-const availabilityOptions = ['AVAILABLE', 'LOW', 'SOLD_OUT'];
-const availabilitySelectOptions = availabilityOptions.map((option) => ({ value: option, label: option }));
 
 const defaultForm = {
   tour_id: '',
@@ -21,10 +17,9 @@ const defaultForm = {
   valid_to: '',
   duration_days: 0,
   duration_nights: 0,
-  price: 0,
-  seats: 0,
+  list_price: 0,
+  selling_price: 0,
   badge: '',
-  availability: 'AVAILABLE',
   is_default: false,
   is_active: true,
 };
@@ -43,32 +38,53 @@ const TourVariant = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
   const [formState, setFormState] = useState(defaultForm);
 
-  const loadVariants = useCallback(async () => {
+  const loadVariants = useCallback(async (page = currentPage, limit = itemsPerPage) => {
     setLoading(true);
     try {
-      const endpoint = packageId ? `/api/v1/admin/tour-variants?tour_id=${encodeURIComponent(packageId)}` : '/api/v1/admin/tour-variants';
-      const response = await apiCall(endpoint, 'GET');
+      const queryParams = new URLSearchParams({ page, page_size: limit });
+      let endpoint = `/api/v1/admin/tour-variants?${queryParams.toString()}`;
+      if (packageId) {
+        endpoint = `/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/variants?${queryParams.toString()}`;
+      }
+      let response = await apiCall(endpoint, 'GET');
+      if (!response.ok && packageId) {
+        // Fallback to query parameter if nested route isn't available
+        const fallbackEndpoint = `/api/v1/admin/tour-variants?tour_id=${encodeURIComponent(packageId)}&${queryParams.toString()}`;
+        const fallbackResponse = await apiCall(fallbackEndpoint, 'GET');
+        if (fallbackResponse.ok) {
+          response = fallbackResponse;
+        }
+      }
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload?.message || payload?.detail || 'Unable to fetch tour variants');
       }
       const nextVariants = Array.isArray(payload?.data) ? payload.data : [];
       setVariants(nextVariants);
+      if (payload?.pagination) {
+        setTotalItems(payload.pagination.total_items ?? nextVariants.length);
+      } else {
+        setTotalItems(nextVariants.length);
+      }
     } catch (error) {
       handleApiError(error, 'Unable to fetch tour variants');
     } finally {
       setLoading(false);
     }
-  }, [packageId]);
+  }, [packageId, currentPage, itemsPerPage]);
 
   useEffect(() => {
-    loadVariants();
-  }, [loadVariants]);
+    loadVariants(currentPage, itemsPerPage);
+  }, [loadVariants, currentPage, itemsPerPage]);
 
   const resetForm = () => {
-    setFormState(defaultForm);
+    setFormState({
+      ...defaultForm,
+      tour_id: packageId || packageInfo?.id || '',
+    });
     setEditingVariant(null);
   };
 
@@ -80,18 +96,17 @@ const TourVariant = () => {
   const openEditModal = (variant) => {
     setEditingVariant(variant);
     setFormState({
-      tour_id: variant?.tour_id || '',
+      tour_id: variant?.tour_id || packageId || packageInfo?.id || '',
       slug: variant?.slug || '',
       name: variant?.name || '',
       season_name: variant?.season_name || '',
-      valid_from: variant?.valid_from || '',
-      valid_to: variant?.valid_to || '',
+      valid_from: variant?.valid_from ? variant.valid_from.substring(0, 10) : '',
+      valid_to: variant?.valid_to ? variant.valid_to.substring(0, 10) : '',
       duration_days: variant?.duration_days || 0,
       duration_nights: variant?.duration_nights || 0,
-      price: variant?.price || 0,
-      seats: variant?.seats || 0,
+      list_price: variant?.list_price ?? variant?.price ?? 0,
+      selling_price: variant?.selling_price ?? variant?.price ?? 0,
       badge: variant?.badge || '',
-      availability: variant?.availability || 'AVAILABLE',
       is_default: Boolean(variant?.is_default),
       is_active: variant?.is_active !== false,
     });
@@ -104,7 +119,7 @@ const TourVariant = () => {
 
   const goToDetails = (variant) => {
     if (!variant?.id) return;
-    navigate(getVariantDetailsPath(packageId || packageInfo?.id, variant.id), {
+    navigate(getVariantDetailsPath(packageId || packageInfo?.id || variant.tour_id, variant.id), {
       state: { package: packageInfo, variant },
     });
   };
@@ -114,22 +129,28 @@ const TourVariant = () => {
     setSaving(true);
 
     try {
-      const payload = {
-        tour_id: formState.tour_id,
+      const commonFields = {
         slug: formState.slug,
         name: formState.name,
         season_name: formState.season_name,
-        valid_from: formState.valid_from,
-        valid_to: formState.valid_to,
-        duration_days: Number(formState.duration_days),
-        duration_nights: Number(formState.duration_nights),
-        price: Number(formState.price),
-        seats: Number(formState.seats),
-        badge: formState.badge,
-        availability: formState.availability,
-        is_default: formState.is_default,
-        is_active: formState.is_active,
+        valid_from: formState.valid_from || '',
+        valid_to: formState.valid_to || '',
+        duration_days: Number(formState.duration_days) || 0,
+        duration_nights: Number(formState.duration_nights) || 0,
+        list_price: Number(formState.list_price) || 0,
+        selling_price: Number(formState.selling_price) || 0,
+        badge: formState.badge || '',
+        is_default: Boolean(formState.is_default),
+        is_active: Boolean(formState.is_active),
       };
+
+      // In API spec, tour_id is required in POST, but omitted in PATCH
+      const payload = editingVariant
+        ? commonFields
+        : {
+            ...commonFields,
+            tour_id: formState.tour_id || packageId || packageInfo?.id || '',
+          };
 
       const endpoint = editingVariant ? `/api/v1/admin/tour-variants/${editingVariant.id}` : '/api/v1/admin/tour-variants';
       const method = editingVariant ? 'PATCH' : 'POST';
@@ -139,10 +160,10 @@ const TourVariant = () => {
         throw new Error(result?.message || result?.detail || 'Unable to save tour variant');
       }
 
-      toast.success(editingVariant ? 'Tour variant updated' : 'Tour variant created');
+      toast.success(result?.message || (editingVariant ? 'Tour variant updated successfully' : 'Tour variant created successfully'));
       setIsModalOpen(false);
       resetForm();
-      await loadVariants();
+      await loadVariants(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, editingVariant ? 'Unable to update variant' : 'Unable to create variant');
     } finally {
@@ -160,8 +181,8 @@ const TourVariant = () => {
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete tour variant');
       }
-      toast.success('Tour variant deleted');
-      await loadVariants();
+      toast.success(result?.message || 'Tour variant deleted successfully');
+      await loadVariants(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to delete tour variant');
     }
@@ -179,19 +200,9 @@ const TourVariant = () => {
     });
   }, [variants, searchTerm]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredVariants.length / itemsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedVariants = filteredVariants.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
-
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
 
   return (
     <div className=" space-y-3 pb-6">
@@ -264,13 +275,14 @@ const TourVariant = () => {
                 <tr>
                   <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Variant</th>
                   <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Season</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Price</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Availability</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Duration</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Price (List / Selling)</th>
+                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Status</th>
                   <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {paginatedVariants.map((variant) => (
+                {filteredVariants.map((variant) => (
                   <tr
                     key={variant.id}
                     onClick={() => goToDetails(variant)}
@@ -283,23 +295,47 @@ const TourVariant = () => {
                           <Route className="h-4 w-4" />
                         </div>
                         <div>
-                          <div className="font-semibold text-gray-900 dark:text-white">{variant.name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-900 dark:text-white">{variant.name}</span>
+                            {variant.is_default && (
+                              <span className="inline-flex rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                                Default
+                              </span>
+                            )}
+                            {variant.badge && (
+                              <span className="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                {variant.badge}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{variant.slug}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-700 dark:text-gray-300">{variant.season_name || 'N/A'}</td>
-                    <td className="px-4 py-4 text-sm font-semibold text-gray-800 dark:text-gray-100">₹{Number(variant.price || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-4 text-sm text-gray-700 dark:text-gray-300">
+                      {variant.duration_days ?? 0}D / {variant.duration_nights ?? 0}N
+                    </td>
+                    <td className="px-4 py-4 text-sm">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          ₹{Number(variant.selling_price ?? variant.price ?? 0).toLocaleString('en-IN')}
+                        </span>
+                        {variant.list_price > (variant.selling_price ?? 0) && (
+                          <span className="text-xs text-gray-400 line-through">
+                            ₹{Number(variant.list_price).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-4">
                       <span className={[
                         'inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold',
-                        variant.availability === 'SOLD_OUT'
+                        variant.is_active === false
                           ? 'border-red-200 bg-red-50 text-red-600 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300'
-                          : variant.availability === 'LOW'
-                            ? 'border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300'
-                            : 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300',
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300',
                       ].join(' ')}>
-                        {variant.availability || 'AVAILABLE'}
+                        {variant.is_active === false ? 'Inactive' : 'Active'}
                       </span>
                     </td>
                     <td className="px-4 py-4" onClick={(event) => event.stopPropagation()}>
@@ -310,7 +346,7 @@ const TourVariant = () => {
                             {
                               label: 'View Details',
                               icon: <Eye className="h-4 w-4 text-cyan-500" />,
-                              onClick: () => navigate(getVariantDetailsPath(variant.id)),
+                              onClick: () => goToDetails(variant),
                             },
                             {
                               label: 'Edit Variant',
@@ -335,10 +371,10 @@ const TourVariant = () => {
         )}
       </div>
 
-      {filteredVariants.length > 0 && (
+      {totalItems > 0 && (
         <Pagination
-          currentPage={safePage}
-          totalItems={filteredVariants.length}
+          currentPage={currentPage}
+          totalItems={totalItems}
           itemsPerPage={itemsPerPage}
           onPageChange={(page) => setCurrentPage(page)}
           onLimitChange={(limit) => {
@@ -373,17 +409,6 @@ const TourVariant = () => {
       >
         <form id="tour-variant-form" onSubmit={handleSubmit} className="space-y-5 p-1">
           <div className="grid gap-5 md:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Tour ID</label>
-              <input
-                value={formState.tour_id}
-                onChange={(event) => handleFieldChange('tour_id', event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                placeholder="UUID of tour package"
-                required
-              />
-            </div>
-
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Slug</label>
               <input
@@ -459,24 +484,26 @@ const TourVariant = () => {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Price</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">List price (₹)</label>
               <input
                 type="number"
                 min="0"
-                value={formState.price}
-                onChange={(event) => handleFieldChange('price', event.target.value)}
+                value={formState.list_price}
+                onChange={(event) => handleFieldChange('list_price', event.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                placeholder="e.g. 15000"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Seats</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Selling price (₹)</label>
               <input
                 type="number"
                 min="0"
-                value={formState.seats}
-                onChange={(event) => handleFieldChange('seats', event.target.value)}
+                value={formState.selling_price}
+                onChange={(event) => handleFieldChange('selling_price', event.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                placeholder="e.g. 12999"
               />
             </div>
 
@@ -486,20 +513,7 @@ const TourVariant = () => {
                 value={formState.badge}
                 onChange={(event) => handleFieldChange('badge', event.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                placeholder="Best Seller"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Availability</label>
-              <SelectField
-                options={availabilitySelectOptions}
-                value={availabilitySelectOptions.find((option) => option.value === formState.availability) || null}
-                onChange={(selected) => handleFieldChange('availability', selected?.value || '')}
-                isSearchable={false}
-                placeholder="Select availability"
-                menuPlacement="auto"
-                classNamePrefix="react-select"
+                placeholder="e.g. Best Seller"
               />
             </div>
 

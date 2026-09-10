@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Plus, Package2, Pencil, Trash2, Search, RefreshCw, ChevronRight, Eye, Layers } from 'lucide-react';
+import { Plus, Package2, Pencil, Trash2, Search, RefreshCw, Layers } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
@@ -16,7 +16,7 @@ const defaultForm = {
   tour_code: '',
   slug: '',
   title: '',
-  destination: '',
+  destination_id: '',
   type: 'DOMESTIC',
   description: '',
   is_featured: false,
@@ -31,29 +31,61 @@ const TourPackages = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  // pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
   const [formState, setFormState] = useState(defaultForm);
+  const [destinations, setDestinations] = useState([]);
+  const [destLoading, setDestLoading] = useState(false);
 
-  const loadPackages = async () => {
+  const loadPackages = useCallback(async (page = currentPage, limit = itemsPerPage) => {
     setLoading(true);
     try {
-      const response = await apiCall('/api/v1/admin/tour-packages', 'GET');
+      const queryParams = new URLSearchParams({ page, page_size: limit });
+      const response = await apiCall(`/api/v1/admin/tour-packages?${queryParams.toString()}`, 'GET');
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload?.message || payload?.detail || 'Unable to fetch tour packages');
       }
-      setPackages(Array.isArray(payload?.data) ? payload.data : []);
+      const data = Array.isArray(payload?.data) ? payload.data : [];
+      setPackages(data);
+      if (payload?.pagination) {
+        setTotalItems(payload.pagination.total_items ?? data.length);
+      } else {
+        setTotalItems(data.length);
+      }
     } catch (error) {
       handleApiError(error, 'Unable to fetch tour packages');
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage]);
+
+  // Load all destinations for the select dropdown (unpaged, large limit)
+  const loadDestinations = useCallback(async () => {
+    setDestLoading(true);
+    try {
+      const response = await apiCall('/api/v1/admin/destinations?page=1&page_size=100', 'GET');
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const data = Array.isArray(payload?.data) ? payload.data : [];
+        setDestinations(data.map((d) => ({ value: d.id, label: d.name })));
+      }
+    } catch {
+      // silently ignore destination fetch errors
+    } finally {
+      setDestLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    loadPackages();
-  }, []);
+    loadPackages(currentPage, itemsPerPage);
+  }, [loadPackages, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    loadDestinations();
+  }, [loadDestinations]);
 
   const resetForm = () => {
     setFormState(defaultForm);
@@ -71,7 +103,7 @@ const TourPackages = () => {
       tour_code: row?.tour_code || '',
       slug: row?.slug || '',
       title: row?.title || '',
-      destination: row?.destination || '',
+      destination_id: row?.destination_id || '',
       type: row?.type || 'DOMESTIC',
       description: row?.description || '',
       is_featured: Boolean(row?.is_featured),
@@ -95,15 +127,16 @@ const TourPackages = () => {
     setSaving(true);
 
     try {
+      const destinationVal = formState.destination_id || '';
       const payload = {
         tour_code: formState.tour_code,
         slug: formState.slug,
         title: formState.title,
-        destination: formState.destination,
+        destination_id: destinationVal,
         type: formState.type,
         description: formState.description,
-        is_featured: formState.is_featured,
-        is_active: formState.is_active,
+        is_featured: Boolean(formState.is_featured),
+        is_active: Boolean(formState.is_active),
       };
 
       const endpoint = editingPackage ? `/api/v1/admin/tour-packages/${editingPackage.id}` : '/api/v1/admin/tour-packages';
@@ -114,10 +147,10 @@ const TourPackages = () => {
         throw new Error(result?.message || result?.detail || 'Unable to save tour package');
       }
 
-      toast.success(editingPackage ? 'Tour package updated' : 'Tour package created');
+      toast.success(result?.message || (editingPackage ? 'Tour package updated successfully' : 'Tour package created successfully'));
       setIsModalOpen(false);
       resetForm();
-      await loadPackages();
+      await loadPackages(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, editingPackage ? 'Unable to update package' : 'Unable to create package');
     } finally {
@@ -135,8 +168,8 @@ const TourPackages = () => {
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete tour package');
       }
-      toast.success('Tour package deleted');
-      await loadPackages();
+      toast.success(result?.message || 'Tour package deleted successfully');
+      await loadPackages(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to delete tour package');
     }
@@ -153,20 +186,6 @@ const TourPackages = () => {
         .includes(term);
     });
   }, [packages, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredPackages.length / itemsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedPackages = filteredPackages.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
 
   return (
     <div className=" space-y-3 pb-6">
@@ -232,7 +251,7 @@ const TourPackages = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {paginatedPackages.map((tour) => (
+                {filteredPackages.map((tour) => (
                   <tr
                     key={tour.id}
                     onClick={() => goToPackageVariants(tour)}
@@ -306,10 +325,10 @@ const TourPackages = () => {
         )}
       </div>
 
-      {filteredPackages.length > 0 && (
+      {totalItems > 0 && (
         <Pagination
-          currentPage={safePage}
-          totalItems={filteredPackages.length}
+          currentPage={currentPage}
+          totalItems={totalItems}
           itemsPerPage={itemsPerPage}
           onPageChange={(page) => setCurrentPage(page)}
           onLimitChange={(limit) => {
@@ -379,12 +398,15 @@ const TourPackages = () => {
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Destination</label>
-              <input
-                value={formState.destination}
-                onChange={(event) => handleFieldChange('destination', event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                placeholder="e.g. Darjeeling"
-                required
+              <SelectField
+                options={destinations}
+                value={destinations.find((d) => d.value === formState.destination_id) || null}
+                onChange={(selected) => handleFieldChange('destination_id', selected?.value || '')}
+                isSearchable
+                isLoading={destLoading}
+                placeholder={destLoading ? 'Loading destinations...' : 'Select destination'}
+                menuPlacement="auto"
+                classNamePrefix="react-select"
               />
             </div>
 

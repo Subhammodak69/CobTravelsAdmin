@@ -143,7 +143,6 @@ const CustomerDetails = () => {
     emergency_contact_mobile: '',
     profile_pic: '',
     source: 'WEBSITE',
-    is_imported: false,
     is_active: true,
   });
 
@@ -165,7 +164,10 @@ const CustomerDetails = () => {
       if (!response.ok) {
         throw new Error(payload?.message || payload?.detail || 'Unable to load customer details');
       }
-      setCustomer(payload.data);
+      const custData = payload?.data && typeof payload.data === 'object' && !Array.isArray(payload.data)
+        ? (payload.data.customer || payload.data)
+        : payload?.data || null;
+      setCustomer(custData);
     } catch (error) {
       handleApiError(error, 'Unable to fetch customer profile');
     } finally {
@@ -229,7 +231,6 @@ const CustomerDetails = () => {
       emergency_contact_mobile: customer.emergency_contact_mobile || '',
       profile_pic: customer.profile_pic || '',
       source: customer.source || 'WEBSITE',
-      is_imported: customer.is_imported || false,
       is_active: customer.is_active !== false,
     });
     setIsEditOpen(true);
@@ -243,16 +244,15 @@ const CustomerDetails = () => {
     }
     setSaving(true);
     const body = {
-      name: editForm.name,
-      mobile: editForm.mobile || null,
-      email: editForm.email || null,
-      address: editForm.address || null,
-      emergency_contact_name: editForm.emergency_contact_name || null,
-      emergency_contact_mobile: editForm.emergency_contact_mobile || null,
-      profile_pic: editForm.profile_pic || null,
-      source: editForm.source,
-      is_imported: editForm.is_imported,
-      is_active: editForm.is_active,
+      name: editForm.name.trim(),
+      mobile: editForm.mobile?.trim() || '',
+      email: editForm.email?.trim() || '',
+      address: editForm.address?.trim() || '',
+      emergency_contact_name: editForm.emergency_contact_name?.trim() || '',
+      emergency_contact_mobile: editForm.emergency_contact_mobile?.trim() || '',
+      profile_pic: editForm.profile_pic || '',
+      source: editForm.source || 'WEBSITE',
+      is_active: Boolean(editForm.is_active),
     };
 
     try {
@@ -261,7 +261,7 @@ const CustomerDetails = () => {
       if (!response.ok) {
         throw new Error(payload?.message || payload?.detail || 'Unable to update customer');
       }
-      toast.success('Customer updated successfully');
+      toast.success(payload?.message || 'Customer updated successfully');
       setIsEditOpen(false);
       loadCustomer();
     } catch (error) {
@@ -282,7 +282,7 @@ const CustomerDetails = () => {
       if (!response.ok) {
         throw new Error(payload?.message || payload?.detail || 'Unable to delete customer');
       }
-      toast.success('Customer deleted successfully');
+      toast.success(payload?.message || 'Customer deleted successfully');
       navigate('/customers');
     } catch (error) {
       handleApiError(error, 'Unable to delete customer');
@@ -1407,16 +1407,6 @@ const CustomerDetails = () => {
                 />
                 <UserCheck className="h-4 w-4" />
                 Active account
-              </label>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={editForm.is_imported}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, is_imported: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <Shield className="h-4 w-4" />
-                Imported record
               </label>
             </div>
 

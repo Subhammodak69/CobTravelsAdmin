@@ -73,9 +73,13 @@ const Navbar = ({
                 >
                   <div className="relative">
                     <div className="w-9 h-9 rounded-2xl overflow-hidden flex items-center justify-center shadow-md bg-gradient-to-br from-blue-500 to-indigo-600">
-                      <span className="text-white font-bold text-sm">
-                        {user?.name?.[0]?.toUpperCase() || "A"}
-                      </span>
+                      {user?.profile_pic ? (
+                        <img src={user.profile_pic} alt={user?.name || 'Admin'} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white font-bold text-sm">
+                          {user?.name?.[0]?.toUpperCase() || "A"}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -84,7 +88,7 @@ const Navbar = ({
                       {user?.name || "Admin"}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                      Administrator
+                      {user?.role || "Administrator"}
                     </p>
                   </div>
 
@@ -100,9 +104,13 @@ const Navbar = ({
                     <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
                       <div className="md:hidden p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                          <span className="text-white font-bold">
-                            {user?.name?.[0]?.toUpperCase() || "A"}
-                          </span>
+                          {user?.profile_pic ? (
+                            <img src={user.profile_pic} alt={user?.name || 'Admin'} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-white font-bold">
+                              {user?.name?.[0]?.toUpperCase() || "A"}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <p className="font-semibold text-gray-800 dark:text-gray-100">

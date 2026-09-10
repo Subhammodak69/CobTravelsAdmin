@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, UserCog, Pencil, Trash2, Mail, Phone, ShieldCheck, Search, RefreshCw } from 'lucide-react';
+import { Plus, UserCog, Pencil, Trash2, Mail, Phone, ShieldCheck, Search, RefreshCw, KeyRound, AlertTriangle } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
@@ -8,6 +8,7 @@ import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { useAuth } from '../context/AuthContext';
 
 const roleOptions = ['ADMIN', 'MANAGER', 'SUPERVISOR', 'STAFF'];
 const roleSelectOptions = roleOptions.map((option) => ({ value: option, label: option }));
@@ -33,6 +34,7 @@ const formatDate = (value) => {
 };
 
 const StaffManagement = () => {
+  const { user } = useAuth();
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -42,27 +44,55 @@ const StaffManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [formState, setFormState] = useState(defaultForm);
+  const [serverPagination, setServerPagination] = useState(null);
 
-  const loadStaff = async () => {
+  // Delete modal with OTP states
+  const [deletingStaff, setDeletingStaff] = useState(null);
+  const [deleteIdentifier, setDeleteIdentifier] = useState('');
+  const [deleteOtp, setDeleteOtp] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (otpCooldown > 0) {
+      timer = setInterval(() => {
+        setOtpCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
+
+  const loadStaff = useCallback(async (page = currentPage, limit = itemsPerPage) => {
     setLoading(true);
     try {
-      const response = await apiCall('/api/v1/admin/account', 'GET');
+      const params = new URLSearchParams();
+      if (page) params.set('page', page);
+      if (limit) params.set('page_size', limit);
+
+      const url = `/api/v1/admin/account${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await apiCall(url, 'GET');
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload?.message || payload?.detail || 'Failed to load staff');
       }
       const records = Array.isArray(payload?.data) ? payload.data : [];
       setStaffList(records);
+      if (payload?.pagination) {
+        setServerPagination(payload.pagination);
+      }
     } catch (error) {
       handleApiError(error, 'Unable to fetch staff records');
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, itemsPerPage]);
 
   useEffect(() => {
-    loadStaff();
-  }, []);
+    loadStaff(currentPage, itemsPerPage);
+  }, [loadStaff, currentPage, itemsPerPage]);
 
   const resetForm = () => {
     setFormState(defaultForm);
@@ -119,9 +149,9 @@ const StaffManagement = () => {
         throw new Error(result?.message || result?.detail || 'Unable to save staff');
       }
 
-      toast.success(editingStaff ? 'Staff updated successfully' : 'Staff created successfully');
+      toast.success(result?.message || (editingStaff ? 'Staff updated successfully' : 'Staff created successfully'));
       closeModal();
-      await loadStaff();
+      await loadStaff(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, editingStaff ? 'Unable to update staff' : 'Unable to create staff');
     } finally {
@@ -129,23 +159,63 @@ const StaffManagement = () => {
     }
   };
 
-  const handleDelete = async (staff) => {
-    const confirmed = window.confirm(`Delete ${staff?.name || 'this staff member'}?`);
-    if (!confirmed) return;
+  const openDeleteModal = (staff) => {
+    setDeletingStaff(staff);
+    const defaultId = user?.email || user?.mobile || staff?.email || staff?.mobile || '';
+    setDeleteIdentifier(defaultId);
+    setDeleteOtp('');
+    setOtpCooldown(0);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleRequestDeleteOtp = async () => {
+    const id = deleteIdentifier.trim();
+    if (!id) {
+      toast.error('Please enter an identifier to receive the OTP');
+      return;
+    }
+    setOtpSending(true);
+    try {
+      const response = await apiCall('/api/v1/admin/auth/otp/request', 'POST', {
+        identifier: id,
+        purpose: 'LOGIN',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        toast.success(data?.message || 'OTP sent successfully!');
+        setOtpCooldown(60);
+      } else {
+        toast.error(data?.detail || data?.message || 'Failed to send OTP');
+      }
+    } catch (err) {
+      handleApiError(err, 'Failed to request OTP');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleConfirmDelete = async (e) => {
+    if (e) e.preventDefault();
+    if (!deletingStaff) return;
+    setDeleting(true);
 
     try {
-      const response = await apiCall(`/api/v1/admin/account/${staff.id}`, 'DELETE', {
-        identifier: staff?.email || staff?.mobile || staff?.id,
-        otp: '',
+      const response = await apiCall(`/api/v1/admin/account/${deletingStaff.id}`, 'DELETE', {
+        identifier: deleteIdentifier.trim(),
+        otp: deleteOtp.trim(),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete staff');
       }
-      toast.success('Staff deleted successfully');
-      await loadStaff();
+      toast.success(result?.message || 'Staff deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeletingStaff(null);
+      await loadStaff(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to delete staff');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -288,7 +358,12 @@ const StaffManagement = () => {
                     </td>
 
                     <td className="px-4 py-4 text-xs text-gray-500 dark:text-gray-400">
-                      {formatDate(staff.last_login)}
+                      <div>{formatDate(staff.last_login)}</div>
+                      {staff.created_at && (
+                        <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                          Created: {formatDate(staff.created_at)}
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
@@ -305,7 +380,7 @@ const StaffManagement = () => {
                               label: 'Delete Staff',
                               icon: <Trash2 className="h-4 w-4 text-red-500" />,
                               className: 'text-red-600 hover:text-red-700 dark:text-red-400',
-                              onClick: () => handleDelete(staff),
+                              onClick: () => openDeleteModal(staff),
                             },
                           ]}
                         />
@@ -319,15 +394,19 @@ const StaffManagement = () => {
         )}
       </div>
 
-      {filteredStaff.length > 0 && (
+      {(serverPagination ? serverPagination.total_items : filteredStaff.length) > 0 && (
         <Pagination
           currentPage={safePage}
-          totalItems={filteredStaff.length}
+          totalItems={serverPagination ? serverPagination.total_items : filteredStaff.length}
           itemsPerPage={itemsPerPage}
-          onPageChange={(page) => setCurrentPage(page)}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            loadStaff(page, itemsPerPage);
+          }}
           onLimitChange={(limit) => {
             setItemsPerPage(limit);
             setCurrentPage(1);
+            loadStaff(1, limit);
           }}
         />
       )}
@@ -420,6 +499,113 @@ const StaffManagement = () => {
                 value={formState.profile_pic}
                 onChange={(url) => handleFieldChange('profile_pic', url)}
                 helperText="Recommended: square image, JPG or PNG"
+              />
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Staff Confirmation Modal with OTP */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deleting) {
+            setIsDeleteModalOpen(false);
+            setDeletingStaff(null);
+          }
+        }}
+        title="Delete Staff Member"
+        icon={Trash2}
+        size="md"
+        footer={(
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setDeletingStaff(null);
+              }}
+              disabled={deleting}
+              className="rounded-2xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="delete-staff-form"
+              disabled={deleting}
+              className="rounded-2xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60 shadow-md shadow-rose-500/20"
+            >
+              {deleting ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  <span>Confirm Delete</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      >
+        <form id="delete-staff-form" onSubmit={handleConfirmDelete} className="space-y-4 p-1">
+          <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+            <p className="font-semibold text-sm mb-1 text-rose-900 dark:text-rose-200 flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              Permanently delete account?
+            </p>
+            <p>
+              You are about to delete <span className="font-bold">{deletingStaff?.name || 'this staff member'}</span> ({deletingStaff?.role || 'STAFF'} &bull; {deletingStaff?.email || deletingStaff?.mobile}). This action cannot be undone.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+              Admin Identifier (Email / Mobile)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={deleteIdentifier}
+                onChange={(e) => setDeleteIdentifier(e.target.value)}
+                placeholder="Enter email or mobile"
+                required
+                className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              />
+              <button
+                type="button"
+                onClick={handleRequestDeleteOtp}
+                disabled={otpSending || otpCooldown > 0 || !deleteIdentifier.trim()}
+                className="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 shrink-0 flex items-center gap-1.5"
+              >
+                {otpSending ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : null}
+                {otpCooldown > 0 ? `${otpCooldown}s` : 'Send OTP'}
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-gray-400">
+              Security requirement: Deletion requires OTP verification sent to an authorized administrator.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+              OTP Verification Code
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <KeyRound className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={deleteOtp}
+                onChange={(e) => setDeleteOtp(e.target.value)}
+                placeholder="Enter 6-digit OTP passcode"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-mono tracking-widest text-gray-700 outline-none transition focus:border-rose-500 focus:ring-2 focus:ring-rose-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               />
             </div>
           </div>

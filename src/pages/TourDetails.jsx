@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -9,6 +9,7 @@ import {
   CalendarRange,
   Route as RouteIcon,
   ListChecks,
+  CalendarDays,
   Save,
   Trash2,
   Plus,
@@ -163,13 +164,21 @@ const normalizeDetailData = (detailData = {}) => {
     display_order: item.display_order ?? index + 1,
   }));
 
+  const normalizedDepartureDates = (detailData.departure_dates || []).map((item) => ({
+    id: item.id || generateId(),
+    departure_date: item.departure_date || item.date || '',
+    return_date: item.return_date || '',
+    total_seats: Number(item.total_seats) || 0,
+    available_seats: Number(item.available_seats) || 0,
+  }));
+
   return {
     banner: normalizedBanner,
     gallery: normalizedGallery,
     highlights: detailData.highlights || [],
     inclusions: detailData.inclusions || [],
     exclusions: detailData.exclusions || [],
-    departure_dates: detailData.departure_dates || [],
+    departure_dates: normalizedDepartureDates,
     itinerary: detailData.itinerary || [],
     route: detailData.route || [],
   };
@@ -191,7 +200,8 @@ const sections = [
   { key: 'highlights', label: 'Highlights', icon: Sparkles },
   { key: 'itinerary', label: 'Itinerary', icon: CalendarRange },
   { key: 'route', label: 'Route', icon: RouteIcon },
-  { key: 'extras', label: 'Inclusions & dates', icon: ListChecks },
+  { key: 'departures', label: 'Departures', icon: CalendarDays },
+  { key: 'extras', label: 'Inclusions & Exclusions', icon: ListChecks },
 ];
 
 const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
@@ -217,6 +227,12 @@ const TourDetails = () => {
   const [notFound, setNotFound] = useState(false);
   const [details, setDetails] = useState(null);
   const [draft, setDraft] = useState(createEmptyDraft());
+  const [savedDraft, setSavedDraft] = useState(null);
+
+  const hasChanges = useMemo(() => {
+    if (loading || !savedDraft) return false;
+    return JSON.stringify(draft) !== JSON.stringify(savedDraft);
+  }, [loading, draft, savedDraft]);
   const [activeSection, setActiveSection] = useState('banner');
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const [mediaModalContext, setMediaModalContext] = useState('banner');
@@ -227,7 +243,13 @@ const TourDetails = () => {
   const [routeForm, setRouteForm] = useState({ city: '', nights: 1 });
   const [extrasModalOpen, setExtrasModalOpen] = useState(false);
   const [extrasModalType, setExtrasModalType] = useState('inclusion');
-  const [extrasForm, setExtrasForm] = useState({ value: '', date: '' });
+  const [extrasForm, setExtrasForm] = useState({
+    value: '',
+    departure_date: '',
+    return_date: '',
+    total_seats: 20,
+    available_seats: 20,
+  });
   const [extrasCollapsed, setExtrasCollapsed] = useState({ inclusion: true, exclusion: true });
 
   useEffect(() => {
@@ -239,7 +261,7 @@ const TourDetails = () => {
 
   const applyDetailToDraft = (detailData) => {
     const normalized = normalizeDetailData(detailData || {});
-    setDraft({
+    const initial = {
       banner: normalized.banner,
       gallery: normalized.gallery,
       highlights: normalized.highlights,
@@ -248,20 +270,33 @@ const TourDetails = () => {
       departure_dates: normalized.departure_dates,
       itinerary: normalized.itinerary,
       route: normalized.route,
-    });
+    };
+    setDraft(initial);
+    setSavedDraft(JSON.parse(JSON.stringify(initial)));
   };
 
   const loadDetails = async () => {
     setLoading(true);
     try {
-      const response = await apiCall(`/api/v1/admin/tour-details/${variantId}`, 'GET');
+      let response;
+      if (packageId && variantId) {
+        response = await apiCall(`/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/variants/${encodeURIComponent(variantId)}`, 'GET');
+        if (!response.ok && response.status !== 404) {
+          // Fallback to tour-details endpoint
+          response = await apiCall(`/api/v1/admin/tour-details/${variantId}`, 'GET');
+        }
+      } else {
+        response = await apiCall(`/api/v1/admin/tour-details/${variantId}`, 'GET');
+      }
 
       if (response.status === 404) {
-        // No details created for this package yet — that's a normal state,
+        // No details created for this variant yet — that's a normal state,
         // not an error. Show an empty form ready for creation.
         setDetails(null);
         setNotFound(true);
-        setDraft(createEmptyDraft());
+        const empty = createEmptyDraft();
+        setDraft(empty);
+        setSavedDraft(JSON.parse(JSON.stringify(empty)));
         return;
       }
 
@@ -277,6 +312,9 @@ const TourDetails = () => {
     } catch (error) {
       handleApiError(error, 'Unable to load tour details');
       setNotFound(true);
+      const empty = createEmptyDraft();
+      setDraft(empty);
+      setSavedDraft(JSON.parse(JSON.stringify(empty)));
     } finally {
       setLoading(false);
     }
@@ -314,18 +352,21 @@ const TourDetails = () => {
       exclusions: draft.exclusions || [],
       departure_dates: (draft.departure_dates || []).map((item) => ({
         id: item.id || generateId(),
-        date: item.date || '',
+        departure_date: item.departure_date || item.date || '',
+        return_date: item.return_date || '',
+        total_seats: Number(item.total_seats) || 0,
+        available_seats: Number(item.available_seats) || 0,
       })),
       itinerary: (draft.itinerary || []).map((item) => ({
         id: item.id || generateId(),
-        day: item.day || 1,
+        day: Number(item.day) || 1,
         title: item.title || '',
         description: item.description || '',
       })),
       route: (draft.route || []).map((item) => ({
         id: item.id || generateId(),
         city: item.city || '',
-        nights: item.nights || 1,
+        nights: Number(item.nights) || 1,
       })),
     };
   };
@@ -334,15 +375,16 @@ const TourDetails = () => {
     setSaving(true);
     try {
       const payload = buildPayload();
+      const detailId = details?.id || variantId;
       let response;
 
-      if (notFound) {
+      if (notFound || !details?.id) {
         response = await apiCall('/api/v1/admin/tour-details', 'POST', {
           ...payload,
           variant_id: variantId,
         });
       } else {
-        response = await apiCall(`/api/v1/admin/tour-details/${variantId}`, 'PATCH', payload);
+        response = await apiCall(`/api/v1/admin/tour-details/${detailId}`, 'PATCH', payload);
       }
 
       const result = await response.json().catch(() => ({}));
@@ -350,7 +392,7 @@ const TourDetails = () => {
         throw new Error(result?.message || result?.detail || 'Unable to save tour details');
       }
 
-      toast.success(notFound ? 'Tour details created' : 'Tour details updated');
+      toast.success(result?.message || (notFound ? 'Tour details created successfully' : 'Tour details updated successfully'));
       const detailData = result?.data || payload;
       setDetails(detailData);
       setNotFound(false);
@@ -363,20 +405,23 @@ const TourDetails = () => {
   };
 
   const handleDelete = async () => {
-    const confirmed = window.confirm('Delete all details for this tour package? This cannot be undone.');
+    const confirmed = window.confirm('Delete all details for this tour variant? This cannot be undone.');
     if (!confirmed) return;
 
     setDeleting(true);
     try {
-      const response = await apiCall(`/api/v1/admin/tour-details/${variantId}`, 'DELETE');
+      const detailId = details?.id || variantId;
+      const response = await apiCall(`/api/v1/admin/tour-details/${detailId}`, 'DELETE');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete tour details');
       }
-      toast.success('Tour details deleted');
+      toast.success(result?.message || 'Tour details deleted successfully');
       setDetails(null);
       setNotFound(true);
-      setDraft(createEmptyDraft());
+      const empty = createEmptyDraft();
+      setDraft(empty);
+      setSavedDraft(JSON.parse(JSON.stringify(empty)));
     } catch (error) {
       handleApiError(error, 'Unable to delete tour details');
     } finally {
@@ -493,20 +538,34 @@ const TourDetails = () => {
 
   const openExtrasModal = (type) => {
     setExtrasModalType(type);
-    setExtrasForm({ value: '', date: '' });
+    setExtrasForm({
+      value: '',
+      departure_date: '',
+      return_date: '',
+      total_seats: 20,
+      available_seats: 20,
+    });
     setExtrasModalOpen(true);
   };
 
   const submitExtrasModal = () => {
     if (extrasModalType === 'departure_date') {
-      if (!extrasForm.date) {
+      if (!extrasForm.departure_date) {
         toast.error('Please select a departure date.');
         return;
       }
 
+      const newDateItem = {
+        id: generateId(),
+        departure_date: extrasForm.departure_date,
+        return_date: extrasForm.return_date || '',
+        total_seats: Number(extrasForm.total_seats) || 0,
+        available_seats: Number(extrasForm.available_seats) || 0,
+      };
+
       setDraft((current) => ({
         ...current,
-        departure_dates: [...(current.departure_dates || []), { id: generateId(), date: extrasForm.date }],
+        departure_dates: [...(current.departure_dates || []), newDateItem],
       }));
     } else if (!extrasForm.value.trim()) {
       toast.error(extrasModalType === 'inclusion' ? 'Please enter an inclusion.' : 'Please enter an exclusion.');
@@ -524,7 +583,13 @@ const TourDetails = () => {
     }
 
     setExtrasModalOpen(false);
-    setExtrasForm({ value: '', date: '' });
+    setExtrasForm({
+      value: '',
+      departure_date: '',
+      return_date: '',
+      total_seats: 20,
+      available_seats: 20,
+    });
   };
 
   const renderSection = () => {
@@ -735,6 +800,51 @@ const TourDetails = () => {
           </div>
         );
 
+      case 'departures':
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Departure & Return Schedule</p>
+                <p className="text-xs text-gray-400 mt-0.5">Manage batch departure dates, return dates, and seat availability.</p>
+              </div>
+              <button type="button" onClick={() => openExtrasModal('departure_date')} className={addBtnClass}>
+                <Plus className="h-4 w-4" /> Add departure date
+              </button>
+            </div>
+
+            {(draft.departure_dates || []).length === 0 && <EmptyState text="No departure dates added yet." />}
+
+            {(draft.departure_dates || []).length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_100px_110px_60px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                  <span>Departure Date</span>
+                  <span>Return Date</span>
+                  <span>Total Seats</span>
+                  <span>Available</span>
+                  <span className="text-right">Action</span>
+                </div>
+
+                {(draft.departure_dates || []).map((item, index) => (
+                  <div key={item.id || index} className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_100px_110px_60px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700 text-sm">
+                    <span className="font-medium text-gray-800 dark:text-gray-200">{item.departure_date || item.date || 'N/A'}</span>
+                    <span className="text-gray-600 dark:text-gray-400">{item.return_date || '—'}</span>
+                    <span className="text-gray-700 dark:text-gray-300">{item.total_seats ?? 0}</span>
+                    <span className="inline-flex w-fit rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                      {item.available_seats ?? 0}
+                    </span>
+                    <div className="flex justify-end">
+                      <button type="button" onClick={() => removeArrayItem('departure_dates', index)} className={removeBtnClass}>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
       case 'extras':
         return (
           <div className="space-y-6">
@@ -831,37 +941,6 @@ const TourDetails = () => {
                     </div>
                   )}
                 </>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">Departure dates</p>
-                <button type="button" onClick={() => openExtrasModal('departure_date')} className={addBtnClass}>
-                  <Plus className="h-4 w-4" /> Add date
-                </button>
-              </div>
-
-              {(draft.departure_dates || []).length === 0 && <EmptyState text="No departure dates yet." />}
-
-              {(draft.departure_dates || []).length > 0 && (
-                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                    <span>Date</span>
-                    <span className="text-right">Action</span>
-                  </div>
-
-                  {(draft.departure_dates || []).map((item, index) => (
-                    <div key={item.id || index} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
-                      <span className="text-sm text-gray-700 dark:text-gray-200">{item.date || 'No date'}</span>
-                      <div className="flex justify-end">
-                        <button type="button" onClick={() => removeArrayItem('departure_dates', index)} className={removeBtnClass}>
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
           </div>
@@ -995,12 +1074,56 @@ const TourDetails = () => {
       >
         <div className="space-y-4 p-4">
           {extrasModalType === 'departure_date' ? (
-            <input
-              type="date"
-              value={extrasForm.date}
-              onChange={(event) => setExtrasForm((current) => ({ ...current, date: event.target.value }))}
-              className={inputClass}
-            />
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Departure date *</label>
+                  <input
+                    type="date"
+                    value={extrasForm.departure_date}
+                    onChange={(event) => setExtrasForm((current) => ({ ...current, departure_date: event.target.value }))}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Return date (optional)</label>
+                  <input
+                    type="date"
+                    value={extrasForm.return_date}
+                    onChange={(event) => setExtrasForm((current) => ({ ...current, return_date: event.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Total seats *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={extrasForm.total_seats}
+                    onChange={(event) => setExtrasForm((current) => ({ ...current, total_seats: Number(event.target.value) || 0 }))}
+                    className={inputClass}
+                    placeholder="e.g. 20"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Available seats *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={extrasForm.available_seats}
+                    onChange={(event) => setExtrasForm((current) => ({ ...current, available_seats: Number(event.target.value) || 0 }))}
+                    className={inputClass}
+                    placeholder="e.g. 20"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
           ) : (
             <input
               value={extrasForm.value}
@@ -1080,7 +1203,8 @@ const TourDetails = () => {
                 <button
                   type="button"
                   onClick={() => details && applyDetailToDraft(details)}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                  disabled={!hasChanges || saving}
+                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:disabled:hover:bg-gray-800"
                 >
                   Reset
                 </button>
@@ -1089,8 +1213,8 @@ const TourDetails = () => {
                 <button
                   type="button"
                   onClick={handleDelete}
-                  disabled={deleting}
-                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300"
+                  disabled={deleting || saving}
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300"
                 >
                   <Trash2 className="h-4 w-4" /> {deleting ? 'Deleting...' : 'Delete'}
                 </button>
@@ -1098,8 +1222,8 @@ const TourDetails = () => {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-60"
+                disabled={saving || !hasChanges}
+                className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-orange-600"
               >
                 <Save className="h-4 w-4" /> {saving ? 'Saving...' : notFound ? 'Create details' : 'Save changes'}
               </button>

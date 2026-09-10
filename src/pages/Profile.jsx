@@ -88,7 +88,7 @@ const Profile = () => {
       const res = await apiCall('/api/v1/sessions/', 'GET');
       if (res.ok) {
         const data = await res.json();
-        const list = Array.isArray(data) ? data : (data?.sessions || data?.data || []);
+        const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : (data?.sessions || []));
         setSessions(list);
       } else {
         console.warn('Failed to fetch sessions:', res.status);
@@ -119,11 +119,11 @@ const Profile = () => {
     setRevokingId(sessionId);
     try {
       const res = await apiCall(`/api/v1/sessions/${sessionId}`, 'DELETE');
+      const d = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast.success('Session terminated');
+        toast.success(d?.message || 'Session terminated');
         loadSessions();
       } else {
-        const d = await res.json().catch(() => ({}));
         toast.error(d?.detail || d?.message || 'Failed to revoke session');
       }
     } catch (err) {
@@ -138,12 +138,11 @@ const Profile = () => {
     setRevokingAll(true);
     try {
       const res = await apiCall('/api/v1/sessions/logout-all', 'POST');
+      const d = await res.json().catch(() => ({}));
       if (res.ok) {
-        const d = await res.json().catch(() => ({}));
         toast.success(d?.message || 'All other sessions logged out');
         loadSessions();
       } else {
-        const d = await res.json().catch(() => ({}));
         toast.error(d?.detail || d?.message || 'Failed to terminate all sessions');
       }
     } catch (err) {
@@ -330,7 +329,7 @@ const Profile = () => {
 
             <button
               onClick={handleRevokeAllSessions}
-              disabled={revokingAll || sessions.length <= 1}
+              disabled={revokingAll || sessions.length <= 1 || !sessions.some(s => !s.is_current)}
               className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 rounded-xl text-xs font-semibold transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -389,6 +388,11 @@ const Profile = () => {
                           <div>
                             <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                               <span>{uaInfo.browser} ({uaInfo.os})</span>
+                              {session.actor_type && (
+                                <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                                  {session.actor_type}
+                                </span>
+                              )}
                               {isCurrent && (
                                 <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
                                   Current
@@ -403,7 +407,14 @@ const Profile = () => {
                       </td>
                       <td className="px-6 py-4 font-mono text-xs text-gray-700 dark:text-gray-300">{session.ip_address || '127.0.0.1'}</td>
                       <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">{formatDate(session.created_at)}</td>
-                      <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">{formatDate(session.last_used_at)}</td>
+                      <td className="px-6 py-4 text-xs text-gray-500 dark:text-gray-400">
+                        <div>{formatDate(session.last_used_at)}</div>
+                        {session.expires_at && (
+                          <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+                            Expires: {formatDate(session.expires_at)}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         {isCurrent ? (
                           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">

@@ -12,6 +12,7 @@ import DocumentManagement from './pages/DocumentManagement';
 import TourPackages from './pages/TourPackages';
 import TourVariant from './pages/TourVariant';
 import TourDetails from './pages/TourDetails';
+import DestinationManagement from './pages/DestinationManagement';
 import ServerUnavailable from './pages/ServerUnavailable';
 import NotFound from './pages/NotFound';
 
@@ -41,6 +42,7 @@ function App() {
           <Route path="/customers" element={<CustomerManagement />} />
           <Route path="/customers/:customerId" element={<CustomerDetails />} />
           <Route path="/document-management" element={<DocumentManagement />} />
+          <Route path="/destinations" element={<DestinationManagement />} />
           <Route path="/tour-packages" element={<TourPackages />} />
           <Route path="/tour-variants" element={<TourVariant />} />
           <Route path="/tour-packages/:packageId/variants" element={<TourVariant />} />

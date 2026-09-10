@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Route,
   Users,
+  MapPin,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -45,6 +46,11 @@ const Sidebar = ({
       icon: Package,
       label: "Tour Packages",
       path: "/tour-packages",
+    },
+    {
+      icon: MapPin,
+      label: "Destinations",
+      path: "/destinations",
     },
   ];
 

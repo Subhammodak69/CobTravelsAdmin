@@ -36,7 +36,6 @@ const defaultForm = {
   emergency_contact_mobile: '',
   profile_pic: '',
   source: 'WEBSITE',
-  is_imported: false,
   is_active: true,
 };
 
@@ -162,7 +161,6 @@ const CustomerManagement = () => {
       emergency_contact_mobile: customer.emergency_contact_mobile || '',
       profile_pic: customer.profile_pic || '',
       source: customer.source || 'WEBSITE',
-      is_imported: customer.is_imported || false,
       is_active: customer.is_active !== false,
     });
     setIsFormOpen(true);
@@ -185,16 +183,15 @@ const CustomerManagement = () => {
     }
     setSaving(true);
     const body = {
-      name: formState.name,
-      mobile: formState.mobile || null,
-      email: formState.email || null,
-      address: formState.address || null,
-      emergency_contact_name: formState.emergency_contact_name || null,
-      emergency_contact_mobile: formState.emergency_contact_mobile || null,
-      profile_pic: formState.profile_pic || null,
-      source: formState.source,
-      is_imported: formState.is_imported,
-      is_active: formState.is_active,
+      name: formState.name.trim(),
+      mobile: formState.mobile?.trim() || '',
+      email: formState.email?.trim() || '',
+      address: formState.address?.trim() || '',
+      emergency_contact_name: formState.emergency_contact_name?.trim() || '',
+      emergency_contact_mobile: formState.emergency_contact_mobile?.trim() || '',
+      profile_pic: formState.profile_pic || '',
+      source: formState.source || 'WEBSITE',
+      is_active: Boolean(formState.is_active),
     };
 
     try {
@@ -207,7 +204,7 @@ const CustomerManagement = () => {
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to save customer');
       }
-      toast.success(editingCustomer ? 'Customer updated successfully' : 'Customer created successfully');
+      toast.success(result?.message || (editingCustomer ? 'Customer updated successfully' : 'Customer created successfully'));
       closeModal();
       loadCustomers(1, searchTerm, isActiveFilter);
       setCurrentPage(1);
@@ -228,7 +225,7 @@ const CustomerManagement = () => {
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete customer');
       }
-      toast.success('Customer deleted');
+      toast.success(result?.message || 'Customer deleted successfully');
       loadCustomers(currentPage, searchTerm, isActiveFilter);
     } catch (error) {
       handleApiError(error, 'Unable to delete customer');
@@ -568,16 +565,6 @@ const CustomerManagement = () => {
                 />
                 <UserCheck className="h-4 w-4" />
                 Active account
-              </label>
-              <label className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formState.is_imported}
-                  onChange={(e) => handleFieldChange('is_imported', e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <Shield className="h-4 w-4" />
-                Imported record
               </label>
             </div>
 

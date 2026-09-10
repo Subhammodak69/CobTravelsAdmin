@@ -25,6 +25,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [otpMeta, setOtpMeta] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
 
   // If already authenticated, redirect to dashboard
@@ -66,6 +67,12 @@ const Login = () => {
 
       if (response.ok) {
         toast.success(data?.message || 'OTP sent successfully to your identifier!');
+        if (data?.data) {
+          setOtpMeta(data.data);
+          if (data.data.identifier) {
+            setIdentifier(data.data.identifier);
+          }
+        }
         setStep('VERIFY_OTP');
         setResendTimer(60);
       } else {
@@ -104,7 +111,7 @@ const Login = () => {
       const authPayload = data?.data && typeof data.data === 'object' ? data.data : data;
 
       if (response.ok && authPayload?.access_token) {
-        toast.success('Authentication successful! Welcome back.');
+        toast.success(data?.message || 'Authentication successful! Welcome back.');
         await login(authPayload);
         navigate('/dashboard', { replace: true });
       } else {
@@ -245,6 +252,11 @@ const Login = () => {
                 <div className="flex items-center gap-2 truncate pr-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                   <span className="truncate">{identifier}</span>
+                  {otpMeta?.identifier_type && (
+                    <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-semibold border border-blue-200">
+                      {otpMeta.identifier_type}
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -252,6 +264,7 @@ const Login = () => {
                     setStep('REQUEST_OTP');
                     setOtp('');
                     setErrorMsg('');
+                    setOtpMeta(null);
                   }}
                   disabled={googleLoading}
                   className="text-blue-600 hover:text-blue-500 font-medium underline shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"

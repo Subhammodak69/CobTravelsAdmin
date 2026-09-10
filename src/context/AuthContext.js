@@ -75,9 +75,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiCall('/api/v1/admin/auth/me', 'GET');
       if (response.ok) {
-        const profileData = await response.json();
-        setUser(profileData);
-        return profileData;
+        const payload = await response.json();
+        const profile = payload?.data && typeof payload.data === 'object' && !Array.isArray(payload.data)
+          ? payload.data
+          : payload;
+        setUser(profile);
+        return profile;
       }
 
       console.warn('Failed to fetch admin profile (/api/v1/admin/auth/me):', response.status);
@@ -95,8 +98,9 @@ export const AuthProvider = ({ children }) => {
       return { ok: false, reason: 'missing_tokens' };
     }
 
-    const payload = {};
-    if (refreshToken) payload.refresh_token = refreshToken;
+    const payload = {
+      refresh_token: refreshToken || ''
+    };
 
     try {
       const response = await apiCall('/api/v1/sessions/refresh', 'POST', payload);
@@ -106,13 +110,14 @@ export const AuthProvider = ({ children }) => {
       if (response.ok && (data?.access_token || data?.token)) {
         const renewedAccessToken = data.access_token || data.token;
         const renewedRefreshToken = data.refresh_token || resPayload?.refresh_token || refreshToken;
-        const expiresInSec = Number(data?.expires_in_sec ?? data?.expires_in ?? resPayload?.expires_in_sec ?? resPayload?.expires_in ?? 900) || 900;
+        const expiresInSec = Number(data?.expires_in ?? data?.expires_in_sec ?? resPayload?.expires_in ?? resPayload?.expires_in_sec ?? 900) || 900;
         const nextSession = {
           ...(parsed || {}),
           access_token: renewedAccessToken,
           refresh_token: renewedRefreshToken,
           token: renewedAccessToken,
           token_type: data?.token_type || resPayload?.token_type || parsed?.token_type || 'bearer',
+          expires_in: expiresInSec,
           expires_in_sec: expiresInSec,
           expires_at: new Date(Date.now() + expiresInSec * 1000).toISOString(),
           profile: parsed?.profile || parsed?.user || null
@@ -148,6 +153,7 @@ export const AuthProvider = ({ children }) => {
       access_token: parsed?.access_token || parsed?.token || accessToken,
       refresh_token: parsed?.refresh_token || localStorage.getItem(REFRESH_TOKEN_KEY) || null,
       token_type: parsed?.token_type || 'bearer',
+      expires_in: parsed?.expires_in || parsed?.expires_in_sec || null,
       expires_in_sec: parsed?.expires_in_sec || parsed?.expires_in || null
     };
 
@@ -158,7 +164,10 @@ export const AuthProvider = ({ children }) => {
       const response = await apiCall('/api/v1/admin/auth/me', 'GET');
 
       if (response.ok) {
-        const profile = await response.json();
+        const payload = await response.json();
+        const profile = payload?.data && typeof payload.data === 'object' && !Array.isArray(payload.data)
+          ? payload.data
+          : payload;
         setUser(profile);
         setLoading(false);
         return;
@@ -170,7 +179,10 @@ export const AuthProvider = ({ children }) => {
         if (refreshResult.ok) {
           const retryResponse = await apiCall('/api/v1/admin/auth/me', 'GET');
           if (retryResponse.ok) {
-            const profile = await retryResponse.json();
+            const retryPayload = await retryResponse.json();
+            const profile = retryPayload?.data && typeof retryPayload.data === 'object' && !Array.isArray(retryPayload.data)
+              ? retryPayload.data
+              : retryPayload;
             setUser(profile);
             setAuthError(null);
             setLoading(false);
@@ -223,12 +235,13 @@ export const AuthProvider = ({ children }) => {
     const normalizedAuthResponse = authResponse?.data && typeof authResponse.data === 'object' ? authResponse.data : authResponse;
     const accessToken = normalizedAuthResponse?.access_token || normalizedAuthResponse?.token || '';
     const refreshToken = normalizedAuthResponse?.refresh_token || normalizedAuthResponse?.refreshToken || '';
-    const expiresInSec = Number(normalizedAuthResponse?.expires_in_sec ?? normalizedAuthResponse?.expires_in ?? 900) || 900;
+    const expiresInSec = Number(normalizedAuthResponse?.expires_in ?? normalizedAuthResponse?.expires_in_sec ?? 900) || 900;
     const sessionData = {
       access_token: accessToken,
       refresh_token: refreshToken,
       token: accessToken,
       token_type: normalizedAuthResponse?.token_type || 'bearer',
+      expires_in: expiresInSec,
       expires_in_sec: expiresInSec,
       expires_at: new Date(Date.now() + expiresInSec * 1000).toISOString(),
       profile: profile || null
@@ -266,14 +279,23 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     const { refreshToken } = readStoredSession();
+    let message = 'Logged out successfully';
 
     try {
-      await apiCall('/api/v1/sessions/logout', 'POST', refreshToken ? { refresh_token: refreshToken } : null);
+      const res = await apiCall('/api/v1/sessions/logout', 'POST', {
+        refresh_token: refreshToken || ''
+      });
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        if (d?.message) {
+          message = d.message;
+        }
+      }
     } catch (error) {
       console.warn('Logout API error:', error);
     } finally {
       clearAuthState();
-      toast.success('Logged out successfully');
+      toast.success(message);
       return true;
     }
   };
