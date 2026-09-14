@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { FileText, Plus, Trash2, RefreshCw, FileX, Eye } from 'lucide-react';
+import { FileText, Plus, Trash2, RefreshCw, Eye, Pencil } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import MediaViewerModal from '../component/common/MediaViewerModal';
 import DragDropUpload from '../component/common/DragDropUpload';
@@ -20,6 +20,15 @@ const defaultForm = {
   description: '',
 };
 
+const defaultEditForm = {
+  id: '',
+  document_type: 'ID_PROOF',
+  title: '',
+  description: '',
+};
+
+const CUSTOMER_PAGE_SIZE = 20;
+
 const formatDate = (value) => {
   if (!value) return 'N/A';
   try {
@@ -35,6 +44,13 @@ const getFileType = (url = '', fileName = '') => {
   if (lower.match(/\.(mp4|mov|webm|ogg)/) || lower.includes('video/upload') || lower.includes('video')) return 'video';
   if (lower.match(/\.(jpg|jpeg|png|gif|bmp|webp|svg|tiff|avif)/)) return 'image';
   return 'image';
+};
+
+const buildCustomerLabel = (customer) => {
+  if (!customer) return '';
+  const parts = [customer.name].filter(Boolean);
+  if (customer.mobile) parts.push(customer.mobile);
+  return parts.join(' • ') || customer.customer_code || customer.id;
 };
 
 const DocumentPreviewContent = ({ doc }) => {
@@ -89,19 +105,55 @@ const DocumentManagement = () => {
   const [saving, setSaving] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formState, setFormState] = useState(defaultForm);
   const [previewDoc, setPreviewDoc] = useState(null);
 
-  const loadDocuments = async () => {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState(defaultEditForm);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // ---- Customer select (paginated, lazy-loaded on menu open, more on scroll) ----
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [customerHasMore, setCustomerHasMore] = useState(true);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [customerLoaded, setCustomerLoaded] = useState(false);
+
+  // ---- Fetch (server-side pagination) ----
+  const loadDocuments = async (page = currentPage, limit = itemsPerPage) => {
     setLoading(true);
     try {
-      const response = await apiCall('/api/v1/admin/documents', 'GET');
+      const params = new URLSearchParams({ page: String(page), page_size: String(limit) });
+      const response = await apiCall(`/api/v1/admin/documents?${params.toString()}`, 'GET');
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload?.message || payload?.detail || 'Unable to fetch documents');
       }
-      setDocuments(Array.isArray(payload?.data) ? payload.data : []);
+
+      const data = Array.isArray(payload?.data) ? payload.data : [];
+      const meta = payload?.pagination || {};
+      const serverTotalPages = Number(meta.total_pages) || 1;
+
+      // If we just deleted the last item(s) on a page, step back to the last valid page.
+      if (data.length === 0 && page > 1 && page > serverTotalPages) {
+        setLoading(false);
+        await loadDocuments(serverTotalPages, limit);
+        return;
+      }
+
+      setDocuments(data);
+      setTotalItems(Number(meta.total_items) || 0);
+      setTotalPages(serverTotalPages);
+      setCurrentPage(Number(meta.current_page) || page);
+      setSelectedIds(new Set());
     } catch (error) {
       handleApiError(error, 'Unable to load documents');
     } finally {
@@ -110,9 +162,67 @@ const DocumentManagement = () => {
   };
 
   useEffect(() => {
-    loadDocuments();
+    loadDocuments(1, itemsPerPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handlePageChange = (page) => {
+    loadDocuments(page, itemsPerPage);
+  };
+
+  const handleLimitChange = (limit) => {
+    setItemsPerPage(limit);
+    loadDocuments(1, limit);
+  };
+
+  // ---- Customers (for the customer select field) ----
+  const loadCustomers = async (page = 1, append = false) => {
+    if (customerLoading) return;
+    setCustomerLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), page_size: String(CUSTOMER_PAGE_SIZE) });
+      const response = await apiCall(`/api/v1/admin/customers?${params.toString()}`, 'GET');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.detail || 'Unable to fetch customers');
+      }
+
+      const data = Array.isArray(payload?.data) ? payload.data : [];
+      const meta = payload?.pagination || {};
+
+      const options = data.map((customer) => ({
+        value: customer.id,
+        label: buildCustomerLabel(customer),
+      }));
+
+      setCustomerOptions((current) => (append ? [...current, ...options] : options));
+      setCustomerPage(Number(meta.current_page) || page);
+      setCustomerHasMore(Boolean(meta.has_next));
+      setCustomerLoaded(true);
+    } catch (error) {
+      handleApiError(error, 'Unable to load customers');
+    } finally {
+      setCustomerLoading(false);
+    }
+  };
+
+  const handleCustomerMenuOpen = () => {
+    if (!customerLoaded && !customerLoading) {
+      loadCustomers(1, false);
+    }
+  };
+
+  const handleCustomerMenuScrollToBottom = () => {
+    if (customerHasMore && !customerLoading) {
+      loadCustomers(customerPage + 1, true);
+    }
+  };
+
+  const resetCustomerSelect = () => {
+    setSelectedCustomer(null);
+  };
+
+  // ---- Upload (create) ----
   const handleFieldChange = (field, value) => {
     setFormState((current) => ({ ...current, [field]: value }));
   };
@@ -120,7 +230,7 @@ const DocumentManagement = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!formState.customer_id || !formState.title || !formState.file) {
-      toast.error('Customer ID, title and document file are required');
+      toast.error('Customer, title and document file are required');
       return;
     }
 
@@ -144,8 +254,9 @@ const DocumentManagement = () => {
 
       toast.success('Document uploaded successfully');
       setFormState(defaultForm);
+      resetCustomerSelect();
       setIsModalOpen(false);
-      await loadDocuments();
+      await loadDocuments(1, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to upload document');
     } finally {
@@ -153,33 +264,113 @@ const DocumentManagement = () => {
     }
   };
 
-  const handleDelete = async (document) => {
-    const confirmed = window.confirm(`Delete ${document?.file_name || 'this document'}?`);
-    if (!confirmed) return;
+  const closeUploadModal = () => {
+    setIsModalOpen(false);
+    setFormState(defaultForm);
+    resetCustomerSelect();
+  };
 
+  // ---- Edit (PATCH) ----
+  const openEditModal = (doc) => {
+    setEditForm({
+      id: doc.id,
+      document_type: doc.document_type || 'ID_PROOF',
+      title: doc.title || '',
+      description: doc.description || '',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditFieldChange = (field, value) => {
+    setEditForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleEditSubmit = async (event) => {
+    event.preventDefault();
+    if (!editForm.title) {
+      toast.error('Title is required');
+      return;
+    }
+
+    setEditSaving(true);
     try {
-      const response = await apiCall(`/api/v1/admin/documents/${document.id}`, 'DELETE');
+      const response = await apiCall(`/api/v1/admin/documents/${editForm.id}`, 'PATCH', {
+        document_type: editForm.document_type,
+        title: editForm.title,
+        description: editForm.description || '',
+      });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.message || payload?.detail || 'Unable to delete document');
+        throw new Error(payload?.message || payload?.detail || 'Unable to update document');
       }
-      toast.success('Document deleted successfully');
-      await loadDocuments();
+
+      toast.success('Document updated successfully');
+      setIsEditModalOpen(false);
+      setEditForm(defaultEditForm);
+      await loadDocuments(currentPage, itemsPerPage);
     } catch (error) {
-      handleApiError(error, 'Unable to delete document');
+      handleApiError(error, 'Unable to update document');
+    } finally {
+      setEditSaving(false);
     }
   };
 
-  const hasDocuments = useMemo(() => documents.length > 0, [documents.length]);
-  const totalPages = Math.max(1, Math.ceil(documents.length / itemsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
-  const paginatedDocuments = documents.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+  // ---- Delete (bulk endpoint, used for single + multi delete) ----
+  const deleteDocuments = async (ids) => {
+    if (!ids.length) return;
+    setBulkDeleting(true);
+    try {
+      const response = await apiCall('/api/v1/admin/documents/bulk', 'DELETE', { document_ids: ids });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.detail || 'Unable to delete document(s)');
+      }
+      toast.success(ids.length > 1 ? 'Documents deleted successfully' : 'Document deleted successfully');
+      await loadDocuments(currentPage, itemsPerPage);
+    } catch (error) {
+      handleApiError(error, 'Unable to delete document(s)');
+    } finally {
+      setBulkDeleting(false);
     }
-  }, [currentPage, totalPages]);
+  };
+
+  const handleDelete = (document) => {
+    const confirmed = window.confirm(`Delete ${document?.file_name || 'this document'}?`);
+    if (!confirmed) return;
+    deleteDocuments([document.id]);
+  };
+
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    const confirmed = window.confirm(`Delete ${ids.length} selected document${ids.length > 1 ? 's' : ''}?`);
+    if (!confirmed) return;
+    deleteDocuments(ids);
+  };
+
+  // ---- Selection ----
+  const allOnPageSelected = documents.length > 0 && documents.every((doc) => selectedIds.has(doc.id));
+
+  const toggleSelectAll = () => {
+    setSelectedIds((current) => {
+      if (allOnPageSelected) return new Set();
+      return new Set(documents.map((doc) => doc.id));
+    });
+  };
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const hasDocuments = documents.length > 0;
 
   return (
     <div className=" space-y-3 pb-6">
@@ -193,7 +384,7 @@ const DocumentManagement = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={loadDocuments}
+              onClick={() => loadDocuments(currentPage, itemsPerPage)}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -212,8 +403,21 @@ const DocumentManagement = () => {
       </div>
 
       <div className="mt-5 px-4">
-        <div className="flex items-center justify-end gap-3">
-          <div className="text-sm text-gray-600 dark:text-gray-300">{documents.length} total records</div>
+        <div className="flex items-center justify-between gap-3">
+          {selectedIds.size > 0 ? (
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-900/20 dark:text-red-400"
+            >
+              <Trash2 className="h-4 w-4" />
+              {bulkDeleting ? 'Deleting...' : `Delete selected (${selectedIds.size})`}
+            </button>
+          ) : (
+            <span />
+          )}
+          <div className="text-sm text-gray-600 dark:text-gray-300">{totalItems} total records</div>
         </div>
       </div>
 
@@ -227,6 +431,14 @@ const DocumentManagement = () => {
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800/70">
                 <tr>
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={allOnPageSelected}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </th>
                   <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Document</th>
                   <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Customer</th>
                   <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Type</th>
@@ -237,12 +449,21 @@ const DocumentManagement = () => {
               </thead>
 
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {paginatedDocuments.map((doc) => (
+                {documents.map((doc) => (
                   <tr
                     key={doc.id}
                     onClick={() => doc.file_url && setPreviewDoc(doc)}
                     className={`transition-colors ${doc.file_url ? 'cursor-pointer hover:bg-emerald-50/60 dark:hover:bg-emerald-900/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
                   >
+                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(doc.id)}
+                        onChange={() => toggleSelectOne(doc.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                    </td>
+
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-300">
@@ -280,6 +501,11 @@ const DocumentManagement = () => {
                               disabled: !doc.file_url,
                             },
                             {
+                              label: 'Edit Document',
+                              icon: <Pencil className="h-4 w-4 text-indigo-500" />,
+                              onClick: () => openEditModal(doc),
+                            },
+                            {
                               label: 'Delete Document',
                               icon: <Trash2 className="h-4 w-4 text-red-500" />,
                               className: 'text-red-600 hover:text-red-700 dark:text-red-400',
@@ -297,16 +523,13 @@ const DocumentManagement = () => {
         )}
       </div>
 
-      {documents.length > 0 && (
+      {totalItems > 0 && (
         <Pagination
-          currentPage={safePage}
-          totalItems={documents.length}
+          currentPage={currentPage}
+          totalItems={totalItems}
           itemsPerPage={itemsPerPage}
-          onPageChange={(page) => setCurrentPage(page)}
-          onLimitChange={(limit) => {
-            setItemsPerPage(limit);
-            setCurrentPage(1);
-          }}
+          onPageChange={handlePageChange}
+          onLimitChange={handleLimitChange}
         />
       )}
 
@@ -315,15 +538,16 @@ const DocumentManagement = () => {
         <DocumentPreviewContent doc={previewDoc} />
       </MediaViewerModal>
 
+      {/* Upload modal (POST) */}
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={closeUploadModal}
         title="Upload document"
         icon={FileText}
         size="lg"
         footer={(
           <div className="flex items-center justify-end gap-3">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-2xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+            <button type="button" onClick={closeUploadModal} className="rounded-2xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
               Cancel
             </button>
             <button type="submit" form="document-form" disabled={saving} className="rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
@@ -335,13 +559,23 @@ const DocumentManagement = () => {
         <form id="document-form" onSubmit={handleSubmit} className="space-y-5 p-1">
           <div className="grid gap-5 md:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer ID</label>
-              <input
-                value={formState.customer_id}
-                onChange={(event) => handleFieldChange('customer_id', event.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                placeholder="Enter customer UUID"
-                required
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Customer</label>
+              <SelectField
+                options={customerOptions}
+                value={selectedCustomer}
+                onChange={(selected) => {
+                  setSelectedCustomer(selected);
+                  handleFieldChange('customer_id', selected?.value || '');
+                }}
+                onMenuOpen={handleCustomerMenuOpen}
+                onMenuScrollToBottom={handleCustomerMenuScrollToBottom}
+                isLoading={customerLoading}
+                isSearchable
+                isClearable
+                placeholder="Select customer"
+                noOptionsMessage={() => (customerLoading ? 'Loading...' : 'No customers found')}
+                menuPlacement="auto"
+                classNamePrefix="react-select"
               />
             </div>
 
@@ -387,6 +621,64 @@ const DocumentManagement = () => {
                 onChange={(url) => handleFieldChange('file', url)}
                 accept="application/pdf,image/*"
                 helperText="PDF, JPG, PNG, TIFF"
+              />
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit modal (PATCH) — metadata only, file is not editable */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit document"
+        icon={Pencil}
+        size="lg"
+        footer={(
+          <div className="flex items-center justify-end gap-3">
+            <button type="button" onClick={() => setIsEditModalOpen(false)} className="rounded-2xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+              Cancel
+            </button>
+            <button type="submit" form="document-edit-form" disabled={editSaving} className="rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+              {editSaving ? 'Saving...' : 'Save changes'}
+            </button>
+          </div>
+        )}
+      >
+        <form id="document-edit-form" onSubmit={handleEditSubmit} className="space-y-5 p-1">
+          <div className="grid gap-5 md:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Document type</label>
+              <SelectField
+                options={documentTypeOptions}
+                value={documentTypeOptions.find((option) => option.value === editForm.document_type) || null}
+                onChange={(selected) => handleEditFieldChange('document_type', selected?.value || '')}
+                isSearchable={false}
+                placeholder="Select document type"
+                menuPlacement="auto"
+                classNamePrefix="react-select"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
+              <input
+                value={editForm.title}
+                onChange={(event) => handleEditFieldChange('title', event.target.value)}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                placeholder="Enter title"
+                required
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+              <textarea
+                value={editForm.description}
+                onChange={(event) => handleEditFieldChange('description', event.target.value)}
+                rows={4}
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                placeholder="Optional description"
               />
             </div>
           </div>

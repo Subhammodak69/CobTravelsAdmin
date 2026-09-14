@@ -9,6 +9,7 @@ import StaffManagement from './pages/StaffManagement';
 import CustomerManagement from './pages/CustomerManagement';
 import CustomerDetails from './pages/CustomerDetails';
 import DocumentManagement from './pages/DocumentManagement';
+import TourOffers from './pages/TourOffers';
 import TourPackages from './pages/TourPackages';
 import TourVariant from './pages/TourVariant';
 import TourDetails from './pages/TourDetails';
@@ -42,6 +43,7 @@ function App() {
           <Route path="/customers" element={<CustomerManagement />} />
           <Route path="/customers/:customerId" element={<CustomerDetails />} />
           <Route path="/document-management" element={<DocumentManagement />} />
+          <Route path="/tour-offers" element={<TourOffers />} />
           <Route path="/destinations" element={<DestinationManagement />} />
           <Route path="/tour-packages" element={<TourPackages />} />
           <Route path="/tour-variants" element={<TourVariant />} />

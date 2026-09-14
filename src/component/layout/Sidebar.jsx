@@ -7,6 +7,7 @@ import {
   Route,
   Users,
   MapPin,
+  BadgePercent,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -46,6 +47,11 @@ const Sidebar = ({
       icon: Package,
       label: "Tour Packages",
       path: "/tour-packages",
+    },
+    {
+      icon: BadgePercent,
+      label: "Tour Offers",
+      path: "/tour-offers",
     },
     {
       icon: MapPin,
