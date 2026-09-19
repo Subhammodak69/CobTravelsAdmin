@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   HelpCircle,
@@ -6,7 +7,6 @@ import {
   Pencil,
   Search,
   RefreshCw,
-  Eye,
   Calendar,
   Phone,
   Mail,
@@ -127,6 +127,7 @@ const statusBadgeClasses = {
 };
 
 const EnquiryManagement = () => {
+  const navigate = useNavigate();
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -273,26 +274,9 @@ const EnquiryManagement = () => {
     loadEnquiries(currentPage, itemsPerPage);
   }, [loadEnquiries, currentPage, itemsPerPage]);
 
-  // Open Lead Details Modal
-  const openEnquiryDetails = async (enquiry) => {
-    setSelectedEnquiry(enquiry);
-    setIsDetailsModalOpen(true);
-    setLeadLoading(true);
-    setLeadDetails(null);
-
-    try {
-      const res = await apiCall(`/api/v1/admin/enquiries/${enquiry.id}/lead`, 'GET');
-      const payload = await res.json().catch(() => ({}));
-      if (res.ok && payload?.data) {
-        setLeadDetails(payload.data);
-      } else {
-        setLeadDetails(enquiry.lead || null);
-      }
-    } catch {
-      setLeadDetails(enquiry.lead || null);
-    } finally {
-      setLeadLoading(false);
-    }
+  // Navigate to Lead Management Page
+  const openEnquiryDetails = (enquiry) => {
+    navigate(`/enquiries/${enquiry.id}/lead`, { state: { enquiry } });
   };
 
   // Open Edit Status Modal
@@ -675,9 +659,9 @@ const EnquiryManagement = () => {
                           menuId={`enq-${enq.id}`}
                           actions={[
                             {
-                              label: 'View Lead Details',
-                              icon: <Eye className="h-4 w-4 text-indigo-500" />,
-                              onClick: () => openEnquiryDetails(enq),
+                              label: 'Manage Lead',
+                              icon: <TrendingUp className="h-4 w-4 text-indigo-500" />,
+                              onClick: () => navigate(`/enquiries/${enq.id}/lead`, { state: { enquiry: enq } }),
                             },
                             {
                               label: 'Update Status',
@@ -702,7 +686,7 @@ const EnquiryManagement = () => {
             totalItems={totalItems}
             itemsPerPage={itemsPerPage}
             onPageChange={(page) => setCurrentPage(page)}
-            onItemsPerPageChange={(size) => {
+            onLimitChange={(size) => {
               setItemsPerPage(size);
               setCurrentPage(1);
             }}

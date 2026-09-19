@@ -53,9 +53,9 @@ const Navbar = ({
               >
                 <div>
                   <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight">
-                    Admin
+                    Gantabya
                     <span className="font-light text-gray-600 dark:text-gray-300">
-                      Panel
+                      Admin
                     </span>
                   </span>
                 </div>
