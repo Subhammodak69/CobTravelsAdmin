@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -14,10 +16,15 @@ import {
   Trash2,
   Eye,
   X,
+  Images,
+  ZoomIn,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ActionMenu from '../component/common/ActionMenu';
+import ManagementTable from '../component/common/ManagementTable';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
+import MediaViewerModal from '../component/common/MediaViewerModal';
+import ModalScrollLock from '../component/common/ModalScrollLock';
 import DragDropUpload from '../component/common/DragDropUpload';
 import Pagination from '../component/common/PaginationComponent';
 import { apiCall, handleApiError } from '../utils/apiCall';
@@ -94,6 +101,10 @@ const TourReviews = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
   const [formState, setFormState] = useState(defaultReviewForm);
+
+  /* Gallery modal state */
+  const [galleryModal, setGalleryModal] = useState({ open: false, images: [], reviewerName: '' });
+  const [viewerModal, setViewerModal] = useState({ open: false, image: null });
 
   /* Fetch reviews */
   const loadReviews = useCallback(async (page = currentPage, limit = itemsPerPage) => {
@@ -428,145 +439,274 @@ const TourReviews = () => {
         </div>
       </div>
 
-      {/* ── Reviews List ── */}
-      <div className="px-2">
+      {/* ── Reviews Table ── */}
+      <div className="px-2 space-y-3">
         {loading ? (
           <div className="flex items-center justify-center py-20 text-sm text-gray-500">
             <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
             Loading reviews...
           </div>
-        ) : filteredReviews.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-20 text-center dark:border-gray-700 dark:bg-gray-800/40">
-            <MessageSquare className="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No reviews found for this package.</p>
-            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Click &quot;Add review&quot; to create a new review.</p>
-          </div>
         ) : (
-          <div className="space-y-3">
-            {filteredReviews.map((review) => (
-              <div
-                key={review.id}
-                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-900"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  {/* Reviewer info */}
-                  <div className="flex items-start gap-3">
-                    {review.customer_profile_picture ? (
-                      <img
-                        src={review.customer_profile_picture}
-                        alt={review.name || 'Reviewer'}
-                        className="h-11 w-11 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-700"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    ) : (
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 text-white">
-                        <User className="h-5 w-5" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-gray-900 dark:text-white">
+          <>
+            <ManagementTable
+              rows={filteredReviews}
+              rowKey="id"
+              accent="violet"
+              emptyState={
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-20 text-center dark:border-gray-700 dark:bg-gray-800/40">
+                  <MessageSquare className="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No reviews found for this package.</p>
+                  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">Click &quot;Add review&quot; to create a new review.</p>
+                </div>
+              }
+              columns={[
+                {
+                  key: 'reviewer',
+                  label: 'Reviewer',
+                  headerClassName: 'w-48',
+                  render: (review) => (
+                    <div className="flex items-center gap-3">
+                      {review.customer_profile_picture ? (
+                        <img
+                          src={review.customer_profile_picture}
+                          alt={review.name || 'Reviewer'}
+                          className="h-9 w-9 rounded-full object-cover ring-2 ring-gray-100 dark:ring-gray-700 shrink-0"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-indigo-500 text-white">
+                          <User className="h-4 w-4" />
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-semibold text-gray-900 dark:text-white whitespace-nowrap">
                           {review.name || 'Anonymous'}
                         </span>
                         {review.is_verified && (
-                          <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
+                          <span className="ml-1.5 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
                             Verified
                           </span>
                         )}
-                        <span
-                          className={[
-                            'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                            review.is_published
-                              ? 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300'
-                              : 'border-gray-200 bg-gray-100 text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400',
-                          ].join(' ')}
-                        >
-                          {review.is_published ? 'Published' : 'Unpublished'}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex items-center gap-3">
-                        <StarRating rating={review.rating} />
-                        <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(review.created_at)}
-                        </span>
                       </div>
                     </div>
-                  </div>
+                  ),
+                },
+                {
+                  key: 'rating',
+                  label: 'Rating',
+                  headerClassName: 'w-32',
+                  className: 'whitespace-nowrap',
+                  render: (review) => <StarRating rating={review.rating} />,
+                },
+                {
+                  key: 'review',
+                  label: 'Review',
+                  render: (review) => (
+                    <p className="line-clamp-2 text-xs text-gray-600 dark:text-gray-300">
+                      {review.review || <span className="italic text-gray-400">No review text</span>}
+                    </p>
+                  ),
+                },
+                {
+                  key: 'gallery',
+                  label: 'Gallery',
+                  headerClassName: 'w-24',
+                  render: (review) => {
+                    const gallery = Array.isArray(review.review_gallery) ? review.review_gallery : [];
+                    if (gallery.length === 0) return <span className="text-xs text-gray-400">No photos</span>;
+                    return (
+                      <div
+                        onClick={() => setGalleryModal({ open: true, images: gallery, reviewerName: review.name || 'Anonymous' })}
+                        className="group/photos relative flex h-12 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800"
+                      >
+                        {gallery.length === 1 ? (
+                          <img
+                            src={gallery[0]?.url || gallery[0]}
+                            alt="Review photo"
+                            className="h-full w-full object-cover transition group-hover/photos:scale-105"
+                          />
+                        ) : (
+                          <div className="grid h-full w-full grid-cols-2 gap-0.5 p-0.5">
+                            {gallery.slice(0, 4).map((img, idx) => (
+                              <div key={idx} className="relative overflow-hidden rounded-sm bg-gray-200 dark:bg-gray-700">
+                                <img src={img?.url || img} alt="" className="h-full w-full object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {gallery.length > 4 && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-[10px] font-bold text-white">
+                            +{gallery.length - 4}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  },
+                },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  headerClassName: 'w-32',
+                  className: 'whitespace-nowrap',
+                  render: (review) => (
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePublished(review)}
+                      className={[
+                        'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition',
+                        review.is_published
+                          ? 'border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 dark:border-cyan-900/40 dark:bg-cyan-900/20 dark:text-cyan-300'
+                          : 'border-gray-200 bg-gray-100 text-gray-500 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400',
+                      ].join(' ')}
+                    >
+                      <Eye className="h-3 w-3" />
+                      {review.is_published ? 'Published' : 'Unpublished'}
+                    </button>
+                  ),
+                },
+                {
+                  key: 'created_at',
+                  label: 'Date',
+                  headerClassName: 'w-32',
+                  className: 'whitespace-nowrap',
+                  render: (review) => (
+                    <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                      <Calendar className="h-3 w-3" />
+                      {formatDate(review.created_at)}
+                    </span>
+                  ),
+                },
+              ]}
+              getActions={(review) => [
+                {
+                  label: review.is_published ? 'Unpublish' : 'Publish',
+                  icon: <Eye className="h-4 w-4 text-cyan-500" />,
+                  onClick: () => handleTogglePublished(review),
+                },
+                {
+                  label: 'Edit Review',
+                  icon: <Pencil className="h-4 w-4 text-blue-500" />,
+                  onClick: () => openEditModal(review),
+                },
+                {
+                  label: 'Delete Review',
+                  icon: <Trash2 className="h-4 w-4 text-red-500" />,
+                  className: 'text-red-600 hover:text-red-700 dark:text-red-400',
+                  onClick: () => handleDelete(review),
+                },
+              ]}
+            />
 
-                  {/* Actions */}
-                  <div className="flex shrink-0 items-center justify-end">
-                    <ActionMenu
-                      menuId={review.id}
-                      actions={[
-                        {
-                          label: review.is_published ? 'Unpublish' : 'Publish',
-                          icon: <Eye className="h-4 w-4 text-cyan-500" />,
-                          onClick: () => handleTogglePublished(review),
-                        },
-                        {
-                          label: 'Edit Review',
-                          icon: <Pencil className="h-4 w-4 text-blue-500" />,
-                          onClick: () => openEditModal(review),
-                        },
-                        {
-                          label: 'Delete Review',
-                          icon: <Trash2 className="h-4 w-4 text-red-500" />,
-                          className: 'text-red-600 hover:text-red-700 dark:text-red-400',
-                          onClick: () => handleDelete(review),
-                        },
-                      ]}
-                    />
-                  </div>
-                </div>
-
-                {/* Review text */}
-                {review.review && (
-                  <p className="mt-3 text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-                    {review.review}
-                  </p>
-                )}
-
-                {/* Gallery thumbnails */}
-                {Array.isArray(review.review_gallery) && review.review_gallery.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {review.review_gallery.map((img, idx) => {
-                      const url = typeof img === 'string' ? img : img?.url || '';
-                      const alt = typeof img === 'object' ? img?.alt : `Photo ${idx + 1}`;
-                      const type = (typeof img === 'object' && img?.type) || 'image';
-                      if (!url) return null;
-                      return (
-                        <MediaPreviewModal
-                          key={img?.id || idx}
-                          src={url}
-                          alt={alt || 'Review gallery media'}
-                          type={type}
-                          thumbnailClassName="h-16 w-20 rounded-xl object-cover ring-1 ring-gray-200 dark:ring-gray-700"
-                          className="block shrink-0"
-                        />
-                      );
-                    })}
-                  </div>
-                )}
+            {/* Pagination */}
+            {totalItems > 0 && (
+              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={totalItems}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={(page) => setCurrentPage(page)}
+                  onLimitChange={(limit) => {
+                    setItemsPerPage(limit);
+                    setCurrentPage(1);
+                  }}
+                />
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
 
-      {totalItems > 0 && (
-        <div className="px-2">
-          <Pagination
-            currentPage={currentPage}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={(page) => setCurrentPage(page)}
-            onLimitChange={(limit) => {
-              setItemsPerPage(limit);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
+      {/* ── Gallery Grid Modal ── */}
+      {createPortal(
+        <AnimatePresence>
+          {galleryModal.open && (
+            <motion.div
+              className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.18, ease: 'easeOut' } }}
+              exit={{ opacity: 0, transition: { duration: 0.16, ease: 'easeIn' } }}
+            >
+              <ModalScrollLock />
+              <motion.div
+                className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                onClick={() => setGalleryModal({ open: false, images: [], reviewerName: '' })}
+              />
+              <motion.div
+                className="relative z-10 flex flex-col w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl bg-gray-950 shadow-2xl ring-1 ring-white/10"
+                initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 360, damping: 28, mass: 0.75 } }}
+                exit={{ opacity: 0, scale: 0.96, y: 12, transition: { duration: 0.16, ease: 'easeIn' } }}
+              >
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/10 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Images className="h-4 w-4 text-violet-400" />
+                    <span className="text-sm font-semibold text-white">
+                      {galleryModal.reviewerName} &mdash; {galleryModal.images.length} {galleryModal.images.length === 1 ? 'Photo' : 'Photos'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGalleryModal({ open: false, images: [], reviewerName: '' })}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="overflow-y-auto p-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
+                    {galleryModal.images.map((img, idx) => {
+                      const url = img?.url || (typeof img === 'string' ? img : '');
+                      const isVideo = img?.type === 'video' || (typeof url === 'string' && url.match(/\.(mp4|webm|mov|ogg)$/i));
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setViewerModal({ open: true, image: img })}
+                          className="group relative aspect-square overflow-hidden rounded-lg bg-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        >
+                          {isVideo ? (
+                            <video src={url} className="h-full w-full object-cover" />
+                          ) : (
+                            <img src={url} alt={img?.alt || `Photo ${idx + 1}`} className="h-full w-full object-cover transition duration-200 group-hover:scale-105" />
+                          )}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/40">
+                            <ZoomIn className="h-6 w-6 text-white opacity-0 transition group-hover:opacity-100 drop-shadow" />
+                          </div>
+                          {img?.alt && (
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 px-2 py-1 text-[10px] text-white truncate">{img.alt}</div>
+                          )}
+                          {isVideo && (
+                            <div className="absolute top-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">VIDEO</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* ── Single Image Fullscreen Viewer ── */}
+      {createPortal(
+        <MediaViewerModal
+          isOpen={viewerModal.open}
+          onClose={() => setViewerModal({ open: false, image: null })}
+        >
+          {viewerModal.image && (() => {
+            const url = viewerModal.image?.url || (typeof viewerModal.image === 'string' ? viewerModal.image : '');
+            const isVideo = viewerModal.image?.type === 'video' || (typeof url === 'string' && url.match(/\.(mp4|webm|mov|ogg)$/i));
+            return isVideo ? (
+              <video src={url} controls autoPlay className="max-h-[90vh] w-auto max-w-full" />
+            ) : (
+              <img src={url} alt={viewerModal.image?.alt || 'Review photo'} className="max-h-[90vh] w-auto max-w-full object-contain" />
+            );
+          })()}
+        </MediaViewerModal>,
+        document.body
       )}
 
       {/* ── Add / Edit Review Modal ── */}

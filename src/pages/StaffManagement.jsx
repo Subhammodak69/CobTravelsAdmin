@@ -392,24 +392,27 @@ const StaffManagement = () => {
             </table>
           </div>
         )}
-      </div>
 
-      {(serverPagination ? serverPagination.total_items : filteredStaff.length) > 0 && (
-        <Pagination
-          currentPage={safePage}
-          totalItems={serverPagination ? serverPagination.total_items : filteredStaff.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={(page) => {
-            setCurrentPage(page);
-            loadStaff(page, itemsPerPage);
-          }}
-          onLimitChange={(limit) => {
-            setItemsPerPage(limit);
-            setCurrentPage(1);
-            loadStaff(1, limit);
-          }}
-        />
-      )}
+        {/* Pagination */}
+        {(serverPagination ? serverPagination.total_items : filteredStaff.length) > 0 && (
+          <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+            <Pagination
+              currentPage={safePage}
+              totalItems={serverPagination ? serverPagination.total_items : filteredStaff.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                loadStaff(page, itemsPerPage);
+              }}
+              onLimitChange={(limit) => {
+                setItemsPerPage(limit);
+                setCurrentPage(1);
+                loadStaff(1, limit);
+              }}
+            />
+          </div>
+        )}
+      </div>
 
       <Modal
         isOpen={isModalOpen}

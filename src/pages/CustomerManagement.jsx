@@ -419,22 +419,24 @@ const CustomerManagement = () => {
             </table>
           </div>
         )}
-      </div>
 
-      {/* Pagination */}
-      {totalItems > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalItems={totalItems}
-          itemsPerPage={pageSize}
-          availableLimits={[10, 25, 50, 100]}
-          onPageChange={(page) => setCurrentPage(page)}
-          onLimitChange={(limit) => {
-            setPageSize(limit);
-            setCurrentPage(1);
-          }}
-        />
-      )}
+        {/* Pagination */}
+        {totalItems > 0 && (
+          <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              itemsPerPage={pageSize}
+              availableLimits={[10, 25, 50, 100]}
+              onPageChange={(page) => setCurrentPage(page)}
+              onLimitChange={(limit) => {
+                setPageSize(limit);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Create / Edit modal */}
       <Modal

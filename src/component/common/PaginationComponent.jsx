@@ -86,7 +86,7 @@ const Pagination = ({
 
     return (
         <div
-            className={`rounded-2xl border border-border bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 dark:border-gray-800/50 px-3 py-3 sm:px-4 sm:py-3.5 ${className}`.trim()}
+            className={`px-3  ${className}`.trim()}
         >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 {/* Info */}

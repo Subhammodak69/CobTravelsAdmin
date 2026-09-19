@@ -395,21 +395,23 @@ const DestinationManagement = () => {
             </table>
           </div>
         )}
-      </div>
 
-      {/* Pagination */}
-      {totalItems > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalItems={totalItems}
-          itemsPerPage={itemsPerPage}
-          onPageChange={(page) => setCurrentPage(page)}
-          onLimitChange={(limit) => {
-            setItemsPerPage(limit);
-            setCurrentPage(1);
-          }}
-        />
-      )}
+        {/* Pagination */}
+        {totalItems > 0 && (
+          <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(page) => setCurrentPage(page)}
+              onLimitChange={(limit) => {
+                setItemsPerPage(limit);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Create / Edit Modal */}
       <Modal
