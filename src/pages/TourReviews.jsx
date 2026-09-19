@@ -14,7 +14,6 @@ import {
   Trash2,
   Eye,
   X,
-  UploadCloud,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ActionMenu from '../component/common/ActionMenu';

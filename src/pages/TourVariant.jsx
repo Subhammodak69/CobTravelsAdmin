@@ -15,9 +15,7 @@ import {
   MessageSquare,
   User,
   Calendar,
-  Image as ImageIcon,
   X,
-  UploadCloud,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import Pagination from '../component/common/PaginationComponent';
