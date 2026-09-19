@@ -4,9 +4,10 @@ import {
   Package,
   FileText,
   ShieldCheck,
-  Route,
   Users,
   MapPin,
+  Building2,
+  HelpCircle,
   BadgePercent,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
@@ -39,6 +40,11 @@ const Sidebar = ({
       path: "/customers",
     },
     {
+      icon: HelpCircle,
+      label: "Enquiries",
+      path: "/enquiries",
+    },
+    {
       icon: FileText,
       label: "Document Management",
       path: "/document-management",
@@ -57,6 +63,11 @@ const Sidebar = ({
       icon: MapPin,
       label: "Destinations",
       path: "/destinations",
+    },
+    {
+      icon: Building2,
+      label: "Hotels",
+      path: "/hotels",
     },
   ];
 

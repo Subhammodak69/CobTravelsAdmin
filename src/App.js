@@ -12,8 +12,11 @@ import DocumentManagement from './pages/DocumentManagement';
 import TourOffers from './pages/TourOffers';
 import TourPackages from './pages/TourPackages';
 import TourVariant from './pages/TourVariant';
+import TourReviews from './pages/TourReviews';
 import TourDetails from './pages/TourDetails';
 import DestinationManagement from './pages/DestinationManagement';
+import HotelManagement from './pages/HotelManagement';
+import EnquiryManagement from './pages/EnquiryManagement';
 import ServerUnavailable from './pages/ServerUnavailable';
 import NotFound from './pages/NotFound';
 
@@ -42,12 +45,15 @@ function App() {
           <Route path="/staff-management" element={<StaffManagement />} />
           <Route path="/customers" element={<CustomerManagement />} />
           <Route path="/customers/:customerId" element={<CustomerDetails />} />
+          <Route path="/enquiries" element={<EnquiryManagement />} />
           <Route path="/document-management" element={<DocumentManagement />} />
           <Route path="/tour-offers" element={<TourOffers />} />
           <Route path="/destinations" element={<DestinationManagement />} />
+          <Route path="/hotels" element={<HotelManagement />} />
           <Route path="/tour-packages" element={<TourPackages />} />
           <Route path="/tour-variants" element={<TourVariant />} />
           <Route path="/tour-packages/:packageId/variants" element={<TourVariant />} />
+          <Route path="/tour-packages/:packageId/reviews" element={<TourReviews />} />
           <Route path="/tour-packages/:packageId/variants/:variantId/details" element={<TourDetails />} />
           <Route path="/users" element={<UnderConstruction title="Users" />} />
           <Route path="/projects" element={<UnderConstruction title="Projects" />} />
