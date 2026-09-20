@@ -9,6 +9,7 @@ import {
   Building2,
   HelpCircle,
   BadgePercent,
+  Gift,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -38,6 +39,11 @@ const Sidebar = ({
       icon: Users,
       label: "Customers",
       path: "/customers",
+    },
+    {
+      icon: Gift,
+      label: "Referrals",
+      path: "/referrals",
     },
     {
       icon: HelpCircle,

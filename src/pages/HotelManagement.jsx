@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   Plus,
   Building2,
-  Bed,
   Pencil,
   Trash2,
   Search,
@@ -45,7 +43,6 @@ const defaultForm = {
 };
 
 const HotelManagement = () => {
-  const navigate = useNavigate();
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -526,9 +523,7 @@ const HotelManagement = () => {
 
                           <div className="min-w-0">
                             <h4
-                              className="font-semibold text-gray-900 dark:text-white truncate max-w-xs hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition"
-                              onClick={() => navigate(`/hotels/${hotel.id}/rooms`, { state: { hotel } })}
-                              title="Click to manage rooms"
+                              className="font-semibold text-gray-900 dark:text-white truncate max-w-xs"
                             >
                               {hotel.name || 'Untitled Hotel'}
                             </h4>
@@ -608,11 +603,6 @@ const HotelManagement = () => {
                         <ActionMenu
                           menuId={hotel.id}
                           actions={[
-                            {
-                              label: 'Manage Rooms',
-                              icon: <Bed className="h-4 w-4 text-indigo-500" />,
-                              onClick: () => navigate(`/hotels/${hotel.id}/rooms`, { state: { hotel } }),
-                            },
                             {
                               label: 'Edit Hotel',
                               icon: <Pencil className="h-4 w-4 text-blue-500" />,

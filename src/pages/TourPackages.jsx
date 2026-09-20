@@ -38,11 +38,15 @@ const TourPackages = () => {
   const [formState, setFormState] = useState(defaultForm);
   const [destinations, setDestinations] = useState([]);
   const [destLoading, setDestLoading] = useState(false);
+  const [selectedDestination, setSelectedDestination] = useState('');
 
-  const loadPackages = useCallback(async (page = currentPage, limit = itemsPerPage) => {
+  const loadPackages = useCallback(async (page = currentPage, limit = itemsPerPage, destinationId = selectedDestination) => {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams({ page, page_size: limit });
+      if (destinationId) {
+        queryParams.set('destination_id', destinationId);
+      }
       const response = await apiCall(`/api/v1/admin/tour-packages?${queryParams.toString()}`, 'GET');
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -60,7 +64,7 @@ const TourPackages = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, selectedDestination]);
 
   // Load all destinations for the select dropdown (unpaged, large limit)
   const loadDestinations = useCallback(async () => {
@@ -219,17 +223,44 @@ const TourPackages = () => {
 
       <div className="mt-5 px-2">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search packages..."
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-            />
+          <div className="flex flex-1 flex-col sm:flex-row gap-3">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search packages..."
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              />
+            </div>
+
+            <div className="w-full sm:w-64">
+              <SelectField
+                options={[{ value: '', label: 'All Destinations' }, ...destinations]}
+                value={
+                  selectedDestination
+                    ? destinations.find((d) => d.value === selectedDestination) || { value: selectedDestination, label: 'Selected Destination' }
+                    : { value: '', label: 'All Destinations' }
+                }
+                onChange={(selected) => {
+                  const newDest = selected?.value || '';
+                  setSelectedDestination(newDest);
+                  setCurrentPage(1);
+                  loadPackages(1, itemsPerPage, newDest);
+                }}
+                isSearchable
+                isLoading={destLoading}
+                placeholder={destLoading ? 'Loading destinations...' : 'Filter by Destination'}
+                menuPlacement="auto"
+                isClearable={false}
+                classNamePrefix="react-select"
+              />
+            </div>
           </div>
 
-          <div className="text-sm text-gray-600 dark:text-gray-300">{filteredPackages.length} total records</div>
+          <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            {totalItems} total records
+          </div>
         </div>
       </div>
 

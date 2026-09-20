@@ -16,9 +16,10 @@ import TourReviews from './pages/TourReviews';
 import TourDetails from './pages/TourDetails';
 import DestinationManagement from './pages/DestinationManagement';
 import HotelManagement from './pages/HotelManagement';
-import RoomManagement from './pages/RoomManagement';
 import EnquiryManagement from './pages/EnquiryManagement';
 import LeadManagement from './pages/LeadManagement';
+import Referrals from './pages/Referrals';
+import ReferralsConfiguration from './pages/ReferralsConfiguration';
 import ServerUnavailable from './pages/ServerUnavailable';
 import NotFound from './pages/NotFound';
 
@@ -47,6 +48,8 @@ function App() {
           <Route path="/staff-management" element={<StaffManagement />} />
           <Route path="/customers" element={<CustomerManagement />} />
           <Route path="/customers/:customerId" element={<CustomerDetails />} />
+          <Route path="/referrals" element={<Referrals />} />
+          <Route path="/referrals/configuration" element={<ReferralsConfiguration />} />
           <Route path="/enquiries" element={<EnquiryManagement />} />
           <Route path="/enquiries/:enquiryId/lead" element={<LeadManagement />} />
           <Route path="/leads/:leadId" element={<LeadManagement />} />
@@ -54,8 +57,6 @@ function App() {
           <Route path="/tour-offers" element={<TourOffers />} />
           <Route path="/destinations" element={<DestinationManagement />} />
           <Route path="/hotels" element={<HotelManagement />} />
-          <Route path="/hotels/:hotelId/rooms" element={<RoomManagement />} />
-          <Route path="/hotel-rooms" element={<RoomManagement />} />
           <Route path="/tour-packages" element={<TourPackages />} />
           <Route path="/tour-variants" element={<TourVariant />} />
           <Route path="/tour-packages/:packageId/variants" element={<TourVariant />} />

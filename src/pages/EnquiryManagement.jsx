@@ -15,6 +15,11 @@ import {
   FileText,
   DollarSign,
   Users as UsersIcon,
+  UserCheck,
+  UserPlus,
+  ArrowLeft,
+  ArrowRight,
+  Check,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import SelectField from '../component/common/SelectField';
@@ -158,12 +163,107 @@ const EnquiryManagement = () => {
   const [leadDetails, setLeadDetails] = useState(null);
   const [leadLoading, setLeadLoading] = useState(false);
 
+  // Customer selector state ('SYSTEM' or 'MANUAL')
+  const [customerType, setCustomerType] = useState('SYSTEM');
+  const [customers, setCustomers] = useState([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [selectedCustomerOption, setSelectedCustomerOption] = useState(null);
+
+  // Selection type for Trip (Step 3): 'DESTINATION' or 'PACKAGE'
+  const [tripSelectionType, setTripSelectionType] = useState('DESTINATION');
+
+  // Dynamic tour package & variant choices
+  const [packageVariants, setPackageVariants] = useState([]);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+
+  // Dynamic destination-filtered hotels
+  const [destinationHotels, setDestinationHotels] = useState([]);
+  const [hotelsLoading, setHotelsLoading] = useState(false);
+
   // Lookup references (Destinations, Hotels, Tour Packages, Staff)
   const [destinations, setDestinations] = useState([]);
   const [destLoading, setDestLoading] = useState(false);
   const [hotels, setHotels] = useState([]);
   const [packages, setPackages] = useState([]);
   const [staffAccounts, setStaffAccounts] = useState([]);
+
+  // Load Customers for System Customer option
+  const loadCustomersList = useCallback(async () => {
+    setCustomersLoading(true);
+    try {
+      const res = await apiCall('/api/v1/admin/customers?page=1&page_size=100', 'GET');
+      const payload = await res.json().catch(() => ({}));
+      if (Array.isArray(payload?.data)) {
+        setCustomers(
+          payload.data.map((c) => ({
+            value: c.id,
+            label: `${c.name || 'Unnamed'} • ${c.mobile || c.phone || 'No phone'} ${c.email ? `(${c.email})` : ''}`,
+            raw: c,
+          }))
+        );
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, []);
+
+  // Fetch Hotels filtered by Destination
+  const fetchHotelsForDestination = useCallback(async (destinationId) => {
+    if (!destinationId) {
+      setDestinationHotels([]);
+      return;
+    }
+    setHotelsLoading(true);
+    try {
+      const res = await apiCall(`/api/v1/admin/hotels?destination_id=${encodeURIComponent(destinationId)}&page=1&page_size=100`, 'GET');
+      const payload = await res.json().catch(() => ({}));
+      if (Array.isArray(payload?.data)) {
+        setDestinationHotels(
+          payload.data.map((h) => ({
+            value: h.id,
+            label: `${h.name} (${h.category || 'Hotel'})`,
+            raw: h,
+          }))
+        );
+      } else {
+        setDestinationHotels([]);
+      }
+    } catch {
+      setDestinationHotels([]);
+    } finally {
+      setHotelsLoading(false);
+    }
+  }, []);
+
+  // Fetch Variants for selected Package
+  const fetchVariantsForPackage = useCallback(async (packageId) => {
+    if (!packageId) {
+      setPackageVariants([]);
+      return;
+    }
+    setVariantsLoading(true);
+    try {
+      const res = await apiCall(`/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/variants?page=1&page_size=100`, 'GET');
+      const payload = await res.json().catch(() => ({}));
+      if (Array.isArray(payload?.data)) {
+        setPackageVariants(
+          payload.data.map((v) => ({
+            value: v.id,
+            label: `${v.name || 'Standard'} ${v.season_name ? `(${v.season_name})` : ''} - â‚¹${v.selling_price || v.list_price || 0}`,
+            raw: v,
+          }))
+        );
+      } else {
+        setPackageVariants([]);
+      }
+    } catch {
+      setPackageVariants([]);
+    } finally {
+      setVariantsLoading(false);
+    }
+  }, []);
 
   // Load Reference Data
   const loadReferenceData = useCallback(async () => {
@@ -195,7 +295,13 @@ const EnquiryManagement = () => {
         .then((r) => r.json())
         .then((res) => {
           if (Array.isArray(res?.data)) {
-            setPackages(res.data.map((p) => ({ value: p.id, label: `${p.title} (${p.tour_code || 'Package'})` })));
+            setPackages(
+              res.data.map((p) => ({
+                value: p.id,
+                label: `${p.title} (${p.tour_code || 'Package'})`,
+                raw: p,
+              }))
+            );
           }
         })
         .catch(() => {});
@@ -216,7 +322,8 @@ const EnquiryManagement = () => {
 
   useEffect(() => {
     loadReferenceData();
-  }, [loadReferenceData]);
+    loadCustomersList();
+  }, [loadReferenceData, loadCustomersList]);
 
   // Lookup Maps
   const destMap = useMemo(() => {
@@ -287,6 +394,46 @@ const EnquiryManagement = () => {
       message: enquiry.message || '',
     });
     setIsEditModalOpen(true);
+  };
+
+  // Multi-step wizard state
+  const [createStep, setCreateStep] = useState(1);
+  const CREATE_STEPS = [
+    { id: 1, label: 'Customer' },
+    { id: 2, label: 'Channel & Type' },
+    { id: 3, label: 'Destination & Package' },
+    { id: 4, label: 'Travel & Budget' },
+  ];
+
+  // Validate step before proceeding
+  const validateStep = (step) => {
+    if (step === 1) {
+      if (!createForm.name.trim()) {
+        toast.error('Please enter the customer name.');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const goNextStep = () => {
+    if (validateStep(createStep)) {
+      setCreateStep((s) => Math.min(s + 1, CREATE_STEPS.length));
+    }
+  };
+
+  const goPrevStep = () => setCreateStep((s) => Math.max(s - 1, 1));
+
+  // Open Create Modal & reset states
+  const openCreateModal = () => {
+    setCreateForm(defaultCreateForm);
+    setCustomerType('SYSTEM');
+    setSelectedCustomerOption(null);
+    setTripSelectionType('DESTINATION');
+    setPackageVariants([]);
+    setDestinationHotels([]);
+    setCreateStep(1);
+    setIsCreateModalOpen(true);
   };
 
   // Handle Create Enquiry Submit
@@ -429,10 +576,7 @@ const EnquiryManagement = () => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setCreateForm(defaultCreateForm);
-                setIsCreateModalOpen(true);
-              }}
+              onClick={openCreateModal}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50 shadow-xs border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-indigo-400 dark:hover:bg-gray-700"
             >
               <Plus className="h-4 w-4" />
@@ -519,10 +663,7 @@ const EnquiryManagement = () => {
             {!searchTerm && statusFilter === 'ALL' && typeFilter === 'ALL' && channelFilter === 'ALL' && (
               <button
                 type="button"
-                onClick={() => {
-                  setCreateForm(defaultCreateForm);
-                  setIsCreateModalOpen(true);
-                }}
+                onClick={openCreateModal}
                 className="mt-1 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
               >
                 Add first enquiry
@@ -694,7 +835,7 @@ const EnquiryManagement = () => {
         </div>
       </div>
 
-      {/* ── CREATE ENQUIRY MODAL using Modal footer prop ── */}
+      {/* â”€â”€ CREATE ENQUIRY MODAL â€” Step Wizard â”€â”€ */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => {
@@ -704,296 +845,576 @@ const EnquiryManagement = () => {
         icon={HelpCircle}
         size="2xl"
         footer={(
-          <div className="flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => setIsCreateModalOpen(false)}
-              className="rounded-2xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              form="create-enquiry-form"
-              disabled={saving}
-              className="rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 transition"
-            >
-              {saving ? 'Recording...' : 'Create enquiry'}
-            </button>
+          <div className="flex items-center justify-between w-full">
+            <span className="text-xs text-gray-400">
+              Step {createStep} of {CREATE_STEPS.length}
+            </span>
+            <div className="flex items-center gap-3">
+              {createStep > 1 && (
+                <button
+                  type="button"
+                  onClick={goPrevStep}
+                  className="inline-flex items-center gap-1.5 rounded-2xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </button>
+              )}
+              {createStep < CREATE_STEPS.length ? (
+                <button
+                  type="button"
+                  onClick={goNextStep}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition"
+                >
+                  Continue <ArrowRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  form="create-enquiry-form"
+                  disabled={saving}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 transition"
+                >
+                  {saving ? 'Recording...' : <><Check className="h-4 w-4" /> Create Enquiry</>}
+                </button>
+              )}
+            </div>
           </div>
         )}
       >
+        {/* â”€â”€ Step Indicator â”€â”€ */}
+        <div className="px-1 pb-4">
+          <div className="flex items-center gap-0">
+            {CREATE_STEPS.map((step, idx) => (
+              <React.Fragment key={step.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (step.id < createStep) setCreateStep(step.id);
+                  }}
+                  className={`flex items-center gap-1.5 px-1 ${
+                    step.id < createStep ? 'cursor-pointer' : 'cursor-default'
+                  }`}
+                >
+                  <span
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                      step.id < createStep
+                        ? 'bg-indigo-600 text-white'
+                        : step.id === createStep
+                        ? 'bg-indigo-100 text-indigo-700 ring-2 ring-indigo-500 dark:bg-indigo-900/40 dark:text-indigo-300'
+                        : 'bg-gray-100 text-gray-400 dark:bg-gray-800'
+                    }`}
+                  >
+                    {step.id < createStep ? <Check className="h-3 w-3" /> : step.id}
+                  </span>
+                  <span
+                    className={`hidden sm:block text-xs font-semibold transition-all ${
+                      step.id === createStep
+                        ? 'text-indigo-600 dark:text-indigo-400'
+                        : step.id < createStep
+                        ? 'text-indigo-500 dark:text-indigo-500'
+                        : 'text-gray-400'
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                </button>
+                {idx < CREATE_STEPS.length - 1 && (
+                  <div
+                    className={`h-px flex-1 transition-all ${
+                      step.id < createStep ? 'bg-indigo-400' : 'bg-gray-200 dark:bg-gray-700'
+                    }`}
+                  />
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
         <form id="create-enquiry-form" onSubmit={handleCreateSubmit} className="space-y-4 p-1">
-          {/* Customer Contacts */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-2">
-              1. Enquirer Information
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className={labelClass}>
-                  Customer name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                  placeholder="e.g. John Doe"
-                  className={inputClass}
-                />
+
+          {/* â”€â”€â”€ STEP 1: Customer Information â”€â”€â”€ */}
+          {createStep === 1 && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white">Who is this enquiry for?</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Link to an existing customer or enter new contact details.</p>
+                </div>
+                <div className="inline-flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1 shrink-0">
+                  <button type="button" onClick={() => setCustomerType('SYSTEM')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg transition ${customerType === 'SYSTEM' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                    <UserCheck className="w-3.5 h-3.5" /> Existing
+                  </button>
+                  <button type="button" onClick={() => { setCustomerType('MANUAL'); setSelectedCustomerOption(null); setCreateForm((prev) => ({ ...prev, customer_id: '' })); }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg transition ${customerType === 'MANUAL' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                    <UserPlus className="w-3.5 h-3.5" /> New
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className={labelClass}>Phone number</label>
-                <input
-                  type="tel"
-                  value={createForm.phone}
-                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                  placeholder="e.g. +91 9876543210"
-                  className={inputClass}
-                />
-              </div>
+              {customerType === 'SYSTEM' && (
+                <div>
+                  <label className={labelClass}>Search existing customer</label>
+                  <SelectField
+                    options={customers}
+                    isLoading={customersLoading}
+                    value={selectedCustomerOption}
+                    onChange={(opt) => {
+                      setSelectedCustomerOption(opt);
+                      if (opt?.raw) {
+                        const cust = opt.raw;
+                        setCreateForm((prev) => ({ ...prev, customer_id: cust.id || '', name: cust.name || prev.name, phone: cust.mobile || cust.phone || prev.phone, email: cust.email || prev.email }));
+                      } else {
+                        setCreateForm((prev) => ({ ...prev, customer_id: '' }));
+                      }
+                    }}
+                    placeholder={customersLoading ? 'Loading customers...' : 'Search by name or phone...'}
+                    isClearable menuPlacement="auto"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">Auto-fills contact details below.</p>
+                </div>
+              )}
 
-              <div>
-                <label className={labelClass}>Email address</label>
-                <input
-                  type="email"
-                  value={createForm.email}
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                  placeholder="customer@example.com"
-                  className={inputClass}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className={labelClass}>Customer name <span className="text-red-500">*</span></label>
+                  <input type="text" value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} placeholder="e.g. John Doe" className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Phone number</label>
+                  <input type="tel" value={createForm.phone} onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })} placeholder="+91 9876543210" className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Email address</label>
+                  <input type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} placeholder="customer@example.com" className={inputClass} />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Enquiry Type and Channel */}
-          <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-2">
-              2. Channel & Scope
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* â”€â”€â”€ STEP 2: Channel & Enquiry Type â”€â”€â”€ */}
+          {createStep === 2 && (
+            <div className="space-y-5">
+              <div className="mb-1">
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white">Enquiry source & type</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">How did this lead reach you, and what are they looking for?</p>
+              </div>
+
               <div>
                 <label className={labelClass}>Enquiry type</label>
-                <SelectField
-                  options={ENQUIRY_TYPES}
-                  value={ENQUIRY_TYPES.find((t) => t.value === createForm.enquiry_type) || null}
-                  onChange={(selected) => setCreateForm({ ...createForm, enquiry_type: selected?.value || 'FIXED_TOUR' })}
-                  isSearchable={false}
-                  placeholder="Select enquiry type"
-                  menuPlacement="auto"
-                />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+                  {ENQUIRY_TYPES.map((t) => (
+                    <button key={t.value} type="button"
+                      onClick={() => setCreateForm({ ...createForm, enquiry_type: t.value })}
+                      className={`rounded-xl border px-3 py-3 text-xs font-semibold text-left transition ${createForm.enquiry_type === t.value ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:border-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400'}`}
+                    >
+                      {createForm.enquiry_type === t.value && <Check className="h-3 w-3 text-indigo-500 mb-1" />}
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
                 <label className={labelClass}>Source channel</label>
-                <SelectField
-                  options={CHANNELS}
-                  value={CHANNELS.find((c) => c.value === createForm.channel) || null}
-                  onChange={(selected) => setCreateForm({ ...createForm, channel: selected?.value || 'WEBSITE' })}
-                  isSearchable={false}
-                  placeholder="Select source channel"
-                  menuPlacement="auto"
-                />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+                  {CHANNELS.map((c) => (
+                    <button key={c.value} type="button"
+                      onClick={() => setCreateForm({ ...createForm, channel: c.value })}
+                      className={`rounded-xl border px-3 py-3 text-xs font-semibold text-left transition ${createForm.channel === c.value ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300' : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-400'}`}
+                    >
+                      {createForm.channel === c.value && <Check className="h-3 w-3 text-emerald-500 mb-1" />}
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Destinations and Packages */}
-          <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-2">
-              3. Destination & Package Matching
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className={labelClass}>Destination</label>
-                <SelectField
-                  options={destinations}
-                  isLoading={destLoading}
-                  value={destinations.find((d) => d.value === createForm.destination_id) || null}
-                  onChange={(opt) => setCreateForm({ ...createForm, destination_id: opt?.value || '' })}
-                  placeholder="Select destination"
-                  isClearable
-                  menuPlacement="auto"
-                />
+          {/* ─── STEP 3: Destination or Package & Variant ─── */}
+          {createStep === 3 && (
+            <div className="space-y-4">
+              <div className="mb-1">
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white">Trip selection</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Select whether this enquiry is for a <strong>Destination</strong> or a specific <strong>Tour Package</strong>.
+                </p>
               </div>
 
+              {/* Radio Button Selector */}
               <div>
-                <label className={labelClass}>Tour package</label>
-                <SelectField
-                  options={packages}
-                  value={packages.find((p) => p.value === createForm.package_id) || null}
-                  onChange={(opt) => setCreateForm({ ...createForm, package_id: opt?.value || '' })}
-                  placeholder="Select package"
-                  isClearable
-                  menuPlacement="auto"
-                />
-              </div>
+                <label className={labelClass}>Choose selection mode</label>
+                <div className="grid grid-cols-2 gap-3 mt-1">
+                  <label
+                    className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      tripSelectionType === 'DESTINATION'
+                        ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20'
+                        : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="tripSelectionType"
+                      value="DESTINATION"
+                      checked={tripSelectionType === 'DESTINATION'}
+                      onChange={() => {
+                        setTripSelectionType('DESTINATION');
+                        // Clear package-specific fields when switching to destination
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          package_id: '',
+                          variant_id: '',
+                          hotel_id: '',
+                        }));
+                        setPackageVariants([]);
+                        if (createForm.destination_id) {
+                          fetchHotelsForDestination(createForm.destination_id);
+                        } else {
+                          setDestinationHotels([]);
+                        }
+                      }}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    />
+                    <div>
+                      <span className="text-sm font-bold block">By Destination</span>
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Choose destination & view destination hotels
+                      </span>
+                    </div>
+                  </label>
 
-              <div>
-                <label className={labelClass}>Preferred hotel</label>
-                <SelectField
-                  options={hotels}
-                  value={hotels.find((h) => h.value === createForm.hotel_id) || null}
-                  onChange={(opt) => setCreateForm({ ...createForm, hotel_id: opt?.value || '' })}
-                  placeholder="Select hotel"
-                  isClearable
-                  menuPlacement="auto"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Travel Dates & Duration */}
-          <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-2">
-              4. Travel Details & Pax
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <label className={labelClass}>Travel date</label>
-                <input
-                  type="date"
-                  value={createForm.travel_date}
-                  onChange={(e) => setCreateForm({ ...createForm, travel_date: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Duration (Days / Nights)</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Days"
-                    value={createForm.travel_duration_day}
-                    onChange={(e) => setCreateForm({ ...createForm, travel_duration_day: e.target.value })}
-                    className={inputClass}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Nights"
-                    value={createForm.travel_duration_night}
-                    onChange={(e) => setCreateForm({ ...createForm, travel_duration_night: e.target.value })}
-                    className={inputClass}
-                  />
+                  <label
+                    className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      tripSelectionType === 'PACKAGE'
+                        ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500/20'
+                        : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="tripSelectionType"
+                      value="PACKAGE"
+                      checked={tripSelectionType === 'PACKAGE'}
+                      onChange={() => {
+                        setTripSelectionType('PACKAGE');
+                        // Clear destination-specific fields when switching to package
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          destination_id: '',
+                          hotel_id: '',
+                        }));
+                        if (createForm.package_id) {
+                          const pkg = packages.find((p) => p.value === createForm.package_id);
+                          const pkgDestId = pkg?.raw?.destination_id;
+                          if (pkgDestId) {
+                            fetchHotelsForDestination(pkgDestId);
+                          }
+                        } else {
+                          setDestinationHotels([]);
+                        }
+                      }}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    />
+                    <div>
+                      <span className="text-sm font-bold block">By Tour Package</span>
+                      <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Choose package, variant & package destination hotels
+                      </span>
+                    </div>
+                  </label>
                 </div>
               </div>
 
-              <div>
-                <label className={labelClass}>Adults / Children / Seniors</label>
-                <div className="flex gap-1.5">
-                  <input
-                    type="number"
-                    min="0"
-                    title="Adults"
-                    placeholder="Ad"
-                    value={createForm.adult_count}
-                    onChange={(e) => setCreateForm({ ...createForm, adult_count: e.target.value })}
-                    className={inputClass}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    title="Children"
-                    placeholder="Ch"
-                    value={createForm.child_count}
-                    onChange={(e) => setCreateForm({ ...createForm, child_count: e.target.value })}
-                    className={inputClass}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    title="Seniors"
-                    placeholder="Sr"
-                    value={createForm.senior_count}
-                    onChange={(e) => setCreateForm({ ...createForm, senior_count: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={labelClass}>Rooms / Meal plan</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Rooms"
-                    value={createForm.room_count}
-                    onChange={(e) => setCreateForm({ ...createForm, room_count: e.target.value })}
-                    className="w-20 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                  />
-                  <div className="flex-1 min-w-0">
+              {/* Mode A: DESTINATION ONLY */}
+              {tripSelectionType === 'DESTINATION' && (
+                <div className="space-y-4 pt-1">
+                  <div>
+                    <label className={labelClass}>
+                      Destination <span className="text-red-500">*</span>
+                    </label>
                     <SelectField
-                      options={MEAL_PLANS}
-                      value={MEAL_PLANS.find((m) => m.value === createForm.meal_plan) || null}
-                      onChange={(selected) => setCreateForm({ ...createForm, meal_plan: selected?.value || 'ANY' })}
-                      isSearchable={false}
-                      placeholder="Meal plan"
+                      options={destinations}
+                      isLoading={destLoading}
+                      value={destinations.find((d) => d.value === createForm.destination_id) || null}
+                      onChange={(opt) => {
+                        const destId = opt?.value || '';
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          destination_id: destId,
+                          package_id: '',
+                          variant_id: '',
+                          hotel_id: '',
+                        }));
+                        if (destId) {
+                          fetchHotelsForDestination(destId);
+                        } else {
+                          setDestinationHotels([]);
+                        }
+                      }}
+                      placeholder="Select a destination"
+                      isClearable
+                      menuPlacement="auto"
+                    />
+                  </div>
+
+                  {/* Destination-filtered Hotel Selection */}
+                  <div>
+                    <label className={labelClass}>
+                      Preferred hotel <span className="text-gray-400 font-normal">(optional)</span>
+                      {createForm.destination_id && !hotelsLoading && (
+                        <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">
+                          {destinationHotels.length} available in this destination
+                        </span>
+                      )}
+                    </label>
+                    <SelectField
+                      options={createForm.destination_id ? destinationHotels : hotels}
+                      isLoading={hotelsLoading}
+                      value={
+                        (createForm.destination_id ? destinationHotels : hotels).find(
+                          (h) => h.value === createForm.hotel_id
+                        ) || null
+                      }
+                      onChange={(opt) => setCreateForm({ ...createForm, hotel_id: opt?.value || '' })}
+                      placeholder={
+                        !createForm.destination_id
+                          ? 'Select destination first'
+                          : hotelsLoading
+                          ? 'Loading hotels for destination...'
+                          : destinationHotels.length === 0
+                          ? 'No hotels found for this destination'
+                          : 'Select a preferred hotel'
+                      }
+                      isDisabled={!createForm.destination_id}
+                      isClearable
                       menuPlacement="auto"
                     />
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              )}
 
-          {/* Budget & Message */}
-          <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Mode B: PACKAGE + VARIANT */}
+              {tripSelectionType === 'PACKAGE' && (
+                <div className="space-y-4 pt-1">
+                  <div>
+                    <label className={labelClass}>
+                      Tour package <span className="text-red-500">*</span>
+                    </label>
+                    <SelectField
+                      options={packages}
+                      value={packages.find((p) => p.value === createForm.package_id) || null}
+                      onChange={(opt) => {
+                        const pkgId = opt?.value || '';
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          package_id: pkgId,
+                          variant_id: '',
+                          hotel_id: '',
+                        }));
+                        if (pkgId) {
+                          fetchVariantsForPackage(pkgId);
+                          const pkgDestId = opt?.raw?.destination_id;
+                          if (pkgDestId) {
+                            fetchHotelsForDestination(pkgDestId);
+                          } else {
+                            setDestinationHotels([]);
+                          }
+                        } else {
+                          setPackageVariants([]);
+                          setDestinationHotels([]);
+                        }
+                      }}
+                      placeholder="Select a tour package"
+                      isClearable
+                      menuPlacement="auto"
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>
+                      Package variant
+                      {createForm.package_id && !variantsLoading && packageVariants.length > 0 && (
+                        <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-600 dark:bg-violet-900/40 dark:text-violet-400">
+                          {packageVariants.length} variants
+                        </span>
+                      )}
+                    </label>
+                    <SelectField
+                      options={packageVariants}
+                      isLoading={variantsLoading}
+                      value={packageVariants.find((v) => v.value === createForm.variant_id) || null}
+                      onChange={(opt) => {
+                        const variantId = opt?.value || '';
+                        setCreateForm((prev) => {
+                          const updated = { ...prev, variant_id: variantId };
+                          if (opt?.raw) {
+                            const rv = opt.raw;
+                            if (rv.duration_days) updated.travel_duration_day = rv.duration_days;
+                            if (rv.duration_nights) updated.travel_duration_night = rv.duration_nights;
+                            if (rv.selling_price || rv.list_price) {
+                              const price = Number(rv.selling_price || rv.list_price);
+                              if (!prev.budget_min) updated.budget_min = price;
+                              if (!prev.budget_max) updated.budget_max = price;
+                            }
+                          }
+                          return updated;
+                        });
+                      }}
+                      placeholder={
+                        !createForm.package_id
+                          ? 'Select a package first'
+                          : variantsLoading
+                          ? 'Loading variants...'
+                          : packageVariants.length === 0
+                          ? 'No variants found'
+                          : 'Choose a variant'
+                      }
+                      isDisabled={!createForm.package_id}
+                      isClearable
+                      menuPlacement="auto"
+                    />
+                    {createForm.variant_id && (() => {
+                      const rv = packageVariants.find((v) => v.value === createForm.variant_id)?.raw;
+                      if (!rv) return null;
+                      return (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {rv.duration_days && (
+                            <span className="inline-flex items-center rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                              {rv.duration_days}D / {rv.duration_nights || 0}N
+                            </span>
+                          )}
+                          {(rv.selling_price || rv.list_price) && (
+                            <span className="inline-flex items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                              ₹{rv.selling_price || rv.list_price}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Package Destination-filtered Hotel Selection */}
+                  <div>
+                    <label className={labelClass}>
+                      Preferred hotel <span className="text-gray-400 font-normal">(optional)</span>
+                      {createForm.package_id && !hotelsLoading && (
+                        <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400">
+                          {destinationHotels.length} available for this package's destination
+                        </span>
+                      )}
+                    </label>
+                    <SelectField
+                      options={createForm.package_id ? destinationHotels : hotels}
+                      isLoading={hotelsLoading}
+                      value={
+                        (createForm.package_id ? destinationHotels : hotels).find(
+                          (h) => h.value === createForm.hotel_id
+                        ) || null
+                      }
+                      onChange={(opt) => setCreateForm({ ...createForm, hotel_id: opt?.value || '' })}
+                      placeholder={
+                        !createForm.package_id
+                          ? 'Select a package first'
+                          : hotelsLoading
+                          ? 'Loading hotels for destination...'
+                          : destinationHotels.length === 0
+                          ? 'No hotels found for this package destination'
+                          : 'Select a preferred hotel'
+                      }
+                      isDisabled={!createForm.package_id}
+                      isClearable
+                      menuPlacement="auto"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* â”€â”€â”€ STEP 4: Travel Details & Budget â”€â”€â”€ */}
+          {createStep === 4 && (
+            <div className="space-y-4">
+              <div className="mb-1">
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white">Travel details & budget</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Dates, travellers, rooms, and the customer's budget range.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>Travel date</label>
+                  <input type="date" value={createForm.travel_date} onChange={(e) => setCreateForm({ ...createForm, travel_date: e.target.value })} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Duration</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input type="number" min="0" placeholder="Days" value={createForm.travel_duration_day} onChange={(e) => setCreateForm({ ...createForm, travel_duration_day: e.target.value })} className={inputClass} />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">D</span>
+                    </div>
+                    <div className="relative flex-1">
+                      <input type="number" min="0" placeholder="Nights" value={createForm.travel_duration_night} onChange={(e) => setCreateForm({ ...createForm, travel_duration_night: e.target.value })} className={inputClass} />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">N</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <label className={labelClass}>Budget range (Min - Max)</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Min budget (₹)"
-                    value={createForm.budget_min}
-                    onChange={(e) => setCreateForm({ ...createForm, budget_min: e.target.value })}
-                    className={inputClass}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Max budget (₹)"
-                    value={createForm.budget_max}
-                    onChange={(e) => setCreateForm({ ...createForm, budget_max: e.target.value })}
-                    className={inputClass}
-                  />
+                <label className={labelClass}>Travellers</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-gray-500">Adults</label>
+                    <input type="number" min="0" value={createForm.adult_count} onChange={(e) => setCreateForm({ ...createForm, adult_count: e.target.value })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-gray-500">Children</label>
+                    <input type="number" min="0" value={createForm.child_count} onChange={(e) => setCreateForm({ ...createForm, child_count: e.target.value })} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-gray-500">Seniors</label>
+                    <input type="number" min="0" value={createForm.senior_count} onChange={(e) => setCreateForm({ ...createForm, senior_count: e.target.value })} className={inputClass} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>Rooms</label>
+                  <input type="number" min="0" placeholder="Number of rooms" value={createForm.room_count} onChange={(e) => setCreateForm({ ...createForm, room_count: e.target.value })} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Meal plan</label>
+                  <SelectField options={MEAL_PLANS} value={MEAL_PLANS.find((m) => m.value === createForm.meal_plan) || null} onChange={(selected) => setCreateForm({ ...createForm, meal_plan: selected?.value || 'ANY' })} isSearchable={false} placeholder="Select meal plan" menuPlacement="auto" />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Budget range (â‚¹)</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="number" min="0" placeholder="Minimum" value={createForm.budget_min} onChange={(e) => setCreateForm({ ...createForm, budget_min: e.target.value })} className={inputClass} />
+                  <input type="number" min="0" placeholder="Maximum" value={createForm.budget_max} onChange={(e) => setCreateForm({ ...createForm, budget_max: e.target.value })} className={inputClass} />
                 </div>
               </div>
 
               <div>
                 <label className={labelClass}>Special requirements</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Sea view room, vegetarian meals, airport pickup"
-                  value={createForm.special_requirements}
-                  onChange={(e) => setCreateForm({ ...createForm, special_requirements: e.target.value })}
-                  className={inputClass}
-                />
+                <input type="text" placeholder="e.g. Sea view room, vegetarian meals, airport pickup" value={createForm.special_requirements} onChange={(e) => setCreateForm({ ...createForm, special_requirements: e.target.value })} className={inputClass} />
+              </div>
+              <div>
+                <label className={labelClass}>Customer message / notes</label>
+                <textarea rows={3} placeholder="Notes or query details provided by the customer..." value={createForm.message} onChange={(e) => setCreateForm({ ...createForm, message: e.target.value })} className={inputClass} />
               </div>
             </div>
-
-            <div className="mt-3">
-              <label className={labelClass}>Customer enquiry message</label>
-              <textarea
-                rows={2}
-                placeholder="Notes or query details provided by the customer..."
-                value={createForm.message}
-                onChange={(e) => setCreateForm({ ...createForm, message: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-          </div>
+          )}
         </form>
       </Modal>
 
-      {/* ── UPDATE STATUS / MESSAGE MODAL using Modal footer prop ── */}
+
+
+
+
+      {/* â”€â”€ UPDATE STATUS / MESSAGE MODAL using Modal footer prop â”€â”€ */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -1048,7 +1469,7 @@ const EnquiryManagement = () => {
         </form>
       </Modal>
 
-      {/* ── DETAILS & LEAD INSPECTION MODAL using Modal footer prop ── */}
+      {/* â”€â”€ DETAILS & LEAD INSPECTION MODAL using Modal footer prop â”€â”€ */}
       <Modal
         isOpen={isDetailsModalOpen}
         onClose={() => {
@@ -1243,7 +1664,7 @@ const EnquiryManagement = () => {
                     <dt className="text-gray-400">Budget range</dt>
                     <dd className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm mt-0.5">
                       {selectedEnquiry.budget_min || selectedEnquiry.budget_max
-                        ? `₹${selectedEnquiry.budget_min || 0} - ₹${selectedEnquiry.budget_max || 0}`
+                        ? `â‚¹${selectedEnquiry.budget_min || 0} - â‚¹${selectedEnquiry.budget_max || 0}`
                         : 'Flexible / Not stated'}
                     </dd>
                   </div>
