@@ -20,6 +20,7 @@ import {
   ZoomIn,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import ActionMenu from '../component/common/ActionMenu';
 import ManagementTable from '../component/common/ManagementTable';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
@@ -96,6 +97,9 @@ const TourReviews = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [isDeleteReviewModalOpen, setIsDeleteReviewModalOpen] = useState(false);
+  const [deleteReviewTarget, setDeleteReviewTarget] = useState(null);
+  const [deletingReview, setDeletingReview] = useState(false);
 
   /* Modal state */
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -299,22 +303,32 @@ const TourReviews = () => {
   };
 
   /* Delete review */
-  const handleDelete = async (review) => {
-    if (!window.confirm(`Delete review by "${review.name || 'this customer'}"?`)) return;
+  const handleDelete = (review) => {
+    setDeleteReviewTarget(review);
+    setIsDeleteReviewModalOpen(true);
+  };
+
+  const confirmDeleteReview = async () => {
+    if (!deleteReviewTarget) return;
+    setDeletingReview(true);
     try {
-      let response = await apiCall(`/api/v1/admin/reviews/${review.id}`, 'DELETE');
+      let response = await apiCall(`/api/v1/admin/reviews/${deleteReviewTarget.id}`, 'DELETE');
       if (!response.ok) {
         response = await apiCall(
-          `/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/reviews/${review.id}`,
+          `/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/reviews/${deleteReviewTarget.id}`,
           'DELETE'
         );
       }
       const resData = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(resData?.message || 'Unable to delete review');
       toast.success(resData?.message || 'Review deleted successfully');
+      setIsDeleteReviewModalOpen(false);
+      setDeleteReviewTarget(null);
       loadReviews(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to delete review');
+    } finally {
+      setDeletingReview(false);
     }
   };
 
@@ -440,18 +454,21 @@ const TourReviews = () => {
       </div>
 
       {/* ── Reviews Table ── */}
-      <div className="px-2 space-y-3">
+      <div className="px-2">
         {loading ? (
           <div className="flex items-center justify-center py-20 text-sm text-gray-500">
             <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
             Loading reviews...
           </div>
         ) : (
-          <>
+          <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] dark:border-gray-700 dark:bg-gray-900">
             <ManagementTable
               rows={filteredReviews}
               rowKey="id"
               accent="violet"
+              containerClassName="rounded-none border-0 bg-transparent shadow-none"
+              tableClassName="border-0"
+              className="border-0 shadow-none"
               emptyState={
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-20 text-center dark:border-gray-700 dark:bg-gray-800/40">
                   <MessageSquare className="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
@@ -597,9 +614,8 @@ const TourReviews = () => {
               ]}
             />
 
-            {/* Pagination */}
             {totalItems > 0 && (
-              <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+              <div className="border-t border-slate-200 bg-white/90 px-3 py-3 dark:border-gray-700 dark:bg-gray-900/90">
                 <Pagination
                   currentPage={currentPage}
                   totalItems={totalItems}
@@ -612,7 +628,7 @@ const TourReviews = () => {
                 />
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

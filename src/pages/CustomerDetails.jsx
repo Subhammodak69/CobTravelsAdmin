@@ -21,6 +21,7 @@ import {
   Eye,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import MediaViewerModal from '../component/common/MediaViewerModal';
@@ -134,6 +135,8 @@ const CustomerDetails = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [editForm, setEditForm] = useState({
     name: '',
     mobile: '',
@@ -271,10 +274,13 @@ const CustomerDetails = () => {
     }
   };
 
-  const handleDelete = async () => {
-    const confirmed = window.confirm(`Are you sure you want to delete customer "${customer?.name || 'this customer'}"?`);
-    if (!confirmed) return;
+  const handleDelete = () => {
+    setDeleteTarget(customer);
+    setIsDeleteModalOpen(true);
+  };
 
+  const confirmDeleteCustomer = async () => {
+    if (!deleteTarget) return;
     setDeleting(true);
     try {
       const response = await apiCall(`/api/v1/admin/customers/${customerId}`, 'DELETE');
@@ -283,6 +289,8 @@ const CustomerDetails = () => {
         throw new Error(payload?.message || payload?.detail || 'Unable to delete customer');
       }
       toast.success(payload?.message || 'Customer deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
       navigate('/customers');
     } catch (error) {
       handleApiError(error, 'Unable to delete customer');

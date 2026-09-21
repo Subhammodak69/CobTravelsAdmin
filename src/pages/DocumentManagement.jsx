@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { FileText, Plus, Trash2, RefreshCw, Eye, Pencil } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import MediaViewerModal from '../component/common/MediaViewerModal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import SelectField from '../component/common/SelectField';
@@ -118,6 +119,9 @@ const DocumentManagement = () => {
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteIds, setDeleteIds] = useState([]);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // ---- Customer select (paginated, lazy-loaded on menu open, more on scroll) ----
   const [customerOptions, setCustomerOptions] = useState([]);
@@ -335,17 +339,30 @@ const DocumentManagement = () => {
   };
 
   const handleDelete = (document) => {
-    const confirmed = window.confirm(`Delete ${document?.file_name || 'this document'}?`);
-    if (!confirmed) return;
-    deleteDocuments([document.id]);
+    setDeleteTarget(document);
+    setDeleteIds([document.id]);
+    setIsDeleteModalOpen(true);
   };
 
   const handleBulkDelete = () => {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
-    const confirmed = window.confirm(`Delete ${ids.length} selected document${ids.length > 1 ? 's' : ''}?`);
-    if (!confirmed) return;
-    deleteDocuments(ids);
+    setDeleteTarget(null);
+    setDeleteIds(ids);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteDocuments = async () => {
+    if (!deleteIds.length) return;
+    setBulkDeleting(true);
+    try {
+      await deleteDocuments(deleteIds);
+      setIsDeleteModalOpen(false);
+      setDeleteIds([]);
+      setDeleteTarget(null);
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   // ---- Selection ----
@@ -374,6 +391,23 @@ const DocumentManagement = () => {
 
   return (
     <div className=" space-y-3 pb-6">
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!bulkDeleting) {
+            setIsDeleteModalOpen(false);
+            setDeleteIds([]);
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={confirmDeleteDocuments}
+        title={deleteIds.length > 1 ? 'Delete selected documents' : 'Delete document'}
+        itemLabel={deleteTarget?.file_name || (deleteIds.length > 1 ? `${deleteIds.length} selected documents` : 'this document')}
+        message={deleteIds.length > 1 ? `This will permanently delete ${deleteIds.length} selected documents. This action cannot be undone.` : `This will permanently delete ${deleteTarget?.file_name || 'this document'} from the system.`}
+        confirming={bulkDeleting}
+        confirmText={deleteIds.length > 1 ? 'Delete selected' : 'Delete document'}
+      />
+
       <div className="px-2 text-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>

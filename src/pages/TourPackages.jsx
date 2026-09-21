@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Plus, Package2, Pencil, Trash2, Search, RefreshCw, Layers } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
@@ -30,6 +31,9 @@ const TourPackages = () => {
   const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingPackage, setDeletingPackage] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   // pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -162,20 +166,28 @@ const TourPackages = () => {
     }
   };
 
-  const handleDelete = async (row) => {
-    const confirmed = window.confirm(`Delete ${row?.title || 'this package'}?`);
-    if (!confirmed) return;
+  const handleDelete = (row) => {
+    setDeleteTarget(row);
+    setIsDeleteModalOpen(true);
+  };
 
+  const confirmDeletePackage = async () => {
+    if (!deleteTarget) return;
+    setDeletingPackage(true);
     try {
-      const response = await apiCall(`/api/v1/admin/tour-packages/${row.id}`, 'DELETE');
+      const response = await apiCall(`/api/v1/admin/tour-packages/${deleteTarget.id}`, 'DELETE');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete tour package');
       }
       toast.success(result?.message || 'Tour package deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
       await loadPackages(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to delete tour package');
+    } finally {
+      setDeletingPackage(false);
     }
   };
 
@@ -193,6 +205,21 @@ const TourPackages = () => {
 
   return (
     <div className=" space-y-3 pb-6">
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deletingPackage) {
+            setIsDeleteModalOpen(false);
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={confirmDeletePackage}
+        title="Delete tour package"
+        itemLabel={deleteTarget?.title || deleteTarget?.tour_code || 'this tour package'}
+        message="This will permanently delete the selected tour package from the catalog."
+        confirming={deletingPackage}
+      />
+
       <div className="px-2 text-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>

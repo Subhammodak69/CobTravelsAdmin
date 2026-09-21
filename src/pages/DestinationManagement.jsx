@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import Pagination from '../component/common/PaginationComponent';
@@ -39,6 +40,9 @@ const DestinationManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingDestination, setDeletingDestination] = useState(false);
   const [formState, setFormState] = useState(defaultForm);
 
   const loadDestinations = useCallback(
@@ -150,14 +154,17 @@ const DestinationManagement = () => {
     }
   };
 
-  const handleDelete = async (row) => {
-    const confirmed = window.confirm(
-      `Delete destination "${row?.name || 'this destination'}"? This cannot be undone.`
-    );
-    if (!confirmed) return;
+  const handleDelete = (row) => {
+    setDeleteTarget(row);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteDestination = async () => {
+    if (!deleteTarget) return;
+    setDeletingDestination(true);
     try {
       const response = await apiCall(
-        `/api/v1/admin/destinations/${row.id}`,
+        `/api/v1/admin/destinations/${deleteTarget.id}`,
         'DELETE'
       );
       const result = await response.json().catch(() => ({}));
@@ -167,9 +174,13 @@ const DestinationManagement = () => {
         );
       }
       toast.success(result?.message || 'Destination deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
       await loadDestinations(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to delete destination');
+    } finally {
+      setDeletingDestination(false);
     }
   };
 

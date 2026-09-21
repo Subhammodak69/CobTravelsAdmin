@@ -14,6 +14,7 @@ import {
   Star,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
@@ -57,6 +58,9 @@ const TourVariant = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [isDeleteVariantModalOpen, setIsDeleteVariantModalOpen] = useState(false);
+  const [deleteVariantTarget, setDeleteVariantTarget] = useState(null);
+  const [deletingVariant, setDeletingVariant] = useState(false);
   const [formState, setFormState] = useState(defaultVariantForm);
 
   const loadVariants = useCallback(async (page = currentPage, limit = itemsPerPage) => {
@@ -174,16 +178,26 @@ const TourVariant = () => {
     }
   };
 
-  const handleDelete = async (variant) => {
-    if (!window.confirm(`Delete ${variant?.name || 'this variant'}?`)) return;
+  const handleDelete = (variant) => {
+    setDeleteVariantTarget(variant);
+    setIsDeleteVariantModalOpen(true);
+  };
+
+  const confirmDeleteVariant = async () => {
+    if (!deleteVariantTarget) return;
+    setDeletingVariant(true);
     try {
-      const response = await apiCall(`/api/v1/admin/tour-variants/${variant.id}`, 'DELETE');
+      const response = await apiCall(`/api/v1/admin/tour-variants/${deleteVariantTarget.id}`, 'DELETE');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result?.message || result?.detail || 'Unable to delete variant');
       toast.success(result?.message || 'Variant deleted');
+      setIsDeleteVariantModalOpen(false);
+      setDeleteVariantTarget(null);
       await loadVariants(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to delete variant');
+    } finally {
+      setDeletingVariant(false);
     }
   };
 
@@ -206,6 +220,21 @@ const TourVariant = () => {
 
   return (
     <div className="space-y-4 pb-6">
+      <ConfirmDeleteModal
+        isOpen={isDeleteVariantModalOpen}
+        onClose={() => {
+          if (!deletingVariant) {
+            setIsDeleteVariantModalOpen(false);
+            setDeleteVariantTarget(null);
+          }
+        }}
+        onConfirm={confirmDeleteVariant}
+        title="Delete variant"
+        itemLabel={deleteVariantTarget?.name || 'this variant'}
+        message="This will permanently remove the selected tour variant from the package."
+        confirming={deletingVariant}
+      />
+
       {/* ── Page header ── */}
       <div className="px-2">
         <button
@@ -281,129 +310,133 @@ const TourVariant = () => {
       </div>
 
       {/* ── Variants table ── */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.04)] dark:border-gray-700 dark:bg-gray-900">
         {loading ? (
           <div className="p-12 text-center text-sm text-gray-500">Loading variants...</div>
         ) : filteredVariants.length === 0 ? (
           <div className="p-12 text-center text-sm text-gray-500">No variants available.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800/70">
-                <tr>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Variant</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Season</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Duration</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Price</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Status</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredVariants.map((variant) => (
-                  <tr
-                    key={variant.id}
-                    onClick={() => goToDetails(variant)}
-                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                  >
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300">
-                          <Route className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-900 dark:text-white">{variant.name}</span>
-                            {variant.is_default && (
-                              <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
-                                Default
-                              </span>
-                            )}
-                            {variant.badge && (
-                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                                {variant.badge}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{variant.slug}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
-                      {variant.season_name || 'N/A'}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
-                      {variant.duration_days ?? 0}D / {variant.duration_nights ?? 0}N
-                    </td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          ₹{Number(variant.selling_price ?? variant.price ?? 0).toLocaleString('en-IN')}
-                        </span>
-                        {variant.list_price > (variant.selling_price ?? 0) && (
-                          <span className="text-xs text-gray-400 line-through">
-                            ₹{Number(variant.list_price).toLocaleString('en-IN')}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={[
-                          'inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold',
-                          variant.is_active === false
-                            ? 'border-red-200 bg-red-50 text-red-600 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300'
-                            : 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300',
-                        ].join(' ')}
-                      >
-                        {variant.is_active === false ? 'Inactive' : 'Active'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end">
-                        <ActionMenu
-                          menuId={variant.id}
-                          actions={[
-                            {
-                              label: 'View Details',
-                              icon: <Eye className="h-4 w-4 text-cyan-500" />,
-                              onClick: () => goToDetails(variant),
-                            },
-                            {
-                              label: 'Edit Variant',
-                              icon: <Pencil className="h-4 w-4 text-blue-500" />,
-                              onClick: () => openEditModal(variant),
-                            },
-                            {
-                              label: 'Delete Variant',
-                              icon: <Trash2 className="h-4 w-4 text-red-500" />,
-                              className: 'text-red-600',
-                              onClick: () => handleDelete(variant),
-                            },
-                          ]}
-                        />
-                      </div>
-                    </td>
+          <div className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800/70">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Variant</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Season</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Duration</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Price</th>
+                    <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Status</th>
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredVariants.map((variant) => (
+                    <tr
+                      key={variant.id}
+                      onClick={() => goToDetails(variant)}
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-300">
+                            <Route className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-gray-900 dark:text-white">{variant.name}</span>
+                              {variant.is_default && (
+                                <span className="rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300">
+                                  Default
+                                </span>
+                              )}
+                              {variant.badge && (
+                                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                                  {variant.badge}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{variant.slug}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
+                        {variant.season_name || 'N/A'}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600 dark:text-gray-300">
+                        {variant.duration_days ?? 0}D / {variant.duration_nights ?? 0}N
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            ₹{Number(variant.selling_price ?? variant.price ?? 0).toLocaleString('en-IN')}
+                          </span>
+                          {variant.list_price > (variant.selling_price ?? 0) && (
+                            <span className="text-xs text-gray-400 line-through">
+                              ₹{Number(variant.list_price).toLocaleString('en-IN')}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={[
+                            'inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold',
+                            variant.is_active === false
+                              ? 'border-red-200 bg-red-50 text-red-600 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300'
+                              : 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300',
+                          ].join(' ')}
+                        >
+                          {variant.is_active === false ? 'Inactive' : 'Active'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end">
+                          <ActionMenu
+                            menuId={variant.id}
+                            actions={[
+                              {
+                                label: 'View Details',
+                                icon: <Eye className="h-4 w-4 text-cyan-500" />,
+                                onClick: () => goToDetails(variant),
+                              },
+                              {
+                                label: 'Edit Variant',
+                                icon: <Pencil className="h-4 w-4 text-blue-500" />,
+                                onClick: () => openEditModal(variant),
+                              },
+                              {
+                                label: 'Delete Variant',
+                                icon: <Trash2 className="h-4 w-4 text-red-500" />,
+                                className: 'text-red-600',
+                                onClick: () => handleDelete(variant),
+                              },
+                            ]}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {totalItems > 0 && (
+          <div className="border-t border-slate-200 bg-white/90 px-3 py-3 dark:border-gray-700 dark:bg-gray-900/90">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={(p) => setCurrentPage(p)}
+              onLimitChange={(l) => {
+                setItemsPerPage(l);
+                setCurrentPage(1);
+              }}
+            />
           </div>
         )}
       </div>
-
-      {totalItems > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalItems={totalItems}
-          itemsPerPage={itemsPerPage}
-          onPageChange={(p) => setCurrentPage(p)}
-          onLimitChange={(l) => {
-            setItemsPerPage(l);
-            setCurrentPage(1);
-          }}
-        />
-      )}
 
       {/* ── Variant Modal ── */}
       <Modal

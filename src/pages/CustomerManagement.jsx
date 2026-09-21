@@ -15,6 +15,7 @@ import {
   Eye,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import DragDropUpload from '../component/common/DragDropUpload';
 import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
@@ -92,6 +93,9 @@ const CustomerManagement = () => {
   // modals
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [formState, setFormState] = useState(defaultForm);
 
   // ── API ──────────────────────────────────────────────────────────────────────
@@ -215,20 +219,28 @@ const CustomerManagement = () => {
     }
   };
 
-  const handleDelete = async (customer) => {
-    const confirmed = window.confirm(`Delete customer "${customer?.name || 'this customer'}"? This action cannot be undone.`);
-    if (!confirmed) return;
+  const handleDelete = (customer) => {
+    setDeleteTarget(customer);
+    setIsDeleteModalOpen(true);
+  };
 
+  const confirmDeleteCustomer = async () => {
+    if (!deleteTarget) return;
+    setDeletingCustomer(true);
     try {
-      const response = await apiCall(`/api/v1/admin/customers/${customer.id}`, 'DELETE');
+      const response = await apiCall(`/api/v1/admin/customers/${deleteTarget.id}`, 'DELETE');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete customer');
       }
       toast.success(result?.message || 'Customer deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
       loadCustomers(currentPage, searchTerm, isActiveFilter);
     } catch (error) {
       handleApiError(error, 'Unable to delete customer');
+    } finally {
+      setDeletingCustomer(false);
     }
   };
 
@@ -236,6 +248,21 @@ const CustomerManagement = () => {
 
   return (
     <div className="space-y-3 pb-6">
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deletingCustomer) {
+            setIsDeleteModalOpen(false);
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={confirmDeleteCustomer}
+        title="Delete customer"
+        itemLabel={deleteTarget?.name || 'this customer'}
+        message="This will permanently remove the selected customer from the system."
+        confirming={deletingCustomer}
+      />
+
       {/* Page header */}
       <div className="px-2 text-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

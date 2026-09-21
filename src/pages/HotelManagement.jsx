@@ -15,6 +15,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
@@ -56,6 +57,9 @@ const HotelManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingHotel, setDeletingHotel] = useState(false);
 
   // Form state
   const [formState, setFormState] = useState(defaultForm);
@@ -312,22 +316,28 @@ const HotelManagement = () => {
   };
 
   // Delete hotel
-  const handleDelete = async (row) => {
-    const confirmed = window.confirm(
-      `Delete hotel "${row?.name || 'this hotel'}"? This action cannot be undone.`
-    );
-    if (!confirmed) return;
+  const handleDelete = (row) => {
+    setDeleteTarget(row);
+    setIsDeleteModalOpen(true);
+  };
 
+  const confirmDeleteHotel = async () => {
+    if (!deleteTarget) return;
+    setDeletingHotel(true);
     try {
-      const response = await apiCall(`/api/v1/admin/hotels/${row.id}`, 'DELETE');
+      const response = await apiCall(`/api/v1/admin/hotels/${deleteTarget.id}`, 'DELETE');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to delete hotel');
       }
       toast.success(result?.message || 'Hotel deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
       await loadHotels(currentPage, itemsPerPage);
     } catch (error) {
       handleApiError(error, 'Unable to delete hotel');
+    } finally {
+      setDeletingHotel(false);
     }
   };
 
@@ -365,6 +375,21 @@ const HotelManagement = () => {
 
   return (
     <div className="space-y-3 pb-6">
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deletingHotel) {
+            setIsDeleteModalOpen(false);
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={confirmDeleteHotel}
+        title="Delete hotel"
+        itemLabel={deleteTarget?.name || 'this hotel'}
+        message="This will permanently remove the selected hotel from the system."
+        confirming={deletingHotel}
+      />
+
       {/* Header */}
       <div className="px-2 text-slate-900 dark:text-slate-100">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

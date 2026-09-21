@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { BadgePercent, BookOpen, Layers, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
@@ -62,6 +63,9 @@ const TourOffers = () => {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingOffer, setDeletingOffer] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [form, setForm] = useState(defaultForm);
   const [editingOffer, setEditingOffer] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -179,16 +183,26 @@ const TourOffers = () => {
     }
   };
 
-  const deleteOffer = async (offer) => {
-    if (!window.confirm(`Delete ${offer.name || 'this tour offer'}?`)) return;
+  const deleteOffer = (offer) => {
+    setDeleteTarget(offer);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteOffer = async () => {
+    if (!deleteTarget) return;
+    setDeletingOffer(true);
     try {
-      const response = await apiCall(`/api/v1/admin/tour-offers/${offer.id}`, 'DELETE');
+      const response = await apiCall(`/api/v1/admin/tour-offers/${deleteTarget.id}`, 'DELETE');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result?.message || result?.detail || 'Unable to delete tour offer');
       toast.success(result?.message || 'Tour offer deleted successfully');
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
       await loadOffers();
     } catch (error) {
       handleApiError(error, 'Unable to delete tour offer');
+    } finally {
+      setDeletingOffer(false);
     }
   };
 

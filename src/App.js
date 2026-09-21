@@ -16,6 +16,8 @@ import TourReviews from './pages/TourReviews';
 import TourDetails from './pages/TourDetails';
 import DestinationManagement from './pages/DestinationManagement';
 import HotelManagement from './pages/HotelManagement';
+import VendorManagement from './pages/VendorManagement';
+import VehicleManagement from './pages/VehicleManagement';
 import EnquiryManagement from './pages/EnquiryManagement';
 import LeadManagement from './pages/LeadManagement';
 import Referrals from './pages/Referrals';
@@ -57,6 +59,8 @@ function App() {
           <Route path="/tour-offers" element={<TourOffers />} />
           <Route path="/destinations" element={<DestinationManagement />} />
           <Route path="/hotels" element={<HotelManagement />} />
+          <Route path="/vendors" element={<VendorManagement />} />
+          <Route path="/vehicles" element={<VehicleManagement />} />
           <Route path="/tour-packages" element={<TourPackages />} />
           <Route path="/tour-variants" element={<TourVariant />} />
           <Route path="/tour-packages/:packageId/variants" element={<TourVariant />} />

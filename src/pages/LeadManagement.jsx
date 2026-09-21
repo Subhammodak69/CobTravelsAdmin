@@ -18,6 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
 import Pagination from '../component/common/PaginationComponent';
@@ -169,6 +170,9 @@ const LeadManagement = () => {
   });
 
   const [savingAction, setSavingAction] = useState(false);
+  const [isDeleteActivityModalOpen, setIsDeleteActivityModalOpen] = useState(false);
+  const [deleteActivityTarget, setDeleteActivityTarget] = useState(null);
+  const [deletingActivity, setDeletingActivity] = useState(false);
 
   // Fetch Staff Accounts
   const loadStaffAccounts = useCallback(async () => {
@@ -404,11 +408,17 @@ const LeadManagement = () => {
   };
 
   // Delete Activity (DELETE)
-  const handleDeleteActivity = async (activity) => {
-    if (!window.confirm('Delete this activity entry?')) return;
+  const handleDeleteActivity = (activity) => {
+    setDeleteActivityTarget(activity);
+    setIsDeleteActivityModalOpen(true);
+  };
+
+  const confirmDeleteActivity = async () => {
+    if (!deleteActivityTarget) return;
+    setDeletingActivity(true);
     try {
       const res = await apiCall(
-        `/api/v1/admin/leads/${encodeURIComponent(effectiveLeadId)}/activities/${activity.id}`,
+        `/api/v1/admin/leads/${encodeURIComponent(effectiveLeadId)}/activities/${deleteActivityTarget.id}`,
         'DELETE'
       );
       const resData = await res.json().catch(() => ({}));
@@ -416,9 +426,13 @@ const LeadManagement = () => {
         throw new Error(resData?.message || 'Unable to delete activity');
       }
       toast.success(resData?.message || 'Activity deleted successfully');
+      setIsDeleteActivityModalOpen(false);
+      setDeleteActivityTarget(null);
       loadActivities(activityPage, activityPageSize);
     } catch (error) {
       handleApiError(error, 'Unable to delete activity');
+    } finally {
+      setDeletingActivity(false);
     }
   };
 

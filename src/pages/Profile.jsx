@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE } from '../utils/config';
 
@@ -81,6 +82,9 @@ const Profile = () => {
   const [revokingId, setRevokingId] = useState(null);
   const [revokingAll, setRevokingAll] = useState(false);
   const [refreshingProfile, setRefreshingProfile] = useState(false);
+  const [deleteSessionTarget, setDeleteSessionTarget] = useState(null);
+  const [isSessionDeleteModalOpen, setIsSessionDeleteModalOpen] = useState(false);
+  const [isRevokeAllModalOpen, setIsRevokeAllModalOpen] = useState(false);
 
   const loadSessions = useCallback(async () => {
     setLoadingSessions(true);
@@ -114,14 +118,21 @@ const Profile = () => {
     }
   };
 
-  const handleRevokeSession = async (sessionId) => {
-    if (!window.confirm('Terminate this session?')) return;
-    setRevokingId(sessionId);
+  const handleRevokeSession = (sessionId) => {
+    setDeleteSessionTarget(sessionId);
+    setIsSessionDeleteModalOpen(true);
+  };
+
+  const confirmRevokeSession = async () => {
+    if (!deleteSessionTarget) return;
+    setRevokingId(deleteSessionTarget);
     try {
-      const res = await apiCall(`/api/v1/sessions/${sessionId}`, 'DELETE');
+      const res = await apiCall(`/api/v1/sessions/${deleteSessionTarget}`, 'DELETE');
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
         toast.success(d?.message || 'Session terminated');
+        setIsSessionDeleteModalOpen(false);
+        setDeleteSessionTarget(null);
         loadSessions();
       } else {
         toast.error(d?.detail || d?.message || 'Failed to revoke session');
@@ -133,14 +144,18 @@ const Profile = () => {
     }
   };
 
-  const handleRevokeAllSessions = async () => {
-    if (!window.confirm('Terminate all other sessions?')) return;
+  const handleRevokeAllSessions = () => {
+    setIsRevokeAllModalOpen(true);
+  };
+
+  const confirmRevokeAllSessions = async () => {
     setRevokingAll(true);
     try {
       const res = await apiCall('/api/v1/sessions/logout-all', 'POST');
       const d = await res.json().catch(() => ({}));
       if (res.ok) {
         toast.success(d?.message || 'All other sessions logged out');
+        setIsRevokeAllModalOpen(false);
         loadSessions();
       } else {
         toast.error(d?.detail || d?.message || 'Failed to terminate all sessions');
@@ -163,6 +178,34 @@ const Profile = () => {
 
   return (
     <div className=" space-y-3 pb-6">
+      <ConfirmDeleteModal
+        isOpen={isSessionDeleteModalOpen}
+        onClose={() => {
+          if (!revokingId) {
+            setIsSessionDeleteModalOpen(false);
+            setDeleteSessionTarget(null);
+          }
+        }}
+        onConfirm={confirmRevokeSession}
+        title="Terminate session"
+        itemLabel="this session"
+        message="This will log out the selected device session immediately."
+        confirming={Boolean(revokingId)}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={isRevokeAllModalOpen}
+        onClose={() => {
+          if (!revokingAll) {
+            setIsRevokeAllModalOpen(false);
+          }
+        }}
+        onConfirm={confirmRevokeAllSessions}
+        title="Terminate all other sessions"
+        itemLabel="all other sessions"
+        message="This will log out every other active device session except the current one."
+        confirming={revokingAll}
+      />
 
       {/* ── Profile Header ── */}
       <div className="px-2 text-slate-900 dark:text-slate-100">

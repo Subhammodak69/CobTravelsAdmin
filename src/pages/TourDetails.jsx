@@ -20,6 +20,7 @@ import {
 import DragDropUpload from '../component/common/DragDropUpload';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import Modal from '../component/common/Modal';
+import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import SelectField from '../component/common/SelectField';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
@@ -224,6 +225,7 @@ const TourDetails = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [details, setDetails] = useState(null);
   const [draft, setDraft] = useState(createEmptyDraft());
@@ -404,10 +406,11 @@ const TourDetails = () => {
     }
   };
 
-  const handleDelete = async () => {
-    const confirmed = window.confirm('Delete all details for this tour variant? This cannot be undone.');
-    if (!confirmed) return;
+  const handleDelete = () => {
+    setIsDeleteModalOpen(true);
+  };
 
+  const confirmDeleteDetails = async () => {
     setDeleting(true);
     try {
       const detailId = details?.id || variantId;
@@ -417,6 +420,7 @@ const TourDetails = () => {
         throw new Error(result?.message || result?.detail || 'Unable to delete tour details');
       }
       toast.success(result?.message || 'Tour details deleted successfully');
+      setIsDeleteModalOpen(false);
       setDetails(null);
       setNotFound(true);
       const empty = createEmptyDraft();
