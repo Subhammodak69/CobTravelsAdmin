@@ -11,6 +11,7 @@ import {
   BadgePercent,
   Gift,
   Car,
+  Receipt,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -50,6 +51,11 @@ const Sidebar = ({
       icon: HelpCircle,
       label: "Enquiries",
       path: "/enquiries",
+    },
+    {
+      icon: Receipt,
+      label: "Quotations",
+      path: "/quotations",
     },
     {
       icon: FileText,

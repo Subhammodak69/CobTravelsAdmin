@@ -18,6 +18,8 @@ import DestinationManagement from './pages/DestinationManagement';
 import HotelManagement from './pages/HotelManagement';
 import VendorManagement from './pages/VendorManagement';
 import VehicleManagement from './pages/VehicleManagement';
+import QuotationManagement from './pages/QuotationManagement';
+import QuotationDetails from './pages/QuotationDetails';
 import EnquiryManagement from './pages/EnquiryManagement';
 import LeadManagement from './pages/LeadManagement';
 import Referrals from './pages/Referrals';
@@ -61,6 +63,8 @@ function App() {
           <Route path="/hotels" element={<HotelManagement />} />
           <Route path="/vendors" element={<VendorManagement />} />
           <Route path="/vehicles" element={<VehicleManagement />} />
+          <Route path="/quotations" element={<QuotationManagement />} />
+          <Route path="/quotations/:quotationId" element={<QuotationDetails />} />
           <Route path="/tour-packages" element={<TourPackages />} />
           <Route path="/tour-variants" element={<TourVariant />} />
           <Route path="/tour-packages/:packageId/variants" element={<TourVariant />} />

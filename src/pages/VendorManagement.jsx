@@ -13,16 +13,9 @@ import {
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
-import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
-
-const statusOptions = [
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'INACTIVE', label: 'Inactive' },
-  { value: 'PENDING', label: 'Pending' },
-];
 
 const defaultForm = {
   name: '',
@@ -30,9 +23,6 @@ const defaultForm = {
   contact: '',
   email: '',
   address: '',
-  payment_terms: '',
-  status: 'ACTIVE',
-  vendor_code: '',
 };
 
 const formatDate = (value) => {
@@ -48,17 +38,6 @@ const formatDate = (value) => {
   } catch {
     return value;
   }
-};
-
-const getStatusClasses = (status) => {
-  const normalized = String(status || '').toUpperCase();
-  if (normalized === 'ACTIVE') {
-    return 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900/60';
-  }
-  if (normalized === 'PENDING') {
-    return 'bg-amber-100 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900/60';
-  }
-  return 'bg-rose-100 text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-900/60';
 };
 
 const VendorManagement = () => {
@@ -128,9 +107,6 @@ const VendorManagement = () => {
       contact: vendor?.contact || '',
       email: vendor?.email || '',
       address: vendor?.address || '',
-      payment_terms: vendor?.payment_terms || '',
-      status: vendor?.status || 'ACTIVE',
-      vendor_code: vendor?.vendor_code || '',
     });
     setIsModalOpen(true);
   };
@@ -155,9 +131,6 @@ const VendorManagement = () => {
         contact: formState.contact.trim(),
         email: formState.email.trim(),
         address: formState.address.trim(),
-        payment_terms: formState.payment_terms.trim(),
-        status: formState.status || 'ACTIVE',
-        vendor_code: formState.vendor_code.trim(),
       };
 
       const endpoint = editingVendor
@@ -222,8 +195,6 @@ const VendorManagement = () => {
         vendor?.contact,
         vendor?.email,
         vendor?.address,
-        vendor?.vendor_code,
-        vendor?.status,
       ]
         .filter(Boolean)
         .join(' ')
@@ -247,7 +218,7 @@ const VendorManagement = () => {
               Vendors
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Manage suppliers and vendor records including payment terms, contact details, and active status.
+              Manage supplier records and contact details.
             </p>
           </div>
 
@@ -308,8 +279,6 @@ const VendorManagement = () => {
                     <th className="px-4 py-3 font-semibold">Vendor</th>
                     <th className="px-4 py-3 font-semibold">Type</th>
                     <th className="px-4 py-3 font-semibold">Contact</th>
-                    <th className="px-4 py-3 font-semibold">Payment terms</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
                     <th className="px-4 py-3 font-semibold">Updated</th>
                     <th className="px-4 py-3 text-right font-semibold">Actions</th>
                   </tr>
@@ -323,7 +292,6 @@ const VendorManagement = () => {
                             <BadgeCheck className="h-4 w-4 text-emerald-600" />
                             <span>{vendor.name || 'Unnamed vendor'}</span>
                           </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">{vendor.vendor_code || 'No code'}</div>
                         </div>
                       </td>
                       <td className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">{vendor.type || '—'}</td>
@@ -343,14 +311,6 @@ const VendorManagement = () => {
                           )}
                           {!vendor.contact && !vendor.email && <span>—</span>}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
-                        <div className="max-w-xs break-words">{vendor.payment_terms || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusClasses(vendor.status)}`}>
-                          {vendor.status || 'ACTIVE'}
-                        </span>
                       </td>
                       <td className="px-4 py-3 align-top text-slate-600 dark:text-slate-300">
                         {formatDate(vendor.updated_at || vendor.created_at)}
@@ -435,31 +395,12 @@ const VendorManagement = () => {
               />
             </div>
             <div>
-              <label className={labelClass}>Vendor code</label>
-              <input
-                value={formState.vendor_code}
-                onChange={(event) => handleFieldChange('vendor_code', event.target.value)}
-                className={inputClass}
-                placeholder="VND-1001"
-              />
-            </div>
-            <div>
               <label className={labelClass}>Vendor type</label>
               <input
                 value={formState.type}
                 onChange={(event) => handleFieldChange('type', event.target.value)}
                 className={inputClass}
                 placeholder="Transport, Hotel, Service..."
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Status</label>
-              <SelectField
-                options={statusOptions}
-                value={statusOptions.find((option) => option.value === formState.status) || statusOptions[0]}
-                onChange={(option) => handleFieldChange('status', option?.value || 'ACTIVE')}
-                isSearchable={false}
-                menuPlacement="auto"
               />
             </div>
             <div>
@@ -492,18 +433,22 @@ const VendorManagement = () => {
               placeholder="Business address"
             />
           </div>
-
-          <div>
-            <label className={labelClass}>Payment terms</label>
-            <textarea
-              value={formState.payment_terms}
-              onChange={(event) => handleFieldChange('payment_terms', event.target.value)}
-              className={`${inputClass} min-h-[90px] resize-y`}
-              placeholder="Net 30, advance payment, etc."
-            />
-          </div>
         </form>
       </Modal>
+
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (deletingVendor) return;
+          setIsDeleteModalOpen(false);
+          setDeleteVendorTarget(null);
+        }}
+        onConfirm={confirmDeleteVendor}
+        confirming={deletingVendor}
+        itemLabel={deleteVendorTarget?.name || 'this vendor'}
+        title="Delete vendor"
+        message="This vendor and its details will be permanently removed."
+      />
     </div>
   );
 };
