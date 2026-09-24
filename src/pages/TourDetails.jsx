@@ -21,8 +21,10 @@ import DragDropUpload from '../component/common/DragDropUpload';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
+import CustomDatePicker from '../component/common/CustomDatePicker';
 import SelectField from '../component/common/SelectField';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { sanitizeNumericInput } from '../utils/inputValidation';
 
 const createEmptyDraft = () => ({
   banner: { items: [], cover_image: '', image: '', video: '' },
@@ -1018,10 +1020,11 @@ const TourDetails = () => {
         <div className="space-y-4 p-4">
           <div className="grid gap-4 md:grid-cols-2">
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               min={1}
               value={itineraryForm.day}
-              onChange={(event) => setItineraryForm((current) => ({ ...current, day: Number(event.target.value) || 1 }))}
+              onChange={(event) => setItineraryForm((current) => ({ ...current, day: sanitizeNumericInput(event.target.value) }))}
               placeholder="Day"
               className={inputClass}
             />
@@ -1058,10 +1061,11 @@ const TourDetails = () => {
             className={inputClass}
           />
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             min={0}
             value={routeForm.nights}
-            onChange={(event) => setRouteForm((current) => ({ ...current, nights: Number(event.target.value) || 1 }))}
+            onChange={(event) => setRouteForm((current) => ({ ...current, nights: sanitizeNumericInput(event.target.value) }))}
             placeholder="Nights"
             className={inputClass}
           />
@@ -1082,21 +1086,18 @@ const TourDetails = () => {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Departure date *</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
                     value={extrasForm.departure_date}
-                    onChange={(event) => setExtrasForm((current) => ({ ...current, departure_date: event.target.value }))}
-                    className={inputClass}
-                    required
+                    includeTime={false}
+                    onChange={(value) => setExtrasForm((current) => ({ ...current, departure_date: value }))}
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Return date (optional)</label>
-                  <input
-                    type="date"
+                  <CustomDatePicker
                     value={extrasForm.return_date}
-                    onChange={(event) => setExtrasForm((current) => ({ ...current, return_date: event.target.value }))}
-                    className={inputClass}
+                    includeTime={false}
+                    onChange={(value) => setExtrasForm((current) => ({ ...current, return_date: value }))}
                   />
                 </div>
               </div>
@@ -1105,10 +1106,10 @@ const TourDetails = () => {
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Total seats *</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
                     value={extrasForm.total_seats}
-                    onChange={(event) => setExtrasForm((current) => ({ ...current, total_seats: Number(event.target.value) || 0 }))}
+                    onChange={(event) => setExtrasForm((current) => ({ ...current, total_seats: sanitizeNumericInput(event.target.value) }))}
                     className={inputClass}
                     placeholder="e.g. 20"
                     required
@@ -1117,10 +1118,10 @@ const TourDetails = () => {
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Available seats *</label>
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="numeric"
                     value={extrasForm.available_seats}
-                    onChange={(event) => setExtrasForm((current) => ({ ...current, available_seats: Number(event.target.value) || 0 }))}
+                    onChange={(event) => setExtrasForm((current) => ({ ...current, available_seats: sanitizeNumericInput(event.target.value) }))}
                     className={inputClass}
                     placeholder="e.g. 20"
                     required

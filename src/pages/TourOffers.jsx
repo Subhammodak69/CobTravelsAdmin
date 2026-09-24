@@ -3,9 +3,11 @@ import toast from 'react-hot-toast';
 import { BadgePercent, BookOpen, Layers, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
+import CustomDatePicker from '../component/common/CustomDatePicker';
 import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { sanitizeNumericInput } from '../utils/inputValidation';
 
 const discountTypes = ['PERCENTAGE', 'FIXED_AMOUNT'];
 const statuses = ['DRAFT', 'ACTIVE', 'INACTIVE', 'EXPIRED'];
@@ -408,7 +410,7 @@ const TourOffers = () => {
   );
 };
 
-const NumberField = ({ label, value, onChange, integer = false, min = '0' }) => <div><label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label><input type="number" min={min} step={integer ? '1' : '0.01'} value={value} onChange={(event) => onChange(event.target.value)} className={inputClass} required /></div>;
-const DateField = ({ label, value, onChange }) => <div><label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label><input type="datetime-local" value={value} onChange={(event) => onChange(event.target.value)} className={inputClass} required /></div>;
+const NumberField = ({ label, value, onChange, integer = false }) => <div><label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label><input type="text" inputMode={integer ? 'numeric' : 'decimal'} value={value} onChange={(event) => onChange(sanitizeNumericInput(event.target.value))} className={inputClass} required /></div>;
+const DateField = ({ label, value, onChange }) => <div><label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label><CustomDatePicker value={value} onChange={onChange} /></div>;
 
 export default TourOffers;

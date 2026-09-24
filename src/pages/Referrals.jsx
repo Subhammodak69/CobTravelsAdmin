@@ -18,6 +18,7 @@ import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { sanitizeNumericInput } from '../utils/inputValidation';
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -511,11 +512,12 @@ const Referrals = () => {
                   ₹
                 </span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="decimal"
                   min="0"
                   step="any"
                   value={rewardAmount}
-                  onChange={(e) => setRewardAmount(e.target.value)}
+                  onChange={(e) => setRewardAmount(sanitizeNumericInput(e.target.value))}
                   placeholder="e.g. 500"
                   className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 />

@@ -22,10 +22,12 @@ import {
   Check,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
+import CustomDatePicker from '../component/common/CustomDatePicker';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { sanitizeNumericInput } from '../utils/inputValidation';
 
 const ENQUIRY_TYPES = [
   { value: 'FIXED_TOUR', label: 'Fixed Tour' },
@@ -424,6 +426,16 @@ const EnquiryManagement = () => {
 
   const goPrevStep = () => setCreateStep((s) => Math.max(s - 1, 1));
 
+  const isCreateStepValid = (step) => {
+    if (step === 1) return Boolean(createForm.name.trim());
+    if (step === 2) return Boolean(createForm.enquiry_type && createForm.channel);
+    if (step === 3) return tripSelectionType === 'DESTINATION'
+      ? Boolean(createForm.destination_id)
+      : Boolean(createForm.package_id);
+    if (step === 4) return Boolean(createForm.travel_date) && Number(createForm.adult_count) > 0;
+    return false;
+  };
+
   // Open Create Modal & reset states
   const openCreateModal = () => {
     setCreateForm(defaultCreateForm);
@@ -439,6 +451,7 @@ const EnquiryManagement = () => {
   // Handle Create Enquiry Submit
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
+    if (createStep !== CREATE_STEPS.length || !isCreateStepValid(CREATE_STEPS.length)) return;
     if (!createForm.name.trim() && !createForm.phone.trim() && !createForm.email.trim()) {
       toast.error('Please provide at least a name, phone, or email.');
       return;
@@ -863,7 +876,8 @@ const EnquiryManagement = () => {
                 <button
                   type="button"
                   onClick={goNextStep}
-                  className="inline-flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition"
+                  disabled={!isCreateStepValid(createStep)}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Continue <ArrowRight className="h-4 w-4" />
                 </button>
@@ -871,8 +885,8 @@ const EnquiryManagement = () => {
                 <button
                   type="submit"
                   form="create-enquiry-form"
-                  disabled={saving}
-                  className="inline-flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 transition"
+                  disabled={saving || !isCreateStepValid(createStep)}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {saving ? 'Recording...' : <><Check className="h-4 w-4" /> Create Enquiry</>}
                 </button>
@@ -930,7 +944,14 @@ const EnquiryManagement = () => {
           </div>
         </div>
 
-        <form id="create-enquiry-form" onSubmit={handleCreateSubmit} className="space-y-4 p-1">
+        <form
+          id="create-enquiry-form"
+          onSubmit={handleCreateSubmit}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') event.preventDefault();
+          }}
+          className="space-y-4 p-1"
+        >
 
           {/* â”€â”€â”€ STEP 1: Customer Information â”€â”€â”€ */}
           {createStep === 1 && (
@@ -1342,18 +1363,18 @@ const EnquiryManagement = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass}>Travel date</label>
-                  <input type="date" value={createForm.travel_date} onChange={(e) => setCreateForm({ ...createForm, travel_date: e.target.value })} className={inputClass} />
+                  <label className={labelClass}>Travel date <span className="text-red-500">*</span></label>
+                  <CustomDatePicker value={createForm.travel_date} includeTime={false} onChange={(value) => setCreateForm({ ...createForm, travel_date: value })} />
                 </div>
                 <div>
                   <label className={labelClass}>Duration</label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
-                      <input type="number" min="0" placeholder="Days" value={createForm.travel_duration_day} onChange={(e) => setCreateForm({ ...createForm, travel_duration_day: e.target.value })} className={inputClass} />
+                      <input type="text" inputMode="numeric" min="0" placeholder="Days" value={createForm.travel_duration_day} onChange={(e) => setCreateForm({ ...createForm, travel_duration_day: sanitizeNumericInput(e.target.value) })} className={inputClass} />
                       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">D</span>
                     </div>
                     <div className="relative flex-1">
-                      <input type="number" min="0" placeholder="Nights" value={createForm.travel_duration_night} onChange={(e) => setCreateForm({ ...createForm, travel_duration_night: e.target.value })} className={inputClass} />
+                      <input type="text" inputMode="numeric" min="0" placeholder="Nights" value={createForm.travel_duration_night} onChange={(e) => setCreateForm({ ...createForm, travel_duration_night: sanitizeNumericInput(e.target.value) })} className={inputClass} />
                       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">N</span>
                     </div>
                   </div>
@@ -1364,16 +1385,16 @@ const EnquiryManagement = () => {
                 <label className={labelClass}>Travellers</label>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="mb-1 block text-[11px] font-medium text-gray-500">Adults</label>
-                    <input type="number" min="0" value={createForm.adult_count} onChange={(e) => setCreateForm({ ...createForm, adult_count: e.target.value })} className={inputClass} />
+                    <label className="mb-1 block text-[11px] font-medium text-gray-500">Adults <span className="text-red-500">*</span></label>
+                    <input type="text" inputMode="numeric" min="0" value={createForm.adult_count} onChange={(e) => setCreateForm({ ...createForm, adult_count: sanitizeNumericInput(e.target.value) })} className={inputClass} />
                   </div>
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-gray-500">Children</label>
-                    <input type="number" min="0" value={createForm.child_count} onChange={(e) => setCreateForm({ ...createForm, child_count: e.target.value })} className={inputClass} />
+                    <input type="text" inputMode="numeric" min="0" value={createForm.child_count} onChange={(e) => setCreateForm({ ...createForm, child_count: sanitizeNumericInput(e.target.value) })} className={inputClass} />
                   </div>
                   <div>
                     <label className="mb-1 block text-[11px] font-medium text-gray-500">Seniors</label>
-                    <input type="number" min="0" value={createForm.senior_count} onChange={(e) => setCreateForm({ ...createForm, senior_count: e.target.value })} className={inputClass} />
+                    <input type="text" inputMode="numeric" min="0" value={createForm.senior_count} onChange={(e) => setCreateForm({ ...createForm, senior_count: sanitizeNumericInput(e.target.value) })} className={inputClass} />
                   </div>
                 </div>
               </div>
@@ -1381,7 +1402,7 @@ const EnquiryManagement = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={labelClass}>Rooms</label>
-                  <input type="number" min="0" placeholder="Number of rooms" value={createForm.room_count} onChange={(e) => setCreateForm({ ...createForm, room_count: e.target.value })} className={inputClass} />
+                  <input type="text" inputMode="numeric" min="0" placeholder="Number of rooms" value={createForm.room_count} onChange={(e) => setCreateForm({ ...createForm, room_count: sanitizeNumericInput(e.target.value) })} className={inputClass} />
                 </div>
                 <div>
                   <label className={labelClass}>Meal plan</label>
@@ -1392,8 +1413,8 @@ const EnquiryManagement = () => {
               <div>
                 <label className={labelClass}>Budget range (â‚¹)</label>
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="number" min="0" placeholder="Minimum" value={createForm.budget_min} onChange={(e) => setCreateForm({ ...createForm, budget_min: e.target.value })} className={inputClass} />
-                  <input type="number" min="0" placeholder="Maximum" value={createForm.budget_max} onChange={(e) => setCreateForm({ ...createForm, budget_max: e.target.value })} className={inputClass} />
+                  <input type="text" inputMode="decimal" min="0" placeholder="Minimum" value={createForm.budget_min} onChange={(e) => setCreateForm({ ...createForm, budget_min: sanitizeNumericInput(e.target.value) })} className={inputClass} />
+                  <input type="text" inputMode="decimal" min="0" placeholder="Maximum" value={createForm.budget_max} onChange={(e) => setCreateForm({ ...createForm, budget_max: sanitizeNumericInput(e.target.value) })} className={inputClass} />
                 </div>
               </div>
 

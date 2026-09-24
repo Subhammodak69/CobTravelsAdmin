@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
+import CustomDatePicker from '../component/common/CustomDatePicker';
 import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
 import Pagination from '../component/common/PaginationComponent';
@@ -1068,11 +1069,9 @@ const LeadManagement = () => {
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Next Follow-Up Date & Time <span className="text-xs text-gray-400">(optional)</span>
               </label>
-              <input
-                type="datetime-local"
+              <CustomDatePicker
                 value={activityForm.next_follow_up_at}
-                onChange={(e) => setActivityForm((p) => ({ ...p, next_follow_up_at: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                onChange={(value) => setActivityForm((p) => ({ ...p, next_follow_up_at: value }))}
               />
             </div>
 

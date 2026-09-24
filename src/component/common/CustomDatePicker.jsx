@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react';
 
 const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
@@ -113,9 +114,9 @@ const CustomDatePicker = ({ value = '', onChange, includeTime = true, placeholde
         <Calendar className="h-4 w-4 shrink-0 text-gray-400" />
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal((
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setIsOpen(false)}>
-          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl dark:border-gray-700 dark:bg-gray-800" onClick={(event) => event.stopPropagation()}>
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl dark:border-gray-700 dark:bg-gray-800" onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between">
             <div>
               <p className="text-base font-bold text-gray-900 dark:text-gray-100">Select date</p>
@@ -142,7 +143,7 @@ const CustomDatePicker = ({ value = '', onChange, includeTime = true, placeholde
           <div className="mt-4 flex gap-2"><button type="button" onClick={clearDate} className="flex-1 rounded-lg border border-gray-200 py-2.5 text-sm font-semibold text-rose-600 dark:border-gray-700">Clear</button><button type="button" onClick={() => setIsOpen(false)} className="flex-1 rounded-lg border border-gray-200 py-2.5 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">Cancel</button><button type="button" onClick={applyDate} className="flex-1 rounded-lg bg-cyan-600 py-2.5 text-sm font-bold text-white hover:bg-cyan-700">Apply date</button></div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };

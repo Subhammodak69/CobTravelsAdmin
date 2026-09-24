@@ -28,6 +28,7 @@ import MediaViewerModal from '../component/common/MediaViewerModal';
 import ModalScrollLock from '../component/common/ModalScrollLock';
 import DragDropUpload from '../component/common/DragDropUpload';
 import Pagination from '../component/common/PaginationComponent';
+import { sanitizeNumericInput } from '../utils/inputValidation';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
 const defaultReviewForm = {
@@ -879,10 +880,11 @@ const TourReviews = () => {
                       <div className="flex items-center gap-1">
                         <span className="text-xs text-gray-400">#</span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           min="1"
                           value={item.display_order ?? index + 1}
-                          onChange={(e) => updateGalleryItem(index, 'display_order', Number(e.target.value) || 1)}
+                          onChange={(e) => updateGalleryItem(index, 'display_order', sanitizeNumericInput(e.target.value))}
                           className="w-14 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700 outline-none focus:border-violet-500 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                         />
                       </div>

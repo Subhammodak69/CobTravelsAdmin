@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
+import { sanitizeNumericInput } from '../utils/inputValidation';
 import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
@@ -511,21 +512,23 @@ const VehicleManagement = () => {
             <div>
               <label className={labelClass}>Capacity</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 min="1"
                 value={formState.capacity}
-                onChange={(event) => handleFieldChange('capacity', Number(event.target.value) || 1)}
+                onChange={(event) => handleFieldChange('capacity', sanitizeNumericInput(event.target.value))}
                 className={inputClass}
               />
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>Price per day</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 min="0"
                 step="0.01"
                 value={formState.price_per_day}
-                onChange={(event) => handleFieldChange('price_per_day', event.target.value)}
+                onChange={(event) => handleFieldChange('price_per_day', sanitizeNumericInput(event.target.value))}
                 className={inputClass}
                 placeholder="0.00"
               />

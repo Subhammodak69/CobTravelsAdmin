@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import ReferralTabs from '../component/referrals/ReferralTabs';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { sanitizeNumericInput } from '../utils/inputValidation';
 
 const formatDate = (val) => {
   if (!val) return '—';
@@ -163,12 +164,13 @@ const ReferralsConfiguration = () => {
                       ₹
                     </span>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       min="0"
                       step="any"
                       required
                       value={defaultRewardAmount}
-                      onChange={(e) => setDefaultRewardAmount(e.target.value)}
+                      onChange={(e) => setDefaultRewardAmount(sanitizeNumericInput(e.target.value))}
                       placeholder="e.g. 500"
                       className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     />
@@ -187,12 +189,13 @@ const ReferralsConfiguration = () => {
                       <Calendar className="h-4 w-4" />
                     </span>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       min="1"
                       step="1"
                       required
                       value={bookingWindowDays}
-                      onChange={(e) => setBookingWindowDays(e.target.value)}
+                      onChange={(e) => setBookingWindowDays(sanitizeNumericInput(e.target.value))}
                       placeholder="e.g. 30"
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                     />

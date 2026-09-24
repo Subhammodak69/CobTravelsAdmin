@@ -15,10 +15,12 @@ import {
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
+import CustomDatePicker from '../component/common/CustomDatePicker';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
 import { getVariantDetailsPath } from '../utils/tourNavigation';
+import { sanitizeNumericInput } from '../utils/inputValidation';
 
 /* ─── Variant form defaults ─── */
 const defaultVariantForm = {
@@ -504,49 +506,50 @@ const TourVariant = () => {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Valid from</label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={formState.valid_from}
-                onChange={(e) => handleFieldChange('valid_from', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                includeTime={false}
+                onChange={(value) => handleFieldChange('valid_from', value)}
               />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Valid to</label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={formState.valid_to}
-                onChange={(e) => handleFieldChange('valid_to', e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                includeTime={false}
+                onChange={(value) => handleFieldChange('valid_to', value)}
               />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Duration days</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 min="0"
                 value={formState.duration_days}
-                onChange={(e) => handleFieldChange('duration_days', e.target.value)}
+                onChange={(e) => handleFieldChange('duration_days', sanitizeNumericInput(e.target.value))}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Duration nights</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 min="0"
                 value={formState.duration_nights}
-                onChange={(e) => handleFieldChange('duration_nights', e.target.value)}
+                onChange={(e) => handleFieldChange('duration_nights', sanitizeNumericInput(e.target.value))}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">List price (₹)</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 min="0"
                 value={formState.list_price}
-                onChange={(e) => handleFieldChange('list_price', e.target.value)}
+                onChange={(e) => handleFieldChange('list_price', sanitizeNumericInput(e.target.value))}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 placeholder="e.g. 15000"
               />
@@ -554,10 +557,11 @@ const TourVariant = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Selling price (₹)</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 min="0"
                 value={formState.selling_price}
-                onChange={(e) => handleFieldChange('selling_price', e.target.value)}
+                onChange={(e) => handleFieldChange('selling_price', sanitizeNumericInput(e.target.value))}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                 placeholder="e.g. 12999"
               />
