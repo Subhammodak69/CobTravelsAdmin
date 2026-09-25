@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -40,6 +40,7 @@ const numericValue = (value) => value.replace(/[^0-9.]/g, '').replace(/(\..*)\./
 
 const normalizeQuotation = (quotation) => ({
   ...quotation,
+  customer_id: quotation?.customer_id || quotation?.customer?.id || '',
   travel_date: toLocalDateTime(quotation?.travel_date),
   return_date: toLocalDateTime(quotation?.return_date),
   valid_until: toLocalDateTime(quotation?.valid_until),
@@ -64,7 +65,9 @@ const QuotationDetails = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
   const [editForm, setEditForm] = useState(null);
+  const originalEditFormRef = useRef(null);
   const [versionStep, setVersionStep] = useState(0);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -79,6 +82,11 @@ const QuotationDetails = () => {
   const [variantsLoading, setVariantsLoading] = useState(false);
   const [itineraryLoading, setItineraryLoading] = useState(false);
   const [tripSelectionType, setTripSelectionType] = useState('DESTINATION');
+  const explicitSubmitRef = useRef(false);
+  const hasEditChanges = useMemo(() => (
+    Boolean(editForm && originalEditFormRef.current)
+    && JSON.stringify(editForm) !== JSON.stringify(originalEditFormRef.current)
+  ), [editForm]);
 
   const loadQuotation = useCallback(async () => {
     setLoading(true);
@@ -91,6 +99,71 @@ const QuotationDetails = () => {
   }, [quotationId]);
 
   useEffect(() => { loadQuotation(); }, [loadQuotation]);
+
+  useEffect(() => {
+    if (!quotation) return undefined;
+    const status = String(quotation.status || '').trim().toUpperCase();
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const configureAction = (label, enabled, disabledTitle) => {
+      const button = buttons.find((item) => item.textContent.trim() === label);
+      if (!button) return;
+      button.disabled = !enabled;
+      button.title = enabled ? label : disabledTitle;
+      button.classList.toggle('quotation-action-disabled', !enabled);
+      const marker = button.querySelector('[data-disabled-action-marker]');
+      if (enabled) {
+        marker?.remove();
+        button.style.opacity = '';
+        button.style.filter = '';
+        button.style.cursor = '';
+        return;
+      }
+      button.style.opacity = '0.45';
+      button.style.filter = 'grayscale(0.35)';
+      button.style.cursor = 'not-allowed';
+      if (!marker) {
+        const disabledMarker = document.createElement('span');
+        disabledMarker.dataset.disabledActionMarker = 'true';
+        disabledMarker.textContent = '⊘';
+        button.appendChild(disabledMarker);
+      }
+    };
+
+    configureAction('Edit', status === 'DRAFT', 'Edit is available only for draft quotations');
+    configureAction('New version', status === 'REJECTED', 'New version is available only for rejected quotations');
+    if (isEditOpen) {
+      const submitButton = document.querySelector('button[type="submit"][form="quotation-edit-form"]');
+      if (submitButton) {
+        submitButton.disabled = !hasEditChanges;
+        submitButton.title = hasEditChanges ? (isCreatingVersion ? 'Create version' : 'Save changes') : 'Change a field before saving';
+        submitButton.classList.toggle('quotation-action-disabled', !hasEditChanges);
+      }
+    }
+    return undefined;
+  }, [quotation, isEditOpen, isCreatingVersion, hasEditChanges]);
+
+  useEffect(() => {
+    if (!isEditOpen) return undefined;
+    const preventImplicitSubmit = (event) => {
+      const tagName = event.target?.tagName;
+      if (event.key === 'Enter' && tagName !== 'TEXTAREA' && tagName !== 'BUTTON') {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    document.addEventListener('keydown', preventImplicitSubmit, true);
+    return () => document.removeEventListener('keydown', preventImplicitSubmit, true);
+  }, [isEditOpen]);
+
+  useEffect(() => {
+    if (!isEditOpen) return undefined;
+    const captureExplicitSubmit = (event) => {
+      const button = event.target?.closest?.('button[type="submit"]');
+      if (button?.form?.id === 'quotation-edit-form') explicitSubmitRef.current = true;
+    };
+    document.addEventListener('click', captureExplicitSubmit, true);
+    return () => document.removeEventListener('click', captureExplicitSubmit, true);
+  }, [isEditOpen]);
 
   useEffect(() => {
     document.body.dataset.page = 'quotation-details';
@@ -151,13 +224,27 @@ const QuotationDetails = () => {
   }, [isEditOpen, editForm?.variant_id, editForm?.itinerary, loadVariantItinerary]);
 
   const openEdit = () => {
+    if (String(quotation.status || '').trim().toUpperCase() !== 'DRAFT') return;
     const next = normalizeQuotation(quotation);
     setEditForm(next);
+    originalEditFormRef.current = JSON.parse(JSON.stringify(next));
+    explicitSubmitRef.current = false;
+    setIsCreatingVersion(false);
     setTripSelectionType(next.package_id ? 'PACKAGE' : 'DESTINATION');
     setVersionStep(0);
     setIsEditOpen(true);
   };
-  const createVersion = openEdit;
+  const createVersion = () => {
+    if (String(quotation.status || '').trim().toUpperCase() !== 'REJECTED') return;
+    const next = normalizeQuotation(quotation);
+    setEditForm(next);
+    originalEditFormRef.current = JSON.parse(JSON.stringify(next));
+    explicitSubmitRef.current = false;
+    setIsCreatingVersion(true);
+    setTripSelectionType(next.package_id ? 'PACKAGE' : 'DESTINATION');
+    setVersionStep(0);
+    setIsEditOpen(true);
+  };
   const updateEdit = (field, value) => setEditForm((current) => ({ ...current, [field]: value }));
   const updateNested = (field, index, key, value) => setEditForm((current) => {
     const nextItems = current[field].map((item, itemIndex) => {
@@ -195,23 +282,29 @@ const QuotationDetails = () => {
 
   const saveEdit = async (event) => {
     event.preventDefault();
+    if (!explicitSubmitRef.current || !hasEditChanges) return;
+    explicitSubmitRef.current = false;
     setSaving(true);
     try {
       const payload = {};
-      ['package_id', 'variant_id', 'destination_id', 'tour_name', 'travel_date', 'return_date', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'valid_until', 'terms_and_conditions', 'important_notes', 'inclusion', 'exclusion'].forEach((field) => {
+      ['customer_id', 'package_id', 'variant_id', 'destination_id', 'tour_name', 'travel_date', 'return_date', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'valid_until', 'terms_and_conditions', 'important_notes', 'inclusion', 'exclusion'].forEach((field) => {
         payload[field] = dateFields.has(field) ? toIso(editForm[field]) : editForm[field];
       });
       payload.items = editForm.items || [];
       payload.hotels = editForm.hotels || [];
       payload.vehicles = editForm.vehicles || [];
       payload.itinerary = editForm.itinerary || [];
-      const response = await apiCall(`/api/v1/admin/quotations/${quotationId}/versions`, 'POST', payload);
+      const endpoint = isCreatingVersion
+        ? `/api/v1/admin/quotations/${quotationId}/versions`
+        : `/api/v1/admin/quotations/${quotationId}`;
+      const method = isCreatingVersion ? 'POST' : 'PATCH';
+      const response = await apiCall(endpoint, method, payload);
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result?.message || result?.detail || 'Unable to create quotation version');
-      toast.success(result?.message || 'Quotation version created successfully');
+      if (!response.ok) throw new Error(result?.message || result?.detail || (isCreatingVersion ? 'Unable to create quotation version' : 'Unable to update quotation'));
+      toast.success(result?.message || (isCreatingVersion ? 'Quotation version created successfully' : 'Quotation updated successfully'));
       setIsEditOpen(false);
-      if (result?.data?.id) navigate(`/quotations/${result.data.id}`); else await loadQuotation();
-    } catch (error) { handleApiError(error, 'Unable to create quotation version'); } finally { setSaving(false); }
+      if (isCreatingVersion && result?.data?.id) navigate(`/quotations/${result.data.id}`); else await loadQuotation();
+    } catch (error) { handleApiError(error, isCreatingVersion ? 'Unable to create quotation version' : 'Unable to update quotation'); } finally { setSaving(false); }
   };
 
   const deleteQuotation = async () => {
@@ -273,7 +366,7 @@ const QuotationDetails = () => {
     return <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">{label}</h3><button type="button" onClick={() => addNested(field)} className="text-sm font-semibold text-cyan-700">Add row</button></div>{(editForm[field] || []).map((item, index) => <div key={`${field}-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-2 dark:bg-gray-900/50"><div><label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{isHotel ? 'Hotel' : 'Vehicle'}</label><SelectField options={options} isLoading={referencesLoading} isSearchable value={options.find((option) => option.value === item[idKey]) || null} onChange={(option) => updateNested(field, index, idKey, option?.value || '')} placeholder={`Select ${isHotel ? 'hotel' : 'vehicle'}`} isClearable menuPlacement="auto" /></div>{!isHotel && <div><label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Vehicle type</label><SelectField options={vehicleTypeOptions} value={vehicleTypeOptions.find((option) => option.value === item.vehicle_type) || null} onChange={(option) => updateNested(field, index, 'vehicle_type', option?.value || '')} isSearchable={false} menuPlacement="auto" /></div>}{dateKeys.map((key) => <div key={key}><label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{prettyLabel(key)}</label><CustomDatePicker value={item[key] || ''} includeTime onChange={(value) => updateNested(field, index, key, value)} /></div>)}{(isHotel ? [['nights', 'Nights'], ['room_count', 'Rooms'], ['room_type', 'Room type']] : [['rental_minutes', 'Rental minutes'], ['quantity', 'Quantity']]).map(([key, fieldLabel]) => <div key={key}><label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{fieldLabel}</label>{key === 'room_type' ? <SelectField options={roomTypeOptions} value={roomTypeOptions.find((option) => option.value === item[key]) || null} onChange={(option) => updateNested(field, index, key, option?.value || '')} isSearchable={false} menuPlacement="auto" /> : <input type="text" inputMode={numericFields.has(key) ? 'decimal' : undefined} value={item[key] ?? ''} onChange={(event) => updateNested(field, index, key, numericFields.has(key) ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>)}<button type="button" onClick={() => removeNested(field, index)} className="justify-self-start text-sm text-rose-600">Remove</button></div>)}</section>;
   };
 
-  const renderReferenceStep = () => <div className="space-y-5"><div className="grid gap-5 md:grid-cols-2">{['customer_id', 'enquiry_id', 'tour_name', 'travel_date', 'return_date', 'valid_until'].map(renderVersionField)}</div><div className="grid gap-3 sm:grid-cols-2"><label className={`cursor-pointer rounded-xl border p-3 text-sm font-semibold ${tripSelectionType === 'DESTINATION' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 dark:border-gray-700'}`}><input type="radio" name="version-trip-type" checked={tripSelectionType === 'DESTINATION'} onChange={() => { setTripSelectionType('DESTINATION'); setEditForm((current) => ({ ...current, destination_id: current.destination_id, package_id: '', variant_id: '', itinerary: [] })); }} className="mr-2" />By destination</label><label className={`cursor-pointer rounded-xl border p-3 text-sm font-semibold ${tripSelectionType === 'PACKAGE' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 dark:border-gray-700'}`}><input type="radio" name="version-trip-type" checked={tripSelectionType === 'PACKAGE'} onChange={() => { setTripSelectionType('PACKAGE'); setEditForm((current) => ({ ...current, destination_id: '', variant_id: '', itinerary: [] })); }} className="mr-2" />By package</label></div><div className="grid gap-5 md:grid-cols-2">{tripSelectionType === 'PACKAGE' ? <><div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Package</label><SelectField options={packageOptions} isLoading={referencesLoading} isSearchable value={packageOptions.find((option) => option.value === editForm.package_id) || null} onChange={(option) => setEditForm((current) => ({ ...current, package_id: option?.value || '', variant_id: '', itinerary: [] }))} isClearable placeholder="Search package" /></div><div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Variant</label><SelectField options={variantOptions} isLoading={variantsLoading} isDisabled={!editForm.package_id} isSearchable value={variantOptions.find((option) => option.value === editForm.variant_id) || null} onChange={(option) => { updateEdit('variant_id', option?.value || ''); loadVariantItinerary(option?.value || ''); }} isClearable placeholder="Search variant" /></div></> : <div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Destination</label><SelectField options={destinationOptions} isLoading={referencesLoading} isSearchable value={destinationOptions.find((option) => option.value === editForm.destination_id) || null} onChange={(option) => setEditForm((current) => ({ ...current, destination_id: option?.value || '', package_id: '', variant_id: '', itinerary: [] }))} isClearable placeholder="Search destination" /></div>}</div></div>;
+  const renderReferenceStep = () => <div className="space-y-5"><div className="grid gap-5 md:grid-cols-2"><div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Customer</label><input value={editForm.customer?.name || editForm.customer_name || 'Unknown customer'} readOnly className={`${inputClass} cursor-not-allowed bg-slate-100 dark:bg-gray-800`} /></div>{renderVersionField('enquiry_id')}{renderVersionField('tour_name')}{renderVersionField('travel_date')}{renderVersionField('return_date')}{renderVersionField('valid_until')}</div><div className="grid gap-3 sm:grid-cols-2"><label className={`cursor-pointer rounded-xl border p-3 text-sm font-semibold ${tripSelectionType === 'DESTINATION' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 dark:border-gray-700'}`}><input type="radio" name="version-trip-type" checked={tripSelectionType === 'DESTINATION'} onChange={() => { setTripSelectionType('DESTINATION'); setEditForm((current) => ({ ...current, destination_id: current.destination_id, package_id: '', variant_id: '', itinerary: [] })); }} className="mr-2" />By destination</label><label className={`cursor-pointer rounded-xl border p-3 text-sm font-semibold ${tripSelectionType === 'PACKAGE' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 dark:border-gray-700'}`}><input type="radio" name="version-trip-type" checked={tripSelectionType === 'PACKAGE'} onChange={() => { setTripSelectionType('PACKAGE'); setEditForm((current) => ({ ...current, destination_id: '', variant_id: '', itinerary: [] })); }} className="mr-2" />By package</label></div><div className="grid gap-5 md:grid-cols-2">{tripSelectionType === 'PACKAGE' ? <><div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Package</label><SelectField options={packageOptions} isLoading={referencesLoading} isSearchable value={packageOptions.find((option) => option.value === editForm.package_id) || null} onChange={(option) => setEditForm((current) => ({ ...current, package_id: option?.value || '', variant_id: '', itinerary: [] }))} isClearable placeholder="Search package" /></div><div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Variant</label><SelectField options={variantOptions} isLoading={variantsLoading} isDisabled={!editForm.package_id} isSearchable value={variantOptions.find((option) => option.value === editForm.variant_id) || null} onChange={(option) => { updateEdit('variant_id', option?.value || ''); loadVariantItinerary(option?.value || ''); }} isClearable placeholder="Search variant" /></div></> : <div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Destination</label><SelectField options={destinationOptions} isLoading={referencesLoading} isSearchable value={destinationOptions.find((option) => option.value === editForm.destination_id) || null} onChange={(option) => setEditForm((current) => ({ ...current, destination_id: option?.value || '', package_id: '', variant_id: '', itinerary: [] }))} isClearable placeholder="Search destination" /></div>}</div></div>;
 
   const renderVersionField = (field) => <div key={field}><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{prettyLabel(field)}</label>{dateFields.has(field) ? <CustomDatePicker value={editForm[field] ?? ''} onChange={(value) => updateEdit(field, value)} /> : <input type="text" inputMode={numericFields.has(field) ? 'decimal' : undefined} value={editForm[field] ?? ''} onChange={(event) => updateEdit(field, numericFields.has(field) ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>;
 
@@ -290,7 +383,7 @@ const QuotationDetails = () => {
     <div className="grid gap-4 md:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"><p className="text-xs uppercase tracking-wide text-gray-500">Status</p><p className="mt-2 text-lg font-bold text-slate-900 dark:text-slate-100">{quotation.status || 'DRAFT'}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"><p className="text-xs uppercase tracking-wide text-gray-500">Total amount</p><p className="mt-2 text-lg font-bold text-slate-900 dark:text-slate-100">{formatAmount(quotation.total_amount)}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"><p className="text-xs uppercase tracking-wide text-gray-500">Travel dates</p><p className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{formatDate(quotation.travel_date)} - {formatDate(quotation.return_date)}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"><p className="text-xs uppercase tracking-wide text-gray-500">Valid until</p><p className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{formatDate(quotation.valid_until)}</p></div></div>
     <div className="grid gap-5 xl:grid-cols-3"><div className="space-y-5 xl:col-span-2"><section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Quotation summary</h2><div className="grid gap-4 md:grid-cols-2">{['customer_id', 'enquiry_id', 'package_id', 'variant_id', 'destination_id', 'inclusion', 'exclusion', 'important_notes', 'terms_and_conditions'].map((field) => <div key={field} className="border-b border-slate-100 pb-3 dark:border-gray-700"><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{prettyLabel(field)}</p><p className="mt-1 whitespace-pre-wrap text-sm text-slate-800 dark:text-slate-200">{quotation[field] || 'Not provided'}</p></div>)}</div></section><section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Itinerary</h2>{(quotation.itinerary || []).length ? <div className="space-y-3">{quotation.itinerary.map((day) => <div key={day.id || day.day_number} className="rounded-xl bg-slate-50 p-4 dark:bg-gray-900/50"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">Day {day.day_number}: {day.title || 'Untitled day'}</h3><span className="text-xs text-gray-500">{formatDate(day.date)}</span></div><p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{day.description || 'No description'}</p><p className="mt-2 text-xs text-gray-500">{day.overnight_location || 'No overnight location'}{day.meal_plan ? ` · ${day.meal_plan}` : ''}</p></div>)}</div> : <p className="text-sm text-gray-500">No itinerary days added.</p>}</section></div><aside className="space-y-5"><section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Amount breakdown</h2><div className="space-y-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><strong>{formatAmount(quotation.subtotal)}</strong></div><div className="flex justify-between"><span>Discount</span><strong>- {formatAmount(quotation.discount_amount)}</strong></div><div className="flex justify-between"><span>Tax</span><strong>{formatAmount(quotation.tax_amount)}</strong></div><div className="flex justify-between border-t border-slate-200 pt-3 text-base dark:border-gray-700"><span>Total</span><strong>{formatAmount(quotation.total_amount)}</strong></div></div></section><section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Trip components</h2><div className="space-y-3 text-sm text-slate-700 dark:text-slate-200"><p><strong>{quotation.items?.length || 0}</strong> quotation items</p><p><strong>{quotation.hotels?.length || 0}</strong> hotel stays</p><p><strong>{quotation.vehicles?.length || 0}</strong> vehicle bookings</p><p><Calendar className="mr-2 inline h-4 w-4" />Updated {formatDate(quotation.updated_at)}</p></div></section></aside></div>
 
-    <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Create quotation version" icon={FileText} size="3xl" footer={<div className="flex w-full items-center justify-between gap-3"><button type="button" onClick={() => setIsEditOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:border-gray-700 dark:text-gray-300">Cancel</button><div className="flex gap-3"><button type="button" onClick={() => setVersionStep((current) => Math.max(0, current - 1))} disabled={versionStep === 0 || saving} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300">Back</button>{versionStep < versionSteps.length - 1 ? <button type="button" onClick={() => setVersionStep((current) => Math.min(versionSteps.length - 1, current + 1))} className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700">Next</button> : <button type="submit" form="quotation-edit-form" disabled={saving} className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 disabled:opacity-60">{saving ? 'Creating...' : 'Create version'}</button>}</div></div>}>{editForm && <form id="quotation-edit-form" onSubmit={saveEdit} className="space-y-6 p-1"><div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-gray-900/70">{versionSteps.map((step, index) => <div key={step} className={`rounded-xl px-3 py-2.5 text-center text-xs font-semibold transition ${index === versionStep ? 'bg-white text-cyan-700 shadow-sm dark:bg-gray-800 dark:text-cyan-300' : index < versionStep ? 'text-cyan-700 dark:text-cyan-400' : 'text-slate-400 dark:text-gray-500'}`}><span className="mr-1.5">{index + 1}.</span>{step}</div>)}</div><div className="rounded-2xl border border-slate-100 bg-white/60 p-4 dark:border-gray-700 dark:bg-gray-900/20">{renderVersionStep()}</div></form>}</Modal>
+    <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title={isCreatingVersion ? 'Create quotation version' : 'Edit quotation'} icon={FileText} size="3xl" footer={<div className="flex w-full items-center justify-between gap-3"><button type="button" onClick={() => setIsEditOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:border-gray-700 dark:text-gray-300">Cancel</button><div className="flex gap-3"><button type="button" onClick={() => setVersionStep((current) => Math.max(0, current - 1))} disabled={versionStep === 0 || saving} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300">Back</button>{versionStep < versionSteps.length - 1 ? <button type="button" onClick={() => setVersionStep((current) => Math.min(versionSteps.length - 1, current + 1))} className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700">Next</button> : <button type="submit" form="quotation-edit-form" disabled={saving} className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 disabled:opacity-60">{saving ? (isCreatingVersion ? 'Creating...' : 'Saving...') : (isCreatingVersion ? 'Create version' : 'Save changes')}</button>}</div></div>}>{editForm && <form id="quotation-edit-form" onSubmit={saveEdit} className="space-y-6 p-1"><div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-gray-900/70">{versionSteps.map((step, index) => <div key={step} className={`rounded-xl px-3 py-2.5 text-center text-xs font-semibold transition ${index === versionStep ? 'bg-white text-cyan-700 shadow-sm dark:bg-gray-800 dark:text-cyan-300' : index < versionStep ? 'text-cyan-700 dark:text-cyan-400' : 'text-slate-400 dark:text-gray-500'}`}><span className="mr-1.5">{index + 1}.</span>{step}</div>)}</div><div className="rounded-2xl border border-slate-100 bg-white/60 p-4 dark:border-gray-700 dark:bg-gray-900/20">{renderVersionStep()}</div></form>}</Modal>
     <Modal isOpen={isSendOpen} onClose={() => setIsSendOpen(false)} title="Send quotation" icon={Mail} size="sm" footer={<div className="flex justify-end gap-3"><button type="button" onClick={() => setIsSendOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button><button type="submit" form="send-quotation-form" className="rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white">Send quotation</button></div>}><form id="send-quotation-form" onSubmit={sendQuotation} className="space-y-4"><p className="text-sm text-gray-500">The quotation will be sent to the recipient email below.</p><input type="email" required value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} className={inputClass} placeholder="customer@example.com" /></form></Modal>
     <ConfirmDeleteModal isOpen={isDeleteOpen} onClose={() => { if (!deleting) setIsDeleteOpen(false); }} onConfirm={deleteQuotation} confirming={deleting} itemLabel={quotation.quotation_code || 'this quotation'} title="Delete quotation" message="This quotation and its itinerary details will be permanently removed." />
   </div>;
