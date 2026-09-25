@@ -30,9 +30,9 @@ const Modal = ({ isOpen, onClose, title, icon: Icon, children, onConfirm, confir
     md: 'max-w-xl max-h-[75vh]',
     lg: 'max-w-2xl max-h-[80vh]',
     xl: 'max-w-3xl max-h-[85vh]',
-    '2xl': 'max-w-4xl max-h-[90vh]',
-    '3xl': 'max-w-5xl max-h-[92vh]',
-    full: 'max-w-full max-h-[95vh]',
+    '2xl': 'max-w-5xl max-h-[92vh]',
+    '3xl': 'max-w-6xl max-h-[94vh]',
+    full: 'max-w-[calc(100vw-2rem)] max-h-[96vh]',
   };
 
   return (
@@ -52,7 +52,7 @@ const Modal = ({ isOpen, onClose, title, icon: Icon, children, onConfirm, confir
           />
           <motion.div
             variants={modalVariants}
-            className={`relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl dark:shadow-gray-950 w-full mx-4 z-10 flex flex-col ${sizeClasses[size] || sizeClasses.md} ${className}`}
+            className={`relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-slate-950/20 dark:shadow-gray-950/60 w-full mx-4 z-10 flex min-h-0 flex-col ${sizeClasses[size] || sizeClasses.md} ${className}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? 'modal-title' : undefined}

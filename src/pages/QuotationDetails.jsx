@@ -18,8 +18,11 @@ import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import CustomDatePicker from '../component/common/CustomDatePicker';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
-const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
-const fields = ['customer_id', 'enquiry_id', 'package_id', 'variant_id', 'destination_id', 'tour_name', 'travel_date', 'return_date', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'valid_until', 'terms_and_conditions', 'important_notes', 'inclusion', 'exclusion'];
+const inputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-200 dark:focus:bg-gray-800';
+const detailFields = ['package_id', 'variant_id', 'destination_id', 'tour_name', 'travel_date', 'return_date', 'valid_until'];
+const pricingFields = ['subtotal', 'discount_amount', 'tax_amount', 'total_amount'];
+const noteFields = ['terms_and_conditions', 'important_notes', 'inclusion', 'exclusion'];
+const versionSteps = ['Trip details', 'Components', 'Pricing & notes'];
 const dateFields = new Set(['travel_date', 'return_date', 'valid_until']);
 const nestedDateFields = new Set(['check_in', 'check_out', 'start_date', 'end_date', 'date']);
 const numericFields = new Set(['subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'quantity', 'unit_price', 'total_price', 'nights', 'room_count', 'rental_minutes', 'day_number', 'sort_order']);
@@ -57,6 +60,7 @@ const QuotationDetails = () => {
   const [saving, setSaving] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editForm, setEditForm] = useState(null);
+  const [versionStep, setVersionStep] = useState(0);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isSendOpen, setIsSendOpen] = useState(false);
@@ -74,15 +78,44 @@ const QuotationDetails = () => {
 
   useEffect(() => { loadQuotation(); }, [loadQuotation]);
 
+  useEffect(() => {
+    document.body.dataset.page = 'quotation-details';
+    return () => { delete document.body.dataset.page; };
+  }, []);
+
   const openEdit = () => {
     const next = normalizeQuotation(quotation);
     setEditForm(next);
+    setVersionStep(0);
     setIsEditOpen(true);
   };
+  const createVersion = openEdit;
   const updateEdit = (field, value) => setEditForm((current) => ({ ...current, [field]: value }));
-  const updateNested = (field, index, key, value) => setEditForm((current) => ({ ...current, [field]: current[field].map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
+  const updateNested = (field, index, key, value) => setEditForm((current) => {
+    const nextItems = current[field].map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      const nextItem = { ...item, [key]: value };
+      if (key === 'quantity' || key === 'unit_price') nextItem.total_price = (Number(nextItem.quantity || 0) * Number(nextItem.unit_price || 0)).toFixed(2);
+      return nextItem;
+    });
+    if (field !== 'items') return { ...current, [field]: nextItems };
+    const subtotal = nextItems.reduce((sum, item) => sum + Number(item.total_price || (Number(item.quantity || 0) * Number(item.unit_price || 0))), 0);
+    const discount = Number(current.discount_amount || 0);
+    const tax = Number(current.tax_amount || 0);
+    return { ...current, [field]: nextItems, subtotal: subtotal.toFixed(2), total_amount: Math.max(0, subtotal - discount + tax).toFixed(2) };
+  });
   const addNested = (field) => setEditForm((current) => ({ ...current, [field]: [...current[field], {}] }));
-  const removeNested = (field, index) => setEditForm((current) => ({ ...current, [field]: current[field].filter((_, itemIndex) => itemIndex !== index) }));
+  const removeNested = (field, index) => setEditForm((current) => {
+    const nextItems = current[field].filter((_, itemIndex) => itemIndex !== index);
+    if (field !== 'items') return { ...current, [field]: nextItems };
+    const subtotal = nextItems.reduce((sum, item) => sum + Number(item.total_price || (Number(item.quantity || 0) * Number(item.unit_price || 0))), 0);
+    return { ...current, [field]: nextItems, subtotal: subtotal.toFixed(2), total_amount: Math.max(0, subtotal - Number(current.discount_amount || 0) + Number(current.tax_amount || 0)).toFixed(2) };
+  });
+  const updatePricing = (field, value) => setEditForm((current) => {
+    const next = { ...current, [field]: value };
+    if (field !== 'subtotal') next.total_amount = Math.max(0, Number(next.subtotal || 0) - Number(next.discount_amount || 0) + Number(next.tax_amount || 0)).toFixed(2);
+    return next;
+  });
 
   const saveEdit = async (event) => {
     event.preventDefault();
@@ -116,28 +149,31 @@ const QuotationDetails = () => {
     } catch (error) { handleApiError(error, 'Unable to delete quotation'); } finally { setDeleting(false); }
   };
 
-  const createVersion = async () => {
-    try {
-      const source = normalizeQuotation(quotation);
-      const payload = {};
-      ['package_id', 'variant_id', 'destination_id', 'tour_name', 'travel_date', 'return_date', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'valid_until', 'terms_and_conditions', 'important_notes', 'inclusion', 'exclusion', 'items', 'hotels', 'vehicles', 'itinerary'].forEach((field) => { payload[field] = dateFields.has(field) ? toIso(source[field]) : source[field]; });
-      const response = await apiCall(`/api/v1/admin/quotations/${quotationId}/versions`, 'POST', payload);
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result?.message || result?.detail || 'Unable to create quotation version');
-      toast.success(result?.message || 'New quotation version created');
-      if (result?.data?.id) navigate(`/quotations/${result.data.id}`); else await loadQuotation();
-    } catch (error) { handleApiError(error, 'Unable to create quotation version'); }
-  };
-
   const downloadPdf = async () => {
+    const downloadToastId = toast.loading('Generating quotation PDF...');
     try {
       const response = await apiCall(`/api/v1/admin/quotations/${quotationId}/pdf`, 'GET');
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result?.message || result?.detail || 'Unable to generate quotation PDF');
       const pdfValue = result?.data?.url || result?.data?.download_url || result?.data?.file_url || result?.data;
-      if (typeof pdfValue === 'string' && /^https?:/i.test(pdfValue)) window.open(pdfValue, '_blank', 'noopener,noreferrer');
-      else toast.success(result?.message || 'Quotation PDF generated');
-    } catch (error) { handleApiError(error, 'Unable to generate quotation PDF'); }
+      if (typeof pdfValue !== 'string' || !/^https?:/i.test(pdfValue)) throw new Error('Quotation PDF URL was not returned');
+
+      toast.loading('Downloading quotation PDF...', { id: downloadToastId });
+      const pdfResponse = await fetch(pdfValue);
+      if (!pdfResponse.ok) throw new Error('Unable to download quotation PDF');
+      const pdfBlob = await pdfResponse.blob();
+      const downloadUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${quotation.quotation_code || 'quotation'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+      toast.success('Quotation PDF downloaded', { id: downloadToastId });
+    } catch (error) {
+      toast.error(error?.message || 'Unable to generate quotation PDF', { id: downloadToastId });
+    }
   };
 
   const sendQuotation = async (event) => {
@@ -153,6 +189,14 @@ const QuotationDetails = () => {
 
   const renderNestedEditor = (field, label) => <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">{label}</h3><button type="button" onClick={() => addNested(field)} className="text-sm font-semibold text-cyan-700">Add row</button></div>{(editForm[field] || []).map((item, index) => <div key={`${field}-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-2 dark:bg-gray-900/50">{Object.keys(item).filter((key) => !['id', 'quotation_id', 'trip_item_id', 'created_at', 'updated_at'].includes(key)).map((key) => <div key={key}><label className="mb-1 block text-xs font-medium capitalize text-gray-600 dark:text-gray-300">{prettyLabel(key)}</label>{nestedDateFields.has(key) ? <CustomDatePicker value={item[key] ?? ''} includeTime={key !== 'date'} onChange={(value) => updateNested(field, index, key, value)} /> : <input type="text" inputMode={numericFields.has(key) ? 'decimal' : undefined} value={item[key] ?? ''} onChange={(event) => updateNested(field, index, key, numericFields.has(key) ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>)}<button type="button" onClick={() => removeNested(field, index)} className="justify-self-start text-sm text-rose-600">Remove</button></div>)}</section>;
 
+  const renderVersionField = (field) => <div key={field}><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{prettyLabel(field)}</label>{dateFields.has(field) ? <CustomDatePicker value={editForm[field] ?? ''} onChange={(value) => updateEdit(field, value)} /> : <input type="text" inputMode={numericFields.has(field) ? 'decimal' : undefined} value={editForm[field] ?? ''} onChange={(event) => updateEdit(field, numericFields.has(field) ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>;
+
+  const renderVersionStep = () => {
+    if (versionStep === 0) return <div className="grid gap-5 md:grid-cols-2">{['customer_id', 'enquiry_id', ...detailFields].map(renderVersionField)}</div>;
+    if (versionStep === 1) return <div className="space-y-5">{renderNestedEditor('items', 'Quotation items')}{renderNestedEditor('hotels', 'Hotels')}{renderNestedEditor('vehicles', 'Vehicles')}{renderNestedEditor('itinerary', 'Itinerary')}</div>;
+    return <div className="space-y-6"><div className="grid gap-5 md:grid-cols-2">{pricingFields.map((field) => <div key={field}><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{prettyLabel(field)}</label><input type="text" inputMode="decimal" readOnly={field === 'subtotal' || field === 'total_amount'} value={editForm[field] ?? '0'} onChange={(event) => updatePricing(field, numericValue(event.target.value))} className={`${inputClass} ${field === 'total_amount' ? 'border-cyan-200 bg-cyan-50 font-bold text-cyan-800 dark:border-cyan-900/50 dark:bg-cyan-950/30 dark:text-cyan-200' : field === 'subtotal' ? 'bg-slate-100 font-semibold dark:bg-gray-800' : ''}`} /></div>)}</div><div className="grid gap-5 md:grid-cols-2">{noteFields.map((field) => <div key={field}><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{prettyLabel(field)}</label><textarea value={editForm[field] ?? ''} onChange={(event) => updateEdit(field, event.target.value)} className={`${inputClass} min-h-[120px] resize-y`} /></div>)}</div></div>;
+  };
+
   if (loading && !quotation) return <div className="flex min-h-[360px] items-center justify-center text-sm text-gray-500">Loading quotation...</div>;
   if (!quotation) return <div className="p-8 text-center"><p className="text-gray-500">Quotation not found.</p><button type="button" onClick={() => navigate('/quotations')} className="mt-4 text-sm font-semibold text-cyan-700">Back to quotations</button></div>;
 
@@ -160,7 +204,7 @@ const QuotationDetails = () => {
     <div className="grid gap-4 md:grid-cols-4"><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"><p className="text-xs uppercase tracking-wide text-gray-500">Status</p><p className="mt-2 text-lg font-bold text-slate-900 dark:text-slate-100">{quotation.status || 'DRAFT'}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"><p className="text-xs uppercase tracking-wide text-gray-500">Total amount</p><p className="mt-2 text-lg font-bold text-slate-900 dark:text-slate-100">{formatAmount(quotation.total_amount)}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"><p className="text-xs uppercase tracking-wide text-gray-500">Travel dates</p><p className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{formatDate(quotation.travel_date)} - {formatDate(quotation.return_date)}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"><p className="text-xs uppercase tracking-wide text-gray-500">Valid until</p><p className="mt-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{formatDate(quotation.valid_until)}</p></div></div>
     <div className="grid gap-5 xl:grid-cols-3"><div className="space-y-5 xl:col-span-2"><section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Quotation summary</h2><div className="grid gap-4 md:grid-cols-2">{['customer_id', 'enquiry_id', 'package_id', 'variant_id', 'destination_id', 'inclusion', 'exclusion', 'important_notes', 'terms_and_conditions'].map((field) => <div key={field} className="border-b border-slate-100 pb-3 dark:border-gray-700"><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{prettyLabel(field)}</p><p className="mt-1 whitespace-pre-wrap text-sm text-slate-800 dark:text-slate-200">{quotation[field] || 'Not provided'}</p></div>)}</div></section><section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Itinerary</h2>{(quotation.itinerary || []).length ? <div className="space-y-3">{quotation.itinerary.map((day) => <div key={day.id || day.day_number} className="rounded-xl bg-slate-50 p-4 dark:bg-gray-900/50"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">Day {day.day_number}: {day.title || 'Untitled day'}</h3><span className="text-xs text-gray-500">{formatDate(day.date)}</span></div><p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{day.description || 'No description'}</p><p className="mt-2 text-xs text-gray-500">{day.overnight_location || 'No overnight location'}{day.meal_plan ? ` · ${day.meal_plan}` : ''}</p></div>)}</div> : <p className="text-sm text-gray-500">No itinerary days added.</p>}</section></div><aside className="space-y-5"><section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Amount breakdown</h2><div className="space-y-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><strong>{formatAmount(quotation.subtotal)}</strong></div><div className="flex justify-between"><span>Discount</span><strong>- {formatAmount(quotation.discount_amount)}</strong></div><div className="flex justify-between"><span>Tax</span><strong>{formatAmount(quotation.tax_amount)}</strong></div><div className="flex justify-between border-t border-slate-200 pt-3 text-base dark:border-gray-700"><span>Total</span><strong>{formatAmount(quotation.total_amount)}</strong></div></div></section><section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">Trip components</h2><div className="space-y-3 text-sm text-slate-700 dark:text-slate-200"><p><strong>{quotation.items?.length || 0}</strong> quotation items</p><p><strong>{quotation.hotels?.length || 0}</strong> hotel stays</p><p><strong>{quotation.vehicles?.length || 0}</strong> vehicle bookings</p><p><Calendar className="mr-2 inline h-4 w-4" />Updated {formatDate(quotation.updated_at)}</p></div></section></aside></div>
 
-    <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Create quotation version" icon={FileText} size="3xl" footer={<div className="flex justify-end gap-3"><button type="button" onClick={() => setIsEditOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button><button type="submit" form="quotation-edit-form" disabled={saving} className="rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white">{saving ? 'Creating...' : 'Create version'}</button></div>}>{editForm && <form id="quotation-edit-form" onSubmit={saveEdit} className="space-y-5 p-1"><div className="grid gap-4 md:grid-cols-3">{fields.slice(0, 13).map((field) => <div key={field}><label className="mb-1.5 block text-sm font-medium capitalize text-gray-700 dark:text-gray-300">{prettyLabel(field)}</label>{dateFields.has(field) ? <CustomDatePicker value={editForm[field] ?? ''} onChange={(value) => updateEdit(field, value)} /> : <input type="text" inputMode={numericFields.has(field) ? 'decimal' : undefined} value={editForm[field] ?? ''} onChange={(event) => updateEdit(field, numericFields.has(field) ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>)}</div><div className="grid gap-4 md:grid-cols-2">{fields.slice(13).map((field) => <div key={field}><label className="mb-1.5 block text-sm font-medium capitalize text-gray-700 dark:text-gray-300">{prettyLabel(field)}</label><textarea value={editForm[field] ?? ''} onChange={(event) => updateEdit(field, event.target.value)} className={`${inputClass} min-h-[90px]`} /></div>)}</div>{renderNestedEditor('items', 'Quotation items')}{renderNestedEditor('hotels', 'Hotels')}{renderNestedEditor('vehicles', 'Vehicles')}{renderNestedEditor('itinerary', 'Itinerary')}</form>}</Modal>
+    <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Create quotation version" icon={FileText} size="3xl" footer={<div className="flex w-full items-center justify-between gap-3"><button type="button" onClick={() => setIsEditOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 dark:border-gray-700 dark:text-gray-300">Cancel</button><div className="flex gap-3"><button type="button" onClick={() => setVersionStep((current) => Math.max(0, current - 1))} disabled={versionStep === 0 || saving} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300">Back</button>{versionStep < versionSteps.length - 1 ? <button type="button" onClick={() => setVersionStep((current) => Math.min(versionSteps.length - 1, current + 1))} className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700">Next</button> : <button type="submit" form="quotation-edit-form" disabled={saving} className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-700 disabled:opacity-60">{saving ? 'Creating...' : 'Create version'}</button>}</div></div>}>{editForm && <form id="quotation-edit-form" onSubmit={saveEdit} className="space-y-6 p-1"><div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1 dark:bg-gray-900/70">{versionSteps.map((step, index) => <div key={step} className={`rounded-xl px-3 py-2.5 text-center text-xs font-semibold transition ${index === versionStep ? 'bg-white text-cyan-700 shadow-sm dark:bg-gray-800 dark:text-cyan-300' : index < versionStep ? 'text-cyan-700 dark:text-cyan-400' : 'text-slate-400 dark:text-gray-500'}`}><span className="mr-1.5">{index + 1}.</span>{step}</div>)}</div><div className="rounded-2xl border border-slate-100 bg-white/60 p-4 dark:border-gray-700 dark:bg-gray-900/20">{renderVersionStep()}</div></form>}</Modal>
     <Modal isOpen={isSendOpen} onClose={() => setIsSendOpen(false)} title="Send quotation" icon={Mail} size="sm" footer={<div className="flex justify-end gap-3"><button type="button" onClick={() => setIsSendOpen(false)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancel</button><button type="submit" form="send-quotation-form" className="rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white">Send quotation</button></div>}><form id="send-quotation-form" onSubmit={sendQuotation} className="space-y-4"><p className="text-sm text-gray-500">The quotation will be sent to the recipient email below.</p><input type="email" required value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} className={inputClass} placeholder="customer@example.com" /></form></Modal>
     <ConfirmDeleteModal isOpen={isDeleteOpen} onClose={() => { if (!deleting) setIsDeleteOpen(false); }} onConfirm={deleteQuotation} confirming={deleting} itemLabel={quotation.quotation_code || 'this quotation'} title="Delete quotation" message="This quotation and its itinerary details will be permanently removed." />
   </div>;

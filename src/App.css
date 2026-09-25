@@ -36,3 +36,75 @@
     transform: rotate(360deg);
   }
 }
+
+body[data-page='quotation-details'] {
+  background: #f6f8fb;
+}
+
+body[data-page='quotation-details'] .rounded-2xl.border.border-slate-200.bg-white {
+  border-color: #e5eaf1;
+  border-radius: 1.25rem;
+  box-shadow: 0 14px 35px rgba(15, 23, 42, 0.05);
+}
+
+body[data-page='quotation-details'] .rounded-2xl.border.border-slate-200.p-5 {
+  padding: 1.5rem;
+}
+
+body[data-page='quotation-details'] #quotation-edit-form {
+  padding: 0.25rem;
+}
+
+body[data-page='quotation-details'] #quotation-edit-form > div:first-child,
+body[data-page='quotation-details'] #quotation-edit-form > div:nth-child(2) {
+  gap: 1rem;
+  padding: 0.25rem;
+}
+
+body[data-page='quotation-details'] #quotation-edit-form section {
+  border-color: #e3e9f1;
+  border-radius: 1.25rem;
+  background: #fbfcfe;
+  padding: 1.25rem;
+}
+
+body[data-page='quotation-details'] #quotation-edit-form section > div:first-child {
+  border-bottom: 1px solid #e7edf4;
+  padding-bottom: 0.85rem;
+}
+
+body[data-page='quotation-details'] #quotation-edit-form section > div:not(:first-child) {
+  border: 1px solid #e8edf3;
+  border-radius: 0.9rem;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+body[data-page='quotation-details'] #quotation-edit-form textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.dark body[data-page='quotation-details'] {
+  background: #111827;
+}
+
+.dark body[data-page='quotation-details'] .rounded-2xl.border.border-slate-200.bg-white {
+  border-color: #263244;
+  background: #182231;
+  box-shadow: 0 14px 35px rgba(2, 6, 23, 0.2);
+}
+
+.dark body[data-page='quotation-details'] #quotation-edit-form section {
+  border-color: #2b3748;
+  background: #141e2c;
+}
+
+.dark body[data-page='quotation-details'] #quotation-edit-form section > div:first-child {
+  border-color: #2b3748;
+}
+
+.dark body[data-page='quotation-details'] #quotation-edit-form section > div:not(:first-child) {
+  border-color: #2b3748;
+  background: #1b2737;
+}
