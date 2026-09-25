@@ -333,7 +333,10 @@ const TourDetails = () => {
       exclusions: draft.exclusions || [],
       departure_dates: (draft.departure_dates || []).map((item) => ({
         ...(item.id ? { id: item.id } : {}),
-        date: item.date || item.departure_date || '',
+        departure_date: item.departure_date || item.date || '',
+        return_date: item.return_date || '',
+        total_seats: Number(item.total_seats) || 0,
+        available_seats: Number(item.available_seats) || 0,
       })),
       itinerary: (draft.itinerary || []).map((item) => ({
         ...(item.id ? { id: item.id } : {}),
@@ -352,31 +355,21 @@ const TourDetails = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = buildPayload();
-      const detailId = details?.id || variantId;
-      let response;
-
-      if (notFound || !details?.id) {
-        response = await apiCall('/api/v1/admin/tour-details', 'POST', {
-          ...payload,
-          variant_id: variantId,
-        });
-      } else {
-        response = await apiCall(`/api/v1/admin/tour-details/${detailId}`, 'PATCH', payload);
-      }
+      const payload = { ...buildPayload(), variant_id: variantId };
+      const response = await apiCall('/api/v1/admin/tour-details', 'PUT', payload);
 
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(result?.message || result?.detail || 'Unable to save tour details');
       }
 
-      toast.success(result?.message || (notFound ? 'Tour details created successfully' : 'Tour details updated successfully'));
+      toast.success(result?.message || 'Tour details saved successfully');
       const detailData = result?.data || payload;
       setDetails(detailData);
       setNotFound(false);
       applyDetailToDraft(detailData);
     } catch (error) {
-      handleApiError(error, notFound ? 'Unable to create tour details' : 'Unable to update tour details');
+      handleApiError(error, 'Unable to save tour details');
     } finally {
       setSaving(false);
     }
@@ -940,6 +933,18 @@ const TourDetails = () => {
 
   return (
     <div className="space-y-3 pb-6">
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deleting) setIsDeleteModalOpen(false);
+        }}
+        onConfirm={confirmDeleteDetails}
+        confirming={deleting}
+        itemLabel="these tour details"
+        title="Delete tour details"
+        message="This will permanently remove the selected variant details."
+      />
+
       <Modal
         isOpen={mediaModalOpen}
         onClose={() => setMediaModalOpen(false)}
