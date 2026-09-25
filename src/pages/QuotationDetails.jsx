@@ -16,10 +16,11 @@ import {
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import CustomDatePicker from '../component/common/CustomDatePicker';
+import SelectField from '../component/common/SelectField';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { useEnums } from '../context/EnumsContext';
 
 const inputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:ring-4 focus:ring-cyan-500/10 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-200 dark:focus:bg-gray-800';
-const detailFields = ['package_id', 'variant_id', 'destination_id', 'tour_name', 'travel_date', 'return_date', 'valid_until'];
 const pricingFields = ['subtotal', 'discount_amount', 'tax_amount', 'total_amount'];
 const noteFields = ['terms_and_conditions', 'important_notes', 'inclusion', 'exclusion'];
 const versionSteps = ['Trip details', 'Components', 'Pricing & notes'];
@@ -55,6 +56,10 @@ const normalizeQuotation = (quotation) => ({
 const QuotationDetails = () => {
   const navigate = useNavigate();
   const { quotationId } = useParams();
+  const { getEnumOptions } = useEnums();
+  const quotationItemTypeOptions = getEnumOptions('CostItemType');
+  const roomTypeOptions = getEnumOptions('RoomType');
+  const vehicleTypeOptions = getEnumOptions('VehicleType');
   const [quotation, setQuotation] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -65,6 +70,15 @@ const QuotationDetails = () => {
   const [deleting, setDeleting] = useState(false);
   const [isSendOpen, setIsSendOpen] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [packageOptions, setPackageOptions] = useState([]);
+  const [variantOptions, setVariantOptions] = useState([]);
+  const [destinationOptions, setDestinationOptions] = useState([]);
+  const [hotelOptions, setHotelOptions] = useState([]);
+  const [vehicleOptions, setVehicleOptions] = useState([]);
+  const [referencesLoading, setReferencesLoading] = useState(false);
+  const [variantsLoading, setVariantsLoading] = useState(false);
+  const [itineraryLoading, setItineraryLoading] = useState(false);
+  const [tripSelectionType, setTripSelectionType] = useState('DESTINATION');
 
   const loadQuotation = useCallback(async () => {
     setLoading(true);
@@ -83,9 +97,63 @@ const QuotationDetails = () => {
     return () => { delete document.body.dataset.page; };
   }, []);
 
+  const loadReferenceOptions = useCallback(async () => {
+    setReferencesLoading(true);
+    try {
+      const responses = await Promise.all([
+        apiCall('/api/v1/admin/tour-packages?page=1&page_size=100', 'GET'),
+        apiCall('/api/v1/admin/destinations?page=1&page_size=100', 'GET'),
+        apiCall('/api/v1/admin/hotels?page=1&page_size=100', 'GET'),
+        apiCall('/api/v1/admin/vehicles?page=1&page_size=100', 'GET'),
+      ]);
+      const payloads = await Promise.all(responses.map((response) => response.json().catch(() => ({}))));
+      const [packagesPayload, destinationsPayload, hotelsPayload, vehiclesPayload] = payloads;
+      if (responses[0].ok) setPackageOptions((packagesPayload?.data || []).map((item) => ({ value: item.id, label: `${item.name || item.title || 'Unnamed package'}${item.code ? ` - ${item.code}` : ''}` })));
+      if (responses[1].ok) setDestinationOptions((destinationsPayload?.data || []).map((item) => ({ value: item.id, label: item.name || item.title || 'Unnamed destination' })));
+      if (responses[2].ok) setHotelOptions((hotelsPayload?.data || []).map((item) => ({ value: item.id, label: `${item.name || 'Unnamed hotel'}${item.category ? ` - ${item.category}` : ''}` })));
+      if (responses[3].ok) setVehicleOptions((vehiclesPayload?.data || []).map((item) => ({ value: item.id, label: `${item.name || 'Unnamed vehicle'}${item.vehicle_type ? ` - ${item.vehicle_type}` : ''}` })));
+    } catch (error) {
+      handleApiError(error, 'Unable to load quotation options');
+    } finally { setReferencesLoading(false); }
+  }, []);
+
+  useEffect(() => { loadReferenceOptions(); }, [loadReferenceOptions]);
+
+  const loadVariants = useCallback(async (packageId) => {
+    if (!packageId) { setVariantOptions([]); return; }
+    setVariantsLoading(true);
+    try {
+      const response = await apiCall(`/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/variants?page=1&page_size=100`, 'GET');
+      const payload = await response.json().catch(() => ({}));
+      setVariantOptions(response.ok ? (payload?.data || []).map((item) => ({ value: item.id, label: `${item.name || 'Unnamed variant'}${item.season_name ? ` - ${item.season_name}` : ''}` })) : []);
+    } catch { setVariantOptions([]); } finally { setVariantsLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (isEditOpen && editForm?.package_id) loadVariants(editForm.package_id);
+  }, [isEditOpen, editForm?.package_id, loadVariants]);
+
+  const loadVariantItinerary = useCallback(async (variantId) => {
+    if (!variantId) return;
+    setItineraryLoading(true);
+    try {
+      const response = await apiCall(`/api/v1/admin/tour-details/${encodeURIComponent(variantId)}`, 'GET');
+      const payload = await response.json().catch(() => ({}));
+      const itinerary = Array.isArray(payload?.data?.itinerary) ? payload.data.itinerary : [];
+      if (itinerary.length) {
+        setEditForm((current) => ({ ...current, itinerary: itinerary.map((day, index) => ({ ...day, day_number: Number(day.day_number ?? day.day) || index + 1, date: day.date ? day.date.slice(0, 10) : '', sort_order: Number(day.sort_order) || index })) }));
+      }
+    } catch { /* A quotation can have a manually entered itinerary. */ } finally { setItineraryLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (isEditOpen && editForm?.variant_id && !(editForm.itinerary || []).length) loadVariantItinerary(editForm.variant_id);
+  }, [isEditOpen, editForm?.variant_id, editForm?.itinerary, loadVariantItinerary]);
+
   const openEdit = () => {
     const next = normalizeQuotation(quotation);
     setEditForm(next);
+    setTripSelectionType(next.package_id ? 'PACKAGE' : 'DESTINATION');
     setVersionStep(0);
     setIsEditOpen(true);
   };
@@ -104,7 +172,15 @@ const QuotationDetails = () => {
     const tax = Number(current.tax_amount || 0);
     return { ...current, [field]: nextItems, subtotal: subtotal.toFixed(2), total_amount: Math.max(0, subtotal - discount + tax).toFixed(2) };
   });
-  const addNested = (field) => setEditForm((current) => ({ ...current, [field]: [...current[field], {}] }));
+  const addNested = (field) => {
+    const templates = {
+      items: { item_type: 'other', name: '', description: '', quantity: 1, unit_price: '0', total_price: '0' },
+      hotels: { hotel_id: '', check_in: '', check_out: '', nights: 1, room_count: 1, room_type: 'SINGLE' },
+      vehicles: { vehicle_id: '', vehicle_type: 'ANY', start_date: '', end_date: '', rental_minutes: 1, quantity: 1 },
+      itinerary: { day_number: (editForm?.itinerary || []).length + 1, date: '', title: '', description: '', overnight_location: '', meal_plan: '', sort_order: (editForm?.itinerary || []).length },
+    };
+    setEditForm((current) => ({ ...current, [field]: [...current[field], { ...(templates[field] || {}) }] }));
+  };
   const removeNested = (field, index) => setEditForm((current) => {
     const nextItems = current[field].filter((_, itemIndex) => itemIndex !== index);
     if (field !== 'items') return { ...current, [field]: nextItems };
@@ -187,13 +263,23 @@ const QuotationDetails = () => {
     } catch (error) { handleApiError(error, 'Unable to send quotation'); }
   };
 
-  const renderNestedEditor = (field, label) => <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">{label}</h3><button type="button" onClick={() => addNested(field)} className="text-sm font-semibold text-cyan-700">Add row</button></div>{(editForm[field] || []).map((item, index) => <div key={`${field}-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-2 dark:bg-gray-900/50">{Object.keys(item).filter((key) => !['id', 'quotation_id', 'trip_item_id', 'created_at', 'updated_at'].includes(key)).map((key) => <div key={key}><label className="mb-1 block text-xs font-medium capitalize text-gray-600 dark:text-gray-300">{prettyLabel(key)}</label>{nestedDateFields.has(key) ? <CustomDatePicker value={item[key] ?? ''} includeTime={key !== 'date'} onChange={(value) => updateNested(field, index, key, value)} /> : <input type="text" inputMode={numericFields.has(key) ? 'decimal' : undefined} value={item[key] ?? ''} onChange={(event) => updateNested(field, index, key, numericFields.has(key) ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>)}<button type="button" onClick={() => removeNested(field, index)} className="justify-self-start text-sm text-rose-600">Remove</button></div>)}</section>;
+  const renderNestedEditor = (field, label) => <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">{label}</h3><button type="button" onClick={() => addNested(field)} className="text-sm font-semibold text-cyan-700">Add row</button></div>{(editForm[field] || []).map((item, index) => <div key={`${field}-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-2 dark:bg-gray-900/50">{Object.keys(item).filter((key) => !['id', 'quotation_id', 'trip_item_id', 'created_at', 'updated_at'].includes(key)).map((key) => <div key={key}><label className="mb-1 block text-xs font-medium capitalize text-gray-600 dark:text-gray-300">{prettyLabel(key)}</label>{key === 'item_type' ? <SelectField options={quotationItemTypeOptions} value={quotationItemTypeOptions.find((option) => option.value === item[key]) || null} onChange={(option) => updateNested(field, index, key, option?.value || 'other')} isSearchable={false} menuPlacement="auto" /> : nestedDateFields.has(key) ? <CustomDatePicker value={item[key] ?? ''} includeTime={key !== 'date'} onChange={(value) => updateNested(field, index, key, value)} /> : <input type="text" inputMode={numericFields.has(key) ? 'decimal' : undefined} readOnly={field === 'items' && key === 'total_price'} value={item[key] ?? ''} onChange={(event) => updateNested(field, index, key, numericFields.has(key) ? numericValue(event.target.value) : event.target.value)} className={`${inputClass} ${field === 'items' && key === 'total_price' ? 'bg-slate-100 font-semibold dark:bg-gray-800' : ''}`} />}</div>)}<button type="button" onClick={() => removeNested(field, index)} className="justify-self-start text-sm text-rose-600">Remove</button></div>)}</section>;
+
+  const renderReferenceNestedEditor = (field, label) => {
+    const isHotel = field === 'hotels';
+    const options = isHotel ? hotelOptions : vehicleOptions;
+    const idKey = isHotel ? 'hotel_id' : 'vehicle_id';
+    const dateKeys = isHotel ? ['check_in', 'check_out'] : ['start_date', 'end_date'];
+    return <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700"><div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">{label}</h3><button type="button" onClick={() => addNested(field)} className="text-sm font-semibold text-cyan-700">Add row</button></div>{(editForm[field] || []).map((item, index) => <div key={`${field}-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-2 dark:bg-gray-900/50"><div><label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{isHotel ? 'Hotel' : 'Vehicle'}</label><SelectField options={options} isLoading={referencesLoading} isSearchable value={options.find((option) => option.value === item[idKey]) || null} onChange={(option) => updateNested(field, index, idKey, option?.value || '')} placeholder={`Select ${isHotel ? 'hotel' : 'vehicle'}`} isClearable menuPlacement="auto" /></div>{!isHotel && <div><label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Vehicle type</label><SelectField options={vehicleTypeOptions} value={vehicleTypeOptions.find((option) => option.value === item.vehicle_type) || null} onChange={(option) => updateNested(field, index, 'vehicle_type', option?.value || '')} isSearchable={false} menuPlacement="auto" /></div>}{dateKeys.map((key) => <div key={key}><label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{prettyLabel(key)}</label><CustomDatePicker value={item[key] || ''} includeTime onChange={(value) => updateNested(field, index, key, value)} /></div>)}{(isHotel ? [['nights', 'Nights'], ['room_count', 'Rooms'], ['room_type', 'Room type']] : [['rental_minutes', 'Rental minutes'], ['quantity', 'Quantity']]).map(([key, fieldLabel]) => <div key={key}><label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{fieldLabel}</label>{key === 'room_type' ? <SelectField options={roomTypeOptions} value={roomTypeOptions.find((option) => option.value === item[key]) || null} onChange={(option) => updateNested(field, index, key, option?.value || '')} isSearchable={false} menuPlacement="auto" /> : <input type="text" inputMode={numericFields.has(key) ? 'decimal' : undefined} value={item[key] ?? ''} onChange={(event) => updateNested(field, index, key, numericFields.has(key) ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>)}<button type="button" onClick={() => removeNested(field, index)} className="justify-self-start text-sm text-rose-600">Remove</button></div>)}</section>;
+  };
+
+  const renderReferenceStep = () => <div className="space-y-5"><div className="grid gap-5 md:grid-cols-2">{['customer_id', 'enquiry_id', 'tour_name', 'travel_date', 'return_date', 'valid_until'].map(renderVersionField)}</div><div className="grid gap-3 sm:grid-cols-2"><label className={`cursor-pointer rounded-xl border p-3 text-sm font-semibold ${tripSelectionType === 'DESTINATION' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 dark:border-gray-700'}`}><input type="radio" name="version-trip-type" checked={tripSelectionType === 'DESTINATION'} onChange={() => { setTripSelectionType('DESTINATION'); setEditForm((current) => ({ ...current, destination_id: current.destination_id, package_id: '', variant_id: '', itinerary: [] })); }} className="mr-2" />By destination</label><label className={`cursor-pointer rounded-xl border p-3 text-sm font-semibold ${tripSelectionType === 'PACKAGE' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 dark:border-gray-700'}`}><input type="radio" name="version-trip-type" checked={tripSelectionType === 'PACKAGE'} onChange={() => { setTripSelectionType('PACKAGE'); setEditForm((current) => ({ ...current, destination_id: '', variant_id: '', itinerary: [] })); }} className="mr-2" />By package</label></div><div className="grid gap-5 md:grid-cols-2">{tripSelectionType === 'PACKAGE' ? <><div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Package</label><SelectField options={packageOptions} isLoading={referencesLoading} isSearchable value={packageOptions.find((option) => option.value === editForm.package_id) || null} onChange={(option) => setEditForm((current) => ({ ...current, package_id: option?.value || '', variant_id: '', itinerary: [] }))} isClearable placeholder="Search package" /></div><div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Variant</label><SelectField options={variantOptions} isLoading={variantsLoading} isDisabled={!editForm.package_id} isSearchable value={variantOptions.find((option) => option.value === editForm.variant_id) || null} onChange={(option) => { updateEdit('variant_id', option?.value || ''); loadVariantItinerary(option?.value || ''); }} isClearable placeholder="Search variant" /></div></> : <div><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Destination</label><SelectField options={destinationOptions} isLoading={referencesLoading} isSearchable value={destinationOptions.find((option) => option.value === editForm.destination_id) || null} onChange={(option) => setEditForm((current) => ({ ...current, destination_id: option?.value || '', package_id: '', variant_id: '', itinerary: [] }))} isClearable placeholder="Search destination" /></div>}</div></div>;
 
   const renderVersionField = (field) => <div key={field}><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{prettyLabel(field)}</label>{dateFields.has(field) ? <CustomDatePicker value={editForm[field] ?? ''} onChange={(value) => updateEdit(field, value)} /> : <input type="text" inputMode={numericFields.has(field) ? 'decimal' : undefined} value={editForm[field] ?? ''} onChange={(event) => updateEdit(field, numericFields.has(field) ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>;
 
   const renderVersionStep = () => {
-    if (versionStep === 0) return <div className="grid gap-5 md:grid-cols-2">{['customer_id', 'enquiry_id', ...detailFields].map(renderVersionField)}</div>;
-    if (versionStep === 1) return <div className="space-y-5">{renderNestedEditor('items', 'Quotation items')}{renderNestedEditor('hotels', 'Hotels')}{renderNestedEditor('vehicles', 'Vehicles')}{renderNestedEditor('itinerary', 'Itinerary')}</div>;
+    if (versionStep === 0) return renderReferenceStep();
+    if (versionStep === 1) return <div className="space-y-5">{renderNestedEditor('items', 'Quotation items')}{renderReferenceNestedEditor('hotels', 'Hotels')}{renderReferenceNestedEditor('vehicles', 'Vehicles')}{renderNestedEditor('itinerary', 'Itinerary')}{itineraryLoading && <p className="text-xs text-gray-500">Loading package itinerary...</p>}</div>;
     return <div className="space-y-6"><div className="grid gap-5 md:grid-cols-2">{pricingFields.map((field) => <div key={field}><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{prettyLabel(field)}</label><input type="text" inputMode="decimal" readOnly={field === 'subtotal' || field === 'total_amount'} value={editForm[field] ?? '0'} onChange={(event) => updatePricing(field, numericValue(event.target.value))} className={`${inputClass} ${field === 'total_amount' ? 'border-cyan-200 bg-cyan-50 font-bold text-cyan-800 dark:border-cyan-900/50 dark:bg-cyan-950/30 dark:text-cyan-200' : field === 'subtotal' ? 'bg-slate-100 font-semibold dark:bg-gray-800' : ''}`} /></div>)}</div><div className="grid gap-5 md:grid-cols-2">{noteFields.map((field) => <div key={field}><label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{prettyLabel(field)}</label><textarea value={editForm[field] ?? ''} onChange={(event) => updateEdit(field, event.target.value)} className={`${inputClass} min-h-[120px] resize-y`} /></div>)}</div></div>;
   };
 

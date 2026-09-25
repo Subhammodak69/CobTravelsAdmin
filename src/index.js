@@ -5,6 +5,7 @@ import './index.css';
 import App from './App';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
+import { EnumsProvider } from './context/EnumsContext';
 import { Toaster } from 'react-hot-toast';
 import { GOOGLE_CLIENT_ID } from './utils/config';
 
@@ -15,20 +16,22 @@ root.render(
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <BrowserRouter>
         <AuthProvider>
-          <Toaster 
-            position="top-right" 
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#0f172a',
-                color: '#fff',
-                border: '1px solid #1e293b',
-                borderRadius: '0.75rem',
-                fontSize: '0.875rem'
-              }
-            }}
-          />
-          <App />
+          <EnumsProvider>
+            <Toaster 
+              position="top-right" 
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#0f172a',
+                  color: '#fff',
+                  border: '1px solid #1e293b',
+                  borderRadius: '0.75rem',
+                  fontSize: '0.875rem'
+                }
+              }}
+            />
+            <App />
+          </EnumsProvider>
         </AuthProvider>
       </BrowserRouter>
     </GoogleOAuthProvider>

@@ -21,16 +21,7 @@ import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import { apiCall, handleApiError, uploadFile } from '../utils/apiCall';
-
-const CATEGORY_OPTIONS = [
-  { value: 'BUDGET', label: 'Budget' },
-  { value: 'STANDARD', label: 'Standard' },
-  { value: 'DELUXE', label: 'Deluxe' },
-  { value: 'LUXURY', label: 'Luxury' },
-  { value: 'PREMIUM', label: 'Premium' },
-  { value: 'RESORT', label: 'Resort' },
-  { value: 'HERITAGE', label: 'Heritage' },
-];
+import { useEnums } from '../context/EnumsContext';
 
 const defaultForm = {
   name: '',
@@ -44,6 +35,8 @@ const defaultForm = {
 };
 
 const HotelManagement = () => {
+  const { getEnumOptions } = useEnums();
+  const categoryOptions = getEnumOptions('HotelCategory');
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -256,10 +249,6 @@ const HotelManagement = () => {
         })),
       };
 
-      if (editingHotel) {
-        payload.is_active = Boolean(formState.is_active);
-      }
-
       const endpoint = editingHotel
         ? `/api/v1/admin/hotels/${editingHotel.id}`
         : '/api/v1/admin/hotels';
@@ -441,8 +430,8 @@ const HotelManagement = () => {
             {/* Category Filter */}
             <div className="w-full sm:w-48">
               <SelectField
-                options={[{ value: 'ALL', label: 'All Categories' }, ...CATEGORY_OPTIONS]}
-                value={[{ value: 'ALL', label: 'All Categories' }, ...CATEGORY_OPTIONS].find((o) => o.value === categoryFilter)}
+                options={[{ value: 'ALL', label: 'All Categories' }, ...categoryOptions]}
+                value={[{ value: 'ALL', label: 'All Categories' }, ...categoryOptions].find((o) => o.value === categoryFilter)}
                 onChange={(sel) => setCategoryFilter(sel?.value || 'ALL')}
                 isSearchable={false}
                 placeholder="Filter category"
@@ -634,15 +623,6 @@ const HotelManagement = () => {
                               onClick: () => openEditModal(hotel),
                             },
                             {
-                              label: hotel.is_active ? 'Deactivate' : 'Activate',
-                              icon: hotel.is_active ? (
-                                <XCircle className="h-4 w-4 text-amber-500" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                              ),
-                              onClick: () => handleToggleActive(hotel),
-                            },
-                            {
                               label: 'Delete Hotel',
                               icon: <Trash2 className="h-4 w-4 text-red-500" />,
                               onClick: () => handleDelete(hotel),
@@ -746,8 +726,8 @@ const HotelManagement = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
               <SelectField
-                options={CATEGORY_OPTIONS}
-                value={CATEGORY_OPTIONS.find((c) => c.value === formState.category) || null}
+                options={categoryOptions}
+                value={categoryOptions.find((c) => c.value === formState.category) || null}
                 onChange={(selected) => handleFieldChange('category', selected?.value || 'BUDGET')}
                 isSearchable={false}
                 placeholder="Select category"
@@ -793,20 +773,6 @@ const HotelManagement = () => {
           </div>
 
           {/* Status Toggle (For Edit) */}
-          {editingHotel && (
-            <div className="flex items-center gap-3 pt-1">
-              <label className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formState.is_active}
-                  onChange={(e) => handleFieldChange('is_active', e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                Active & visible for bookings
-              </label>
-            </div>
-          )}
-
           {/* Image Gallery Management */}
           <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between">

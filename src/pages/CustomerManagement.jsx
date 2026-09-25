@@ -21,12 +21,9 @@ import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
 import Pagination from '../component/common/PaginationComponent';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { useEnums } from '../context/EnumsContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const SOURCE_OPTIONS = [
-  'WEBSITE', 'WHATSAPP', 'PHONE', 'EMAIL', 'OFFLINE', 'IMPORT', 'REFERRAL', 'OTHER',
-].map((v) => ({ value: v, label: v }));
 
 const defaultForm = {
   name: '',
@@ -74,6 +71,8 @@ const sourceColors = {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const CustomerManagement = () => {
+  const { getEnumOptions } = useEnums();
+  const sourceOptions = getEnumOptions('LeadSource');
   const navigate = useNavigate();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -513,8 +512,8 @@ const CustomerManagement = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Source</label>
               <SelectField
-                options={SOURCE_OPTIONS}
-                value={SOURCE_OPTIONS.find((o) => o.value === formState.source) || null}
+                options={sourceOptions}
+                value={sourceOptions.find((o) => o.value === formState.source) || null}
                 onChange={(selected) => handleFieldChange('source', selected?.value || 'WEBSITE')}
                 isSearchable={false}
                 placeholder="Select source"

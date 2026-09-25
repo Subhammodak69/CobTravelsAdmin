@@ -28,6 +28,7 @@ import MediaViewerModal from '../component/common/MediaViewerModal';
 import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { useEnums } from '../context/EnumsContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -40,10 +41,6 @@ const TABS = [
   { key: 'referrals', label: 'Refers', icon: Share2, tabParam: 'referral' },
   { key: 'bills', label: 'Bills & Invoices', icon: Receipt, tabParam: null },
 ];
-
-const SOURCE_OPTIONS = [
-  'WEBSITE', 'WHATSAPP', 'PHONE', 'EMAIL', 'OFFLINE', 'IMPORT', 'REFERRAL', 'OTHER',
-].map((v) => ({ value: v, label: v }));
 
 const sourceColors = {
   WEBSITE: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
@@ -121,6 +118,8 @@ const getFileType = (url = '', fileName = '') => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const CustomerDetails = () => {
+  const { getEnumOptions } = useEnums();
+  const sourceOptions = getEnumOptions('LeadSource');
   const { customerId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1345,8 +1344,8 @@ const CustomerDetails = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Source</label>
               <SelectField
-                options={SOURCE_OPTIONS}
-                value={SOURCE_OPTIONS.find((o) => o.value === editForm.source) || null}
+                options={sourceOptions}
+                value={sourceOptions.find((o) => o.value === editForm.source) || null}
                 onChange={(selected) => setEditForm((prev) => ({ ...prev, source: selected?.value || 'WEBSITE' }))}
                 isSearchable={false}
                 placeholder="Select source"

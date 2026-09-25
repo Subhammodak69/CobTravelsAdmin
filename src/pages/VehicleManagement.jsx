@@ -19,16 +19,7 @@ import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError, uploadFile } from '../utils/apiCall';
-
-const vehicleTypeOptions = [
-  { value: 'ANY', label: 'Any' },
-  { value: 'SEDAN', label: 'Sedan' },
-  { value: 'SUV', label: 'SUV' },
-  { value: 'VAN', label: 'Van' },
-  { value: 'BUS', label: 'Bus' },
-  { value: 'TRUCK', label: 'Truck' },
-  { value: 'AUTO', label: 'Auto' },
-];
+import { useEnums } from '../context/EnumsContext';
 
 const defaultForm = {
   name: '',
@@ -67,6 +58,8 @@ const moneyValue = (value) => {
 };
 
 const VehicleManagement = () => {
+  const { getEnumOptions } = useEnums();
+  const vehicleTypeOptions = getEnumOptions('VehicleType');
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -19,20 +19,7 @@ import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
 import { sanitizeNumericInput } from '../utils/inputValidation';
-
-const STATUS_FILTER_OPTIONS = [
-  { value: '', label: 'All Statuses' },
-  { value: 'PENDING', label: 'Pending' },
-  { value: 'REWARD_APPROVED', label: 'Reward Approved' },
-  { value: 'CANCELED', label: 'Canceled' },
-  { value: 'BLOCKED', label: 'Blocked' },
-];
-
-const UPDATE_STATUS_OPTIONS = [
-  { value: 'REWARD_APPROVED', label: 'Reward Approve' },
-  { value: 'CANCELED', label: 'Canceled' },
-  { value: 'BLOCKED', label: 'Blocked' },
-];
+import { useEnums } from '../context/EnumsContext';
 
 const STATUS_STYLES = {
   PENDING: {
@@ -80,6 +67,10 @@ const formatCurrency = (val) => {
 };
 
 const Referrals = () => {
+  const { getEnumOptions } = useEnums();
+  const referralStatusOptions = getEnumOptions('ReferralStatus');
+  const statusFilterOptions = [{ value: '', label: 'All Statuses' }, ...referralStatusOptions];
+  const updateStatusOptions = referralStatusOptions.filter((option) => ['REWARD_APPROVED', 'CANCELLED', 'BLOCKED'].includes(option.value));
   const [referrals, setReferrals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -138,7 +129,7 @@ const Referrals = () => {
   const handleOpenUpdateModal = (item) => {
     setSelectedReferral(item);
     // Default update status option
-    const initialStatus = UPDATE_STATUS_OPTIONS.some((opt) => opt.value === item?.status)
+    const initialStatus = updateStatusOptions.some((opt) => opt.value === item?.status)
       ? item.status
       : 'REWARD_APPROVED';
     setUpdateStatus(initialStatus);
@@ -238,8 +229,8 @@ const Referrals = () => {
           </span>
           <div className="w-48">
             <SelectField
-              options={STATUS_FILTER_OPTIONS}
-              value={STATUS_FILTER_OPTIONS.find((opt) => opt.value === statusFilter) || STATUS_FILTER_OPTIONS[0]}
+              options={statusFilterOptions}
+              value={statusFilterOptions.find((opt) => opt.value === statusFilter) || statusFilterOptions[0]}
               onChange={(opt) => {
                 setStatusFilter(opt ? opt.value : '');
                 setCurrentPage(1);
@@ -493,8 +484,8 @@ const Referrals = () => {
                 Referral Status <span className="text-red-500">*</span>
               </label>
               <SelectField
-                options={UPDATE_STATUS_OPTIONS}
-                value={UPDATE_STATUS_OPTIONS.find((opt) => opt.value === updateStatus)}
+                options={updateStatusOptions}
+                value={updateStatusOptions.find((opt) => opt.value === updateStatus)}
                 onChange={(opt) => setUpdateStatus(opt ? opt.value : 'REWARD_APPROVED')}
                 isClearable={false}
               />

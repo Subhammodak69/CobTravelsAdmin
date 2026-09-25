@@ -19,6 +19,7 @@ import SelectField from '../component/common/SelectField';
 import Pagination from '../component/common/PaginationComponent';
 import ActionMenu from '../component/common/ActionMenu';
 import { apiCall, handleApiError } from '../utils/apiCall';
+import { useEnums } from '../context/EnumsContext';
 
 const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
 const emptyLineItem = { item_type: 'other', name: '', description: '', quantity: 1, unit_price: '0', total_price: '0' };
@@ -30,7 +31,7 @@ const defaultForm = {
   customer_id: '', enquiry_id: '', package_id: '', variant_id: '', destination_id: '', tour_name: '',
   travel_date: '', return_date: '', subtotal: '0', discount_amount: '0', tax_amount: '0', total_amount: '0',
   valid_until: '', terms_and_conditions: '', important_notes: '', inclusion: '', exclusion: '',
-  items: [emptyLineItem], hotels: [], vehicles: [], itinerary: [emptyItinerary],
+  items: [emptyLineItem], hotels: [], vehicles: [], itinerary: [],
 };
 
 const formatDate = (value) => {
@@ -38,6 +39,7 @@ const formatDate = (value) => {
   try { return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); } catch { return value; }
 };
 const formatAmount = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+const prettyLabel = (value) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 const numericValue = (value) => value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
 const normalizeEnquiryDate = (value) => {
   if (!value) return '';
@@ -52,6 +54,10 @@ const statusClasses = {
 
 const QuotationManagement = () => {
   const navigate = useNavigate();
+  const { getEnumOptions } = useEnums();
+  const quotationItemTypeOptions = getEnumOptions('CostItemType');
+  const roomTypeOptions = getEnumOptions('RoomType');
+  const vehicleTypeOptions = getEnumOptions('VehicleType');
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -69,14 +75,18 @@ const QuotationManagement = () => {
   const [packageOptions, setPackageOptions] = useState([]);
   const [variantOptions, setVariantOptions] = useState([]);
   const [destinationOptions, setDestinationOptions] = useState([]);
+  const [hotelOptions, setHotelOptions] = useState([]);
+  const [vehicleOptions, setVehicleOptions] = useState([]);
   const [referencesLoading, setReferencesLoading] = useState(false);
   const [variantsLoading, setVariantsLoading] = useState(false);
+  const [itineraryLoading, setItineraryLoading] = useState(false);
+  const [tripSelectionType, setTripSelectionType] = useState('DESTINATION');
 
   const quotationSteps = [
     { id: 1, label: 'References' },
     { id: 2, label: 'Trip details' },
-    { id: 3, label: 'Pricing & notes' },
-    { id: 4, label: 'Components' },
+    { id: 3, label: 'Components' },
+    { id: 4, label: 'Pricing & notes' },
   ];
 
   const loadQuotations = useCallback(async (page = currentPage, limit = itemsPerPage) => {
@@ -99,14 +109,18 @@ const QuotationManagement = () => {
     setReferencesLoading(true);
     try {
       const enquiriesResponse = await apiCall('/api/v1/admin/enquiries?page=1&page_size=100', 'GET');
-      const [packagesResponse, destinationsResponse] = await Promise.all([
+      const [packagesResponse, destinationsResponse, hotelsResponse, vehiclesResponse] = await Promise.all([
         apiCall('/api/v1/admin/tour-packages?page=1&page_size=100', 'GET'),
         apiCall('/api/v1/admin/destinations?page=1&page_size=100', 'GET'),
+        apiCall('/api/v1/admin/hotels?page=1&page_size=100', 'GET'),
+        apiCall('/api/v1/admin/vehicles?page=1&page_size=100', 'GET'),
       ]);
       const enquiriesPayload = await enquiriesResponse.json().catch(() => ({}));
-      const [packagesPayload, destinationsPayload] = await Promise.all([
+      const [packagesPayload, destinationsPayload, hotelsPayload, vehiclesPayload] = await Promise.all([
         packagesResponse.json().catch(() => ({})),
         destinationsResponse.json().catch(() => ({})),
+        hotelsResponse.json().catch(() => ({})),
+        vehiclesResponse.json().catch(() => ({})),
       ]);
       if (enquiriesResponse.ok) {
         setEnquiryOptions((Array.isArray(enquiriesPayload?.data) ? enquiriesPayload.data : []).map((enquiry) => ({
@@ -128,6 +142,18 @@ const QuotationManagement = () => {
           label: destination.name || destination.title || 'Unnamed destination',
         })));
       }
+      if (hotelsResponse.ok) {
+        setHotelOptions((Array.isArray(hotelsPayload?.data) ? hotelsPayload.data : []).map((hotel) => ({
+          value: hotel.id,
+          label: `${hotel.name || 'Unnamed hotel'}${hotel.category ? ` - ${hotel.category}` : ''}`,
+        })));
+      }
+      if (vehiclesResponse.ok) {
+        setVehicleOptions((Array.isArray(vehiclesPayload?.data) ? vehiclesPayload.data : []).map((vehicle) => ({
+          value: vehicle.id,
+          label: `${vehicle.name || 'Unnamed vehicle'}${vehicle.vehicle_type ? ` - ${vehicle.vehicle_type}` : ''}`,
+        })));
+      }
     } catch (error) {
       handleApiError(error, 'Unable to load enquiry options');
     } finally { setReferencesLoading(false); }
@@ -136,9 +162,34 @@ const QuotationManagement = () => {
   useEffect(() => { loadReferenceOptions(); }, [loadReferenceOptions]);
 
   const selectedEnquiry = enquiryOptions.find((option) => option.value === form.enquiry_id)?.raw || null;
+  const loadVariantItinerary = useCallback(async (variantId) => {
+    if (!variantId) {
+      setForm((current) => ({ ...current, itinerary: [] }));
+      return;
+    }
+    setItineraryLoading(true);
+    try {
+      const response = await apiCall(`/api/v1/admin/tour-details/${encodeURIComponent(variantId)}`, 'GET');
+      const payload = await response.json().catch(() => ({}));
+      const itinerary = Array.isArray(payload?.data?.itinerary) ? payload.data.itinerary : [];
+      setForm((current) => ({
+        ...current,
+        itinerary: itinerary.map((day, index) => ({
+          ...day,
+          day_number: Number(day.day_number ?? day.day) || index + 1,
+          date: day.date || '',
+          sort_order: Number(day.sort_order) || index,
+        })),
+      }));
+    } catch {
+      setForm((current) => ({ ...current, itinerary: [] }));
+    } finally { setItineraryLoading(false); }
+  }, []);
+
   const handleEnquiryChange = (option) => {
     const enquiry = option?.raw;
     const selectedPackage = packageOptions.find((packageOption) => packageOption.value === enquiry?.package_id)?.raw;
+    setTripSelectionType(enquiry?.package_id ? 'PACKAGE' : 'DESTINATION');
     setForm((current) => ({
       ...current,
       enquiry_id: option?.value || '',
@@ -150,6 +201,7 @@ const QuotationManagement = () => {
       tour_name: selectedPackage?.name || selectedPackage?.title || current.tour_name,
       important_notes: enquiry?.message || current.important_notes,
     }));
+    if (enquiry?.variant_id) loadVariantItinerary(enquiry.variant_id);
   };
 
   useEffect(() => {
@@ -166,6 +218,7 @@ const QuotationManagement = () => {
         setVariantOptions(response.ok && Array.isArray(payload?.data) ? payload.data.map((variant) => ({
           value: variant.id,
           label: `${variant.name || 'Unnamed variant'}${variant.season_name ? ` - ${variant.season_name}` : ''}`,
+          raw: variant,
         })) : []);
       })
       .catch(() => { if (isCurrent) setVariantOptions([]); })
@@ -175,13 +228,21 @@ const QuotationManagement = () => {
 
   const updateForm = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   const updateArrayItem = (field, index, key, value) => setForm((current) => ({
-    ...current, [field]: current[field].map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item),
+    ...current,
+    [field]: current[field].map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      const nextItem = { ...item, [key]: value };
+      if (field === 'items' && (key === 'quantity' || key === 'unit_price')) {
+        nextItem.total_price = (Number(nextItem.quantity || 0) * Number(nextItem.unit_price || 0)).toFixed(2);
+      }
+      return nextItem;
+    }),
   }));
   const addArrayItem = (field, template) => setForm((current) => ({ ...current, [field]: [...current[field], { ...template }] }));
   const removeArrayItem = (field, index) => setForm((current) => ({ ...current, [field]: current[field].filter((_, itemIndex) => itemIndex !== index) }));
 
-  const openCreate = () => { setForm(defaultForm); setCreateStep(1); setIsCreateOpen(true); };
-  const closeCreate = () => { setIsCreateOpen(false); setForm(defaultForm); setCreateStep(1); };
+  const openCreate = () => { setForm(defaultForm); setTripSelectionType('DESTINATION'); setCreateStep(1); setIsCreateOpen(true); };
+  const closeCreate = () => { setIsCreateOpen(false); setForm(defaultForm); setTripSelectionType('DESTINATION'); setCreateStep(1); };
   const isCreateStepValid = (step) => {
     if (step === 1) return Boolean(form.enquiry_id.trim());
     if (step === 2) return Boolean(form.tour_name.trim());
@@ -250,8 +311,43 @@ const QuotationManagement = () => {
     <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700">
       <div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">{label}</h3><button type="button" onClick={() => addArrayItem(field, template)} className="text-sm font-semibold text-cyan-700 hover:text-cyan-800 dark:text-cyan-300">Add</button></div>
       {form[field].map((item, index) => <div key={`${field}-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 dark:bg-gray-900/50 md:grid-cols-2">
-        {fields.map(([key, fieldLabel, type]) => <div key={key}><label className={labelClass}>{fieldLabel}</label>{type === 'datetime-local' || type === 'date' ? <CustomDatePicker value={item[key] ?? ''} includeTime={type === 'datetime-local'} onChange={(value) => updateArrayItem(field, index, key, value)} /> : <input type="text" inputMode={type === 'number' ? 'decimal' : undefined} value={item[key] ?? ''} onChange={(event) => updateArrayItem(field, index, key, type === 'number' ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>)}
+        {fields.map(([key, fieldLabel, type]) => <div key={key}><label className={labelClass}>{fieldLabel}</label>{type === 'select' ? <SelectField options={quotationItemTypeOptions} value={quotationItemTypeOptions.find((option) => option.value === item[key]) || null} onChange={(option) => updateArrayItem(field, index, key, option?.value || 'other')} isSearchable={false} menuPlacement="auto" /> : type === 'datetime-local' || type === 'date' ? <CustomDatePicker value={item[key] ?? ''} includeTime={type === 'datetime-local'} onChange={(value) => updateArrayItem(field, index, key, value)} /> : <input type="text" inputMode={type === 'number' ? 'decimal' : undefined} readOnly={type === 'calculated'} value={item[key] ?? ''} onChange={(event) => updateArrayItem(field, index, key, type === 'number' ? numericValue(event.target.value) : event.target.value)} className={`${inputClass} ${type === 'calculated' ? 'bg-slate-100 font-semibold dark:bg-gray-800' : ''}`} />}</div>)}
         <button type="button" onClick={() => removeArrayItem(field, index)} className="justify-self-start text-sm font-medium text-rose-600">Remove</button>
+      </div>)}
+    </section>
+  );
+  const renderHotelRows = () => (
+    <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700">
+      <div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">Hotels</h3><button type="button" onClick={() => addArrayItem('hotels', emptyHotel)} className="text-sm font-semibold text-cyan-700">Add</button></div>
+      {form.hotels.map((hotel, index) => <div key={`hotel-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 dark:bg-gray-900/50 md:grid-cols-2">
+        <div><label className={labelClass}>Hotel</label><SelectField options={hotelOptions} isLoading={referencesLoading} isSearchable value={hotelOptions.find((option) => option.value === hotel.hotel_id) || null} onChange={(option) => updateArrayItem('hotels', index, 'hotel_id', option?.value || '')} placeholder="Select hotel" isClearable menuPlacement="auto" /></div>
+        {['check_in', 'check_out'].map((key) => <div key={key}><label className={labelClass}>{key === 'check_in' ? 'Check in' : 'Check out'}</label><CustomDatePicker value={hotel[key] || ''} includeTime onChange={(value) => updateArrayItem('hotels', index, key, value)} /></div>)}
+        {[['nights', 'Nights'], ['room_count', 'Rooms']].map(([key, label]) => <div key={key}><label className={labelClass}>{label}</label><input type="text" inputMode="decimal" value={hotel[key] ?? ''} onChange={(event) => updateArrayItem('hotels', index, key, numericValue(event.target.value))} className={inputClass} /></div>)}
+        <div><label className={labelClass}>Room type</label><SelectField options={roomTypeOptions} value={roomTypeOptions.find((option) => option.value === hotel.room_type) || null} onChange={(option) => updateArrayItem('hotels', index, 'room_type', option?.value || '')} isSearchable={false} menuPlacement="auto" /></div>
+        <button type="button" onClick={() => removeArrayItem('hotels', index)} className="justify-self-start text-sm font-medium text-rose-600">Remove</button>
+      </div>)}
+    </section>
+  );
+  const renderVehicleRows = () => (
+    <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700">
+      <div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900 dark:text-slate-100">Vehicles</h3><button type="button" onClick={() => addArrayItem('vehicles', emptyVehicle)} className="text-sm font-semibold text-cyan-700">Add</button></div>
+      {form.vehicles.map((vehicle, index) => <div key={`vehicle-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 dark:bg-gray-900/50 md:grid-cols-2">
+        <div><label className={labelClass}>Vehicle</label><SelectField options={vehicleOptions} isLoading={referencesLoading} isSearchable value={vehicleOptions.find((option) => option.value === vehicle.vehicle_id) || null} onChange={(option) => updateArrayItem('vehicles', index, 'vehicle_id', option?.value || '')} placeholder="Select vehicle" isClearable menuPlacement="auto" /></div>
+        <div><label className={labelClass}>Vehicle type</label><SelectField options={vehicleTypeOptions} value={vehicleTypeOptions.find((option) => option.value === vehicle.vehicle_type) || null} onChange={(option) => updateArrayItem('vehicles', index, 'vehicle_type', option?.value || '')} isSearchable={false} menuPlacement="auto" /></div>
+        {['start_date', 'end_date'].map((key) => <div key={key}><label className={labelClass}>{key === 'start_date' ? 'Start date' : 'End date'}</label><CustomDatePicker value={vehicle[key] || ''} includeTime onChange={(value) => updateArrayItem('vehicles', index, key, value)} /></div>)}
+        {[['rental_minutes', 'Rental minutes'], ['quantity', 'Quantity']].map(([key, label]) => <div key={key}><label className={labelClass}>{label}</label><input type="text" inputMode="decimal" value={vehicle[key] ?? ''} onChange={(event) => updateArrayItem('vehicles', index, key, numericValue(event.target.value))} className={inputClass} /></div>)}
+        <button type="button" onClick={() => removeArrayItem('vehicles', index)} className="justify-self-start text-sm font-medium text-rose-600">Remove</button>
+      </div>)}
+    </section>
+  );
+  const renderItineraryRows = () => (
+    <section className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-gray-700">
+      <div className="flex items-center justify-between"><div><h3 className="font-semibold text-slate-900 dark:text-slate-100">Itinerary</h3>{itineraryLoading && <p className="text-xs text-gray-500">Loading package itinerary...</p>}</div><button type="button" onClick={() => addArrayItem('itinerary', { ...emptyItinerary, day_number: form.itinerary.length + 1, sort_order: form.itinerary.length })} className="text-sm font-semibold text-cyan-700">Add day</button></div>
+      {form.itinerary.length === 0 && <p className="text-sm text-gray-500">No itinerary days added.</p>}
+      {form.itinerary.map((day, index) => <div key={`itinerary-${index}`} className="grid gap-3 rounded-xl bg-slate-50 p-3 dark:bg-gray-900/50 md:grid-cols-2">
+        {['day_number', 'title', 'date', 'overnight_location', 'meal_plan'].map((key) => <div key={key}><label className={labelClass}>{prettyLabel(key)}</label>{key === 'date' ? <CustomDatePicker value={day[key] || ''} onChange={(value) => updateArrayItem('itinerary', index, key, value)} /> : <input type="text" inputMode={key === 'day_number' ? 'decimal' : undefined} value={day[key] ?? ''} onChange={(event) => updateArrayItem('itinerary', index, key, key === 'day_number' ? numericValue(event.target.value) : event.target.value)} className={inputClass} />}</div>)}
+        <div className="md:col-span-2"><label className={labelClass}>Description</label><textarea value={day.description || ''} onChange={(event) => updateArrayItem('itinerary', index, 'description', event.target.value)} className={`${inputClass} min-h-[90px]`} /></div>
+        <button type="button" onClick={() => removeArrayItem('itinerary', index)} className="justify-self-start text-sm font-medium text-rose-600">Remove</button>
       </div>)}
     </section>
   );
@@ -282,9 +378,9 @@ const QuotationManagement = () => {
       </div>
       <form id="quotation-create-form" onSubmit={saveQuotation} onKeyDown={(event) => { if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') event.preventDefault(); }} className="space-y-5 p-1">
         {createStep === 1 && <div className="space-y-4"><div><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Enquiry reference</h3><p className="text-sm text-gray-500">Select the enquiry. Its customer, trip details, date, and message will fill the next fields automatically.</p></div><div><label className={labelClass}>Enquiry <span className="text-rose-500">*</span></label><SelectField options={enquiryOptions} isLoading={referencesLoading} isSearchable value={enquiryOptions.find((option) => option.value === form.enquiry_id) || null} onChange={handleEnquiryChange} isClearable placeholder="Search by enquirer name, phone, email, or enquiry code" menuPlacement="auto" /></div>{selectedEnquiry && <div className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-4 dark:border-cyan-900/50 dark:bg-cyan-950/20"><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold text-cyan-900 dark:text-cyan-200">Selected enquiry</h4><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-cyan-700 dark:bg-gray-800 dark:text-cyan-300">{selectedEnquiry.status || 'NEW'}</span></div><div className="grid gap-3 text-sm sm:grid-cols-2"><div><span className="text-xs text-gray-500">Enquirer</span><p className="font-semibold text-gray-800 dark:text-gray-100">{selectedEnquiry.enquirer_name || 'Not provided'}</p></div><div><span className="text-xs text-gray-500">Contact</span><p className="font-semibold text-gray-800 dark:text-gray-100">{selectedEnquiry.enquirer_phone || 'Not provided'}{selectedEnquiry.enquirer_email ? ` - ${selectedEnquiry.enquirer_email}` : ''}</p></div><div><span className="text-xs text-gray-500">Enquiry type</span><p className="font-semibold text-gray-800 dark:text-gray-100">{selectedEnquiry.enquiry_type || 'Not provided'}</p></div><div><span className="text-xs text-gray-500">Channel</span><p className="font-semibold text-gray-800 dark:text-gray-100">{selectedEnquiry.channel || 'Not provided'}</p></div><div><span className="text-xs text-gray-500">Travel date</span><p className="font-semibold text-gray-800 dark:text-gray-100">{selectedEnquiry.travel_date || 'Flexible'}</p></div><div><span className="text-xs text-gray-500">Travellers</span><p className="font-semibold text-gray-800 dark:text-gray-100">{selectedEnquiry.adult_count || 0} adults, {selectedEnquiry.child_count || 0} children, {selectedEnquiry.senior_count || 0} seniors</p></div><div><span className="text-xs text-gray-500">Budget</span><p className="font-semibold text-gray-800 dark:text-gray-100">{selectedEnquiry.budget_min || selectedEnquiry.budget_max ? `${selectedEnquiry.budget_min || 0} - ${selectedEnquiry.budget_max || 0}` : 'Not provided'}</p></div><div><span className="text-xs text-gray-500">Message</span><p className="truncate font-semibold text-gray-800 dark:text-gray-100" title={selectedEnquiry.message}>{selectedEnquiry.message || 'Not provided'}</p></div></div></div>}</div>}
-        {createStep === 2 && <div className="space-y-4"><div><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Trip details</h3><p className="text-sm text-gray-500">Tour name is required. Dates and trip references are optional.</p></div><div className="grid gap-4 md:grid-cols-2">{renderInput('Tour name *', 'tour_name')}{renderInput('Travel date', 'travel_date', 'datetime-local')}{renderInput('Return date', 'return_date', 'datetime-local')}{renderInput('Valid until', 'valid_until', 'datetime-local')}<div><label className={labelClass}>Package ID</label><SelectField options={packageOptions} isLoading={referencesLoading} isSearchable value={packageOptions.find((option) => option.value === form.package_id) || null} onChange={(option) => { updateForm('package_id', option?.value || ''); updateForm('variant_id', ''); }} isClearable placeholder="Search package" menuPlacement="auto" /></div><div><label className={labelClass}>Variant ID</label><SelectField options={variantOptions} isLoading={variantsLoading} isDisabled={!form.package_id} isSearchable value={variantOptions.find((option) => option.value === form.variant_id) || null} onChange={(option) => updateForm('variant_id', option?.value || '')} isClearable placeholder={form.package_id ? 'Search variant' : 'Select package first'} menuPlacement="auto" /></div><div><label className={labelClass}>Destination ID</label><SelectField options={destinationOptions} isLoading={referencesLoading} isSearchable value={destinationOptions.find((option) => option.value === form.destination_id) || null} onChange={(option) => updateForm('destination_id', option?.value || '')} isClearable placeholder="Search destination" menuPlacement="auto" /></div></div></div>}
-        {createStep === 3 && <div className="space-y-4"><div><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Pricing and notes</h3><p className="text-sm text-gray-500">Set the quotation totals and customer-facing content.</p></div><div className="grid gap-4 md:grid-cols-4">{renderInput('Subtotal', 'subtotal', 'number')}{renderInput('Discount', 'discount_amount', 'number')}{renderInput('Tax', 'tax_amount', 'number')}{renderInput('Total amount', 'total_amount', 'number')}</div><div className="grid gap-4 md:grid-cols-2">{['terms_and_conditions', 'important_notes', 'inclusion', 'exclusion'].map((field) => <div key={field}><label className={labelClass}>{field.replaceAll('_', ' ')}</label><textarea value={form[field]} onChange={(event) => updateForm(field, event.target.value)} className={`${inputClass} min-h-[100px]`} /></div>)}</div></div>}
-        {createStep === 4 && <div className="space-y-5"><div><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Quotation components</h3><p className="text-sm text-gray-500">Add line items, accommodation, transport, and the itinerary.</p></div>{renderNestedRows('items', 'Quotation items', emptyLineItem, [['item_type', 'Item type'], ['name', 'Name'], ['description', 'Description'], ['quantity', 'Quantity', 'number'], ['unit_price', 'Unit price', 'number'], ['total_price', 'Total price', 'number']])}{renderNestedRows('hotels', 'Hotels', emptyHotel, [['hotel_id', 'Hotel ID'], ['hotel_name', 'Hotel name'], ['check_in', 'Check in', 'datetime-local'], ['check_out', 'Check out', 'datetime-local'], ['nights', 'Nights', 'number'], ['room_count', 'Rooms', 'number'], ['room_type', 'Room type']])}{renderNestedRows('vehicles', 'Vehicles', emptyVehicle, [['vehicle_id', 'Vehicle ID'], ['vehicle_name', 'Vehicle name'], ['vehicle_type', 'Vehicle type'], ['start_date', 'Start date', 'datetime-local'], ['end_date', 'End date', 'datetime-local'], ['rental_minutes', 'Rental minutes', 'number'], ['quantity', 'Quantity', 'number']])}{renderNestedRows('itinerary', 'Itinerary', emptyItinerary, [['day_number', 'Day', 'number'], ['date', 'Date', 'date'], ['title', 'Title'], ['description', 'Description'], ['overnight_location', 'Overnight location'], ['meal_plan', 'Meal plan'], ['sort_order', 'Sort order', 'number']])}</div>}
+        {createStep === 2 && <div className="space-y-4"><div><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Trip details</h3><p className="text-sm text-gray-500">Choose either a destination or a package, like the enquiry form.</p></div><div className="grid gap-3 sm:grid-cols-2"><label className={`cursor-pointer rounded-xl border p-3 text-sm font-semibold ${tripSelectionType === 'DESTINATION' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 dark:border-gray-700'}`}><input type="radio" name="quotation-trip-type" checked={tripSelectionType === 'DESTINATION'} onChange={() => { setTripSelectionType('DESTINATION'); setForm((current) => ({ ...current, destination_id: current.destination_id, package_id: '', variant_id: '', itinerary: [] })); }} className="mr-2" />By destination</label><label className={`cursor-pointer rounded-xl border p-3 text-sm font-semibold ${tripSelectionType === 'PACKAGE' ? 'border-cyan-500 bg-cyan-50 text-cyan-700' : 'border-gray-200 dark:border-gray-700'}`}><input type="radio" name="quotation-trip-type" checked={tripSelectionType === 'PACKAGE'} onChange={() => { setTripSelectionType('PACKAGE'); setForm((current) => ({ ...current, destination_id: '', variant_id: '', itinerary: [] })); }} className="mr-2" />By package</label></div><div className="grid gap-4 md:grid-cols-2">{renderInput('Tour name *', 'tour_name')}{renderInput('Travel date', 'travel_date', 'datetime-local')}{renderInput('Return date', 'return_date', 'datetime-local')}{renderInput('Valid until', 'valid_until', 'datetime-local')}{tripSelectionType === 'PACKAGE' ? <><div><label className={labelClass}>Package</label><SelectField options={packageOptions} isLoading={referencesLoading} isSearchable value={packageOptions.find((option) => option.value === form.package_id) || null} onChange={(option) => { setForm((current) => ({ ...current, package_id: option?.value || '', variant_id: '', itinerary: [] })); }} isClearable placeholder="Search package" menuPlacement="auto" /></div><div><label className={labelClass}>Variant</label><SelectField options={variantOptions} isLoading={variantsLoading} isDisabled={!form.package_id} isSearchable value={variantOptions.find((option) => option.value === form.variant_id) || null} onChange={(option) => { updateForm('variant_id', option?.value || ''); loadVariantItinerary(option?.value || ''); }} isClearable placeholder={form.package_id ? 'Search variant' : 'Select package first'} menuPlacement="auto" /></div></> : <div><label className={labelClass}>Destination</label><SelectField options={destinationOptions} isLoading={referencesLoading} isSearchable value={destinationOptions.find((option) => option.value === form.destination_id) || null} onChange={(option) => { setTripSelectionType('DESTINATION'); setForm((current) => ({ ...current, destination_id: option?.value || '', package_id: '', variant_id: '', itinerary: [] })); }} isClearable placeholder="Search destination" menuPlacement="auto" /></div>}</div></div>}
+        {createStep === 3 && <div className="space-y-5"><div><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Quotation components</h3><p className="text-sm text-gray-500">Add line items, accommodation, transport, and the itinerary.</p></div>{renderNestedRows('items', 'Quotation items', emptyLineItem, [['item_type', 'Item type', 'select'], ['name', 'Name'], ['description', 'Description'], ['quantity', 'Quantity', 'number'], ['unit_price', 'Unit price', 'number'], ['total_price', 'Total price', 'calculated']])}{renderHotelRows()}{renderVehicleRows()}{renderItineraryRows()}</div>}
+        {createStep === 4 && <div className="space-y-4"><div><h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Pricing and notes</h3><p className="text-sm text-gray-500">Set the quotation totals and customer-facing content.</p></div><div className="grid gap-4 md:grid-cols-4">{renderInput('Subtotal', 'subtotal', 'number')}{renderInput('Discount', 'discount_amount', 'number')}{renderInput('Tax', 'tax_amount', 'number')}{renderInput('Total amount', 'total_amount', 'number')}</div><div className="grid gap-4 md:grid-cols-2">{['terms_and_conditions', 'important_notes', 'inclusion', 'exclusion'].map((field) => <div key={field}><label className={labelClass}>{field.replaceAll('_', ' ')}</label><textarea value={form[field]} onChange={(event) => updateForm(field, event.target.value)} className={`${inputClass} min-h-[100px]`} /></div>)}</div></div>}
       </form>
     </Modal>
     <ConfirmDeleteModal isOpen={isDeleteOpen} onClose={() => { if (!deleting) { setIsDeleteOpen(false); setDeleteTarget(null); } }} onConfirm={confirmDelete} confirming={deleting} itemLabel={deleteTarget?.quotation_code || 'this quotation'} title="Delete quotation" message="This quotation and its itinerary details will be permanently removed." />

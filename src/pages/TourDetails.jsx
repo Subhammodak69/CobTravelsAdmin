@@ -84,7 +84,7 @@ const normalizeBannerItem = (item, fallbackIndex = 0) => {
   const type = (item?.type || item?.media_type || item?.kind || getMediaTypeFromUrl(url, 'image')).toLowerCase();
 
   return {
-    id: item?.id || generateId(),
+    ...(item?.id ? { id: item.id } : {}),
     url,
     type: type === 'video' ? 'video' : 'image',
     alt: item?.alt || '',
@@ -114,7 +114,6 @@ const normalizeDetailData = (detailData = {}) => {
           .map((entry, index) => {
             const isVideo = getMediaTypeFromUrl(String(entry), 'image') === 'video';
             return normalizeBannerItem({
-              id: generateId(),
               type: isVideo ? 'video' : 'image',
               url: entry,
               cover_image: entry === bannerSource.cover_image,
@@ -160,7 +159,6 @@ const normalizeDetailData = (detailData = {}) => {
 
   const normalizedGallery = (detailData.gallery || []).map((item, index) => ({
     ...item,
-    id: item.id || generateId(),
     alt: item.alt || '',
     url: normalizeMediaUrl(item.url ?? item.image ?? item.image_url ?? item.imageUrl ?? item.src ?? ''),
     type: (item.type || item.media_type || getMediaTypeFromUrl(normalizeMediaUrl(item.url ?? item.image ?? item.image_url ?? item.imageUrl ?? item.src ?? ''), 'image')).toLowerCase(),
@@ -168,7 +166,7 @@ const normalizeDetailData = (detailData = {}) => {
   }));
 
   const normalizedDepartureDates = (detailData.departure_dates || []).map((item) => ({
-    id: item.id || generateId(),
+    ...(item.id ? { id: item.id } : {}),
     departure_date: item.departure_date || item.date || '',
     return_date: item.return_date || '',
     total_seats: Number(item.total_seats) || 0,
@@ -186,16 +184,6 @@ const normalizeDetailData = (detailData = {}) => {
     route: detailData.route || [],
   };
 };
-
-// Generates a stable client-side id for freshly added sub-items (gallery
-// entries, highlights, itinerary days, route stops, departure dates) so the
-// PATCH payload always has an `id` field, matching what already-saved items
-// get back from the API.
-const generateId = () => (
-  typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`
-);
 
 const sections = [
   { key: 'banner', label: 'Banner', icon: ImageIcon },
@@ -325,50 +313,36 @@ const TourDetails = () => {
   };
 
   const buildPayload = () => {
-    const bannerItems = (draft.banner?.items || []).map((item, index) => ({
-      id: item.id || generateId(),
-      url: item.url || '',
-      type: item.type || getMediaTypeFromUrl(item.url || '', 'image'),
-      alt: item.alt || '',
-      cover_image: Boolean(item.cover_image),
-      display_order: item.display_order ?? index + 1,
-    }));
-
     return {
       banner: {
-        items: bannerItems,
         image: draft.banner?.image || '',
         video: draft.banner?.video || '',
-        cover_image: draft.banner?.cover_image || '',
       },
       gallery: (draft.gallery || []).map((item, index) => ({
-        id: item.id || generateId(),
+        ...(item.id ? { id: item.id } : {}),
         alt: item.alt || '',
         url: item.url || '',
         type: item.type || '',
         display_order: item.display_order ?? index + 1,
       })),
       highlights: (draft.highlights || []).map((item) => ({
-        id: item.id || generateId(),
+        ...(item.id ? { id: item.id } : {}),
         text: item.text || '',
       })),
       inclusions: draft.inclusions || [],
       exclusions: draft.exclusions || [],
       departure_dates: (draft.departure_dates || []).map((item) => ({
-        id: item.id || generateId(),
-        departure_date: item.departure_date || item.date || '',
-        return_date: item.return_date || '',
-        total_seats: Number(item.total_seats) || 0,
-        available_seats: Number(item.available_seats) || 0,
+        ...(item.id ? { id: item.id } : {}),
+        date: item.date || item.departure_date || '',
       })),
       itinerary: (draft.itinerary || []).map((item) => ({
-        id: item.id || generateId(),
-        day: Number(item.day) || 1,
+        ...(item.id ? { id: item.id } : {}),
+        day: Number(item.day ?? item.day_number) || 1,
         title: item.title || '',
         description: item.description || '',
       })),
       route: (draft.route || []).map((item) => ({
-        id: item.id || generateId(),
+        ...(item.id ? { id: item.id } : {}),
         city: item.city || '',
         nights: Number(item.nights) || 1,
       })),
@@ -446,7 +420,7 @@ const TourDetails = () => {
   const addArrayItem = (key, item = {}) => {
     setDraft((current) => ({
       ...current,
-      [key]: [...(current[key] || []), { id: generateId(), ...item }],
+      [key]: [...(current[key] || []), item],
     }));
   };
 
@@ -470,7 +444,6 @@ const TourDetails = () => {
     }
 
     const payloadItem = {
-      id: generateId(),
       url: mediaForm.url,
       type: mediaForm.type,
       alt: mediaForm.alt || '',
@@ -506,7 +479,6 @@ const TourDetails = () => {
     }
 
     const newItem = {
-      id: generateId(),
       day: Number(itineraryForm.day) || 1,
       title: itineraryForm.title.trim(),
       description: itineraryForm.description.trim(),
@@ -528,7 +500,6 @@ const TourDetails = () => {
     }
 
     const newItem = {
-      id: generateId(),
       city: routeForm.city.trim(),
       nights: Number(routeForm.nights) || 1,
     };
@@ -562,7 +533,6 @@ const TourDetails = () => {
       }
 
       const newDateItem = {
-        id: generateId(),
         departure_date: extrasForm.departure_date,
         return_date: extrasForm.return_date || '',
         total_seats: Number(extrasForm.total_seats) || 0,
