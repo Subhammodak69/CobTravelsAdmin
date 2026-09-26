@@ -678,12 +678,21 @@ const QuotationManagement = () => {
           </div>
         </>
       )}
-      {totalItems > 0 && (
-        <div className="border-t border-slate-200 px-3 py-3 dark:border-gray-700">
-          <Pagination currentPage={currentPage} totalItems={totalItems} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onLimitChange={(limit) => { setItemsPerPage(limit); setCurrentPage(1); }} />
-        </div>
-      )}
     </div>
+
+    {/* Pagination */}
+    {totalItems > 0 && (
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onLimitChange={(limit) => {
+          setItemsPerPage(limit);
+          setCurrentPage(1);
+        }}
+      />
+    )}
 
     <Modal
       isOpen={isCreateOpen}

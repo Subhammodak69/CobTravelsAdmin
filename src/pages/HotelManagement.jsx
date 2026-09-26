@@ -716,20 +716,19 @@ const HotelManagement = () => {
           </div>
         )}
 
-        {/* Pagination */}
-        <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
-          <Pagination
-            currentPage={currentPage}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={(page) => setCurrentPage(page)}
-            onLimitChange={(size) => {
-              setItemsPerPage(size);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
       </div>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={(page) => setCurrentPage(page)}
+        onLimitChange={(size) => {
+          setItemsPerPage(size);
+          setCurrentPage(1);
+        }}
+      />
 
       {/* Create / Edit Modal using Modal's standard footer prop */}
       <Modal

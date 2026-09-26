@@ -451,21 +451,21 @@ const TourVariant = () => {
           </div>
         )}
 
-        {totalItems > 0 && (
-          <div className="border-t border-slate-200 bg-white/90 px-3 py-3 dark:border-gray-700 dark:bg-gray-900/90">
-            <Pagination
-              currentPage={currentPage}
-              totalItems={totalItems}
-              itemsPerPage={itemsPerPage}
-              onPageChange={(p) => setCurrentPage(p)}
-              onLimitChange={(l) => {
-                setItemsPerPage(l);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-        )}
       </div>
+
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          itemsPerPage={itemsPerPage}
+          onPageChange={(p) => setCurrentPage(p)}
+          onLimitChange={(l) => {
+            setItemsPerPage(l);
+            setCurrentPage(1);
+          }}
+        />
+      )}
 
       {/* ── Variant Modal ── */}
       <Modal

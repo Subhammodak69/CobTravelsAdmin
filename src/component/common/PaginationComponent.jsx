@@ -13,10 +13,12 @@ const Pagination = ({
     itemsPerPage,
     onPageChange,
     onLimitChange,
+    onItemsPerPageChange,
     availableLimits = [10, 20, 50, 100],
     className = '',
     showInfo = true,
 }) => {
+    const handleLimitChange = onLimitChange || onItemsPerPageChange;
     const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
     const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
     const endItem = Math.min(currentPage * itemsPerPage, totalItems);
@@ -172,7 +174,7 @@ const Pagination = ({
 
                 {/* Limit + jump */}
                 <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-end">
-                    {onLimitChange && (
+                    {handleLimitChange && (
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-secondary-foreground sm:text-sm">
                                 Rows
@@ -180,7 +182,7 @@ const Pagination = ({
                             <SelectField
                                 options={limitOptions}
                                 value={limitOptions.find((option) => option.value === itemsPerPage)}
-                                onChange={(selected) => onLimitChange(selected.value)}
+                                onChange={(selected) => handleLimitChange(selected.value)}
                                 isSearchable={false}
                                 menuPlacement="top"
                                 classNamePrefix="react-select"

@@ -903,21 +903,18 @@ const EnquiryManagement = () => {
             </table></ManagementTable>
           </div>
         )}
-
-        {/* Pagination */}
-        <div className="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
-          <Pagination
-            currentPage={currentPage}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={(page) => setCurrentPage(page)}
-            onLimitChange={(size) => {
-              setItemsPerPage(size);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={(page) => setCurrentPage(page)}
+        onLimitChange={(size) => {
+          setItemsPerPage(size);
+          setCurrentPage(1);
+        }}
+      />
 
       {/* â”€â”€ CREATE ENQUIRY MODAL â€” Step Wizard â”€â”€ */}
       <Modal

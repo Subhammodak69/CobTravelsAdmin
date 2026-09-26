@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowDownLeft, ArrowUpRight, CalendarDays, ChartNoAxesCombined, Download, FileText, Filter, Landmark, Pencil, Plus, RefreshCw, Search, Trash2, Wallet } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CalendarDays, ChartNoAxesCombined, Download, FileText, Filter, Landmark, Pencil, Plus, RefreshCw, Search, Trash2, Wallet, X } from 'lucide-react';
 import ActionMenu from '../component/common/ActionMenu';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import CustomDatePicker from '../component/common/CustomDatePicker';
@@ -314,7 +314,19 @@ const FinancialManagement = () => {
     setIsFilterModalOpen(false);
   };
 
-  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const clearAllFilters = () => {
+    setFilters(emptyFilters);
+    setFilterDraft(emptyFilters);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (value) => {
+    setFilters(prev => ({ ...prev, search: value }));
+    setFilterDraft(prev => ({ ...prev, search: value }));
+    setCurrentPage(1);
+  };
+
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => key !== 'search' && Boolean(value)).length;
 
   const metrics = statistics ? [
     { key: 'total_income', label: 'Total income', icon: ArrowDownLeft, color: 'emerald' },
@@ -337,10 +349,40 @@ const FinancialManagement = () => {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Track transactions, review performance, and export financial reports.</p>
         </div>
         <div className="flex gap-2">
-          {activeView === 'transactions' && <button type="button" onClick={() => loadTransactions(currentPage, pageSize)} aria-label="Refresh transactions" title="Refresh transactions" className="rounded-xl border border-gray-200 bg-white p-2.5 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"><RefreshCw className={`h-4 w-4 ${loadingTransactions ? 'animate-spin' : ''}`} /></button>}
-          {activeView === 'transactions' && <button type="button" onClick={() => { setFilterDraft(filters); loadReferenceOptions(); setIsFilterModalOpen(true); }} aria-label="Filter transactions" title="Filter transactions" aria-haspopup="dialog" aria-expanded={isFilterModalOpen} className="relative rounded-xl border border-gray-200 bg-white p-2.5 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"><Filter className="h-4 w-4" />{activeFilterCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-cyan-600 px-1 text-[10px] font-bold text-white">{activeFilterCount}</span>}</button>}
-          {activeView === 'transactions' && <button type="button" onClick={openCreateTransaction} className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700"><Plus className="h-4 w-4" />New transaction</button>}
-          {activeView === 'statistics' && <button type="button" onClick={loadStatistics} aria-label="Refresh statistics" title="Refresh statistics" className="rounded-xl border border-gray-200 bg-white p-2.5 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"><RefreshCw className={`h-4 w-4 ${loadingStatistics ? 'animate-spin' : ''}`} /></button>}
+          {activeView === 'transactions' && (
+            <button
+              type="button"
+              onClick={() => loadTransactions(currentPage, pageSize)}
+              aria-label="Refresh transactions"
+              title="Refresh transactions"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-sm font-semibold text-gray-700 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingTransactions ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          )}
+          {activeView === 'transactions' && (
+            <button
+              type="button"
+              onClick={openCreateTransaction}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 p-2.5 text-sm font-semibold text-white hover:bg-cyan-700 sm:px-4"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New transaction</span>
+            </button>
+          )}
+          {activeView === 'statistics' && (
+            <button
+              type="button"
+              onClick={loadStatistics}
+              aria-label="Refresh statistics"
+              title="Refresh statistics"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-sm font-semibold text-gray-700 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingStatistics ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -351,6 +393,58 @@ const FinancialManagement = () => {
         })}
       </nav>
 
+      {/* Search & Filter Toolbar */}
+      {activeView === 'transactions' && (
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={filters.search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search transactions..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setFilterDraft(filters);
+              loadReferenceOptions();
+              setIsFilterModalOpen(true);
+            }}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+              activeFilterCount > 0
+                ? 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {activeFilterCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-600 text-xs font-bold text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {(activeFilterCount > 0 || filters.search) && (
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+
+          <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+            {totalItems} record{totalItems === 1 ? '' : 's'}
+          </span>
+        </div>
+      )}
+
       {activeView === 'transactions' && (
         <>
           <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
@@ -358,8 +452,21 @@ const FinancialManagement = () => {
               <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-800/70 dark:text-gray-400"><tr><th className="px-4 py-3">Transaction</th><th className="px-4 py-3">Type / Category</th><th className="px-4 py-3">Related record</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr></thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{transactions.map((transaction, index) => <tr key={transaction.id || index} className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40"><td className="max-w-xs px-4 py-3"><p className="truncate font-semibold text-gray-900 dark:text-white">{transaction.description || transaction.reference_number || `Transaction ${index + 1}`}</p><p className="mt-0.5 truncate font-mono text-[10px] text-gray-400" title={transaction.id}>{transaction.transaction_code || transaction.id || '—'}</p></td><td className="px-4 py-3"><p className="font-medium text-gray-800 dark:text-gray-200">{prettyLabel(transaction.transaction_type || 'Transaction')}</p><p className="text-xs text-gray-500">{prettyLabel(transaction.category || 'Uncategorized')}</p></td><td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">{transaction.booking_code || transaction.booking_id || transaction.vendor_name || transaction.customer_name || '—'}</td><td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500 dark:text-gray-400">{formatDate(transaction.transaction_date || transaction.created_at)}</td><td className="whitespace-nowrap px-4 py-3 font-semibold text-gray-900 dark:text-white">{formatAmount(transaction.amount, transaction.currency)}</td><td className="px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusClass(transaction.status)}`}>{prettyLabel(transaction.status || 'Unknown')}</span></td><td className="px-4 py-3 text-right"><ActionMenu menuId={`financial-${transaction.id || index}`} actions={[{ label: 'Edit transaction', icon: <Pencil className="h-4 w-4 text-blue-600" />, onClick: () => openEditTransaction(transaction) }, { label: 'Delete transaction', icon: <Trash2 className="h-4 w-4 text-rose-600" />, onClick: () => setDeleteTarget(transaction), className: 'text-rose-600 dark:text-rose-400' }]} /></td></tr>)}</tbody>
             </table></ManagementTable></div>}
-            {totalItems > 0 && <div className="border-t border-gray-100 px-3 py-3 dark:border-gray-800"><Pagination currentPage={currentPage} totalItems={totalItems} itemsPerPage={pageSize} onPageChange={setCurrentPage} onLimitChange={limit => { setPageSize(limit); setCurrentPage(1); }} /></div>}
           </section>
+
+          {/* Pagination */}
+          {totalItems > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              itemsPerPage={pageSize}
+              onPageChange={(page) => setCurrentPage(page)}
+              onLimitChange={(limit) => {
+                setPageSize(limit);
+                setCurrentPage(1);
+              }}
+            />
+          )}
         </>
       )}
 
