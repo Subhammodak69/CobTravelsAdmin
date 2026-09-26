@@ -336,7 +336,7 @@ const CustomerManagement = () => {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden md:rounded-2xl md:border md:border-gray-200 md:bg-white md:shadow-sm dark:border-gray-700 dark:bg-gray-900">
         {loading ? (
           <div className="flex items-center justify-center p-16 text-sm text-gray-400">
             <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Loading customers…

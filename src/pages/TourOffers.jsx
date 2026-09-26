@@ -337,7 +337,7 @@ const TourOffers = () => {
       </div>
 
       <div className="px-4 text-right text-sm text-gray-600 dark:text-gray-300">{offers.length} total offers</div>
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden md:rounded-2xl md:border md:border-gray-200 md:bg-white md:shadow-sm dark:border-gray-700 dark:bg-gray-900">
         {loading ? <div className="p-12 text-center text-sm text-gray-500">Loading offers...</div> : offers.length === 0 ? <div className="p-12 text-center text-sm text-gray-500">No tour offers found.</div> : (
           <div className="overflow-x-auto">
             <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">

@@ -459,7 +459,7 @@ const DocumentManagement = () => {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="overflow-hidden md:rounded-2xl md:border md:border-gray-200 md:bg-white md:shadow-sm dark:border-gray-700 dark:bg-gray-900">
         {loading ? (
           <div className="p-12 text-center text-sm text-gray-500">Loading documents...</div>
         ) : !hasDocuments ? (

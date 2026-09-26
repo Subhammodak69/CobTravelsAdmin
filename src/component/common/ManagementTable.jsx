@@ -48,7 +48,7 @@ function NativeTableCards({ children }) {
 
   return (
     <>
-      <div className="space-y-3 p-2 md:hidden">
+      <div className="space-y-3 p-0 md:p-2 md:hidden">
         {rows.map((row, rowIndex) => {
           const cells = React.Children.toArray(row.props.children).filter((cell) => React.isValidElement(cell) && cell.type === 'td');
           if (!cells.length) return null;

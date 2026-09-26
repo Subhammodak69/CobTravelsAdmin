@@ -20,6 +20,8 @@ import {
   Plus,
   RefreshCw,
   Eye,
+  Heart,
+  BookOpen,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
@@ -28,6 +30,7 @@ import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import MediaViewerModal from '../component/common/MediaViewerModal';
 import SelectField from '../component/common/SelectField';
 import ActionMenu from '../component/common/ActionMenu';
+import Pagination from '../component/common/PaginationComponent';
 import { apiCall, handleApiError } from '../utils/apiCall';
 import { useEnums } from '../context/EnumsContext';
 
@@ -36,11 +39,13 @@ import { useEnums } from '../context/EnumsContext';
 const TABS = [
   { key: 'details', label: 'Details', icon: User },
   { key: 'documents', label: 'Documents', icon: FileText, tabParam: 'documents' },
-  { key: 'enquiries', label: 'Enquiries', icon: HelpCircle, tabParam: 'enquery' },
+  { key: 'enquiries', label: 'Enquiries', icon: HelpCircle, tabParam: 'enquiry' },
   { key: 'tours', label: 'Trips & Tours', icon: Plane, tabParam: 'tours' },
   { key: 'reviews', label: 'Reviews', icon: Star, tabParam: 'review' },
   { key: 'referrals', label: 'Refers', icon: Share2, tabParam: 'referral' },
-  { key: 'bills', label: 'Bills & Invoices', icon: Receipt, tabParam: null },
+  { key: 'wishlist', label: 'Wishlist', icon: Heart, tabParam: 'wishlist' },
+  { key: 'invoices', label: 'Invoices', icon: Receipt, tabParam: 'invoice' },
+  { key: 'ledger', label: 'Ledger', icon: BookOpen, tabParam: 'ledger' },
 ];
 
 const sourceColors = {
@@ -108,6 +113,49 @@ const getInitials = (name = '') =>
     .map((n) => n[0]?.toUpperCase() || '')
     .join('');
 
+const formatTabValue = (value) => {
+  if (value == null || value === '') return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) return value.map((item) => (typeof item === 'object' ? JSON.stringify(item) : item)).join(', ') || '—';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
+const formatCurrencyAmount = (value, currency = 'INR') => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return formatTabValue(value);
+  try {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: /^[A-Za-z]{3}$/.test(currency) ? currency.toUpperCase() : 'INR',
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  }
+};
+
+const parseCostBreakdown = (value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+};
+
+const getInvoiceStatusClass = (status = '') => {
+  const normalized = status.toUpperCase();
+  if (['PAID', 'COMPLETED'].includes(normalized)) return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+  if (normalized.includes('CANCEL')) return 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
+  if (normalized.includes('PARTIAL') || normalized.includes('PENDING') || normalized.includes('DUE')) return 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+};
+
 const getFileType = (url = '', fileName = '') => {
   const lower = (url + fileName).toLowerCase();
   if (lower.includes('.pdf')) return 'pdf';
@@ -129,7 +177,11 @@ const CustomerDetails = () => {
   const [activeTab, setActiveTab] = useState('details');
   const [loading, setLoading] = useState(!customer);
   const [tabLoading, setTabLoading] = useState(false);
+  const [tabPage, setTabPage] = useState(1);
+  const [tabPageSize, setTabPageSize] = useState(10);
+  const [tabError, setTabError] = useState('');
   const [tabData, setTabData] = useState({});
+  const [tabPagination, setTabPagination] = useState({});
 
   // Edit Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -193,36 +245,54 @@ const CustomerDetails = () => {
 
   // ── Load Tab Data (extracts data.items cleanly) ──────────────────────────────
 
-  const loadTabData = useCallback(async (tabKey) => {
+  const loadTabData = useCallback(async (tabKey, page = tabPage, pageSize = tabPageSize) => {
     const tabConfig = TABS.find((t) => t.key === tabKey);
     if (!tabConfig || !tabConfig.tabParam || !customerId) return;
 
     setTabLoading(true);
+    setTabError('');
     try {
+      const params = new URLSearchParams({ tab: tabConfig.tabParam, page: String(page), page_size: String(pageSize) });
       const response = await apiCall(
-        `/api/v1/admin/customers/${customerId}?tab=${tabConfig.tabParam}&page=1&page_size=50`,
+        `/api/v1/admin/customers/${customerId}?${params}`,
         'GET'
       );
       const payload = await response.json().catch(() => ({}));
-      if (response.ok) {
-        const rawItems =
-          payload?.data?.items ||
-          (Array.isArray(payload?.data)
-            ? payload.data
-            : payload?.data?.[tabConfig.tabParam] || []);
-
-        setTabData((prev) => ({
-          ...prev,
-          [tabKey]: Array.isArray(rawItems) ? rawItems : [],
-          [`${tabKey}_pagination`]: payload?.data?.pagination || payload?.pagination || null,
-        }));
+      if (!response.ok || payload?.success === false) {
+        throw new Error(payload?.message || payload?.detail || `Unable to load ${tabConfig.label.toLowerCase()}`);
       }
+
+      const result = payload?.data;
+      const rawItems = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.items)
+          ? result.items
+          : Array.isArray(result?.[tabConfig.tabParam])
+            ? result[tabConfig.tabParam]
+            : Array.isArray(result?.data)
+              ? result.data
+              : [];
+      const pagination = result?.pagination || result?.meta || payload?.pagination || payload?.meta || {};
+      const totalItems = Number(pagination.total_items ?? pagination.total ?? pagination.count ?? result?.total_items ?? result?.total ?? rawItems.length);
+      const responsePageSize = Number(pagination.page_size ?? pagination.limit ?? result?.page_size ?? pageSize) || pageSize;
+      const totalPages = Number(pagination.total_pages ?? result?.total_pages) || Math.ceil(totalItems / responsePageSize) || 1;
+
+      setTabData((previous) => ({ ...previous, [tabKey]: rawItems }));
+      setTabPagination((previous) => ({
+        ...previous,
+        [tabKey]: {
+          page: Number(pagination.page ?? result?.page ?? page) || page,
+          page_size: responsePageSize,
+          total_items: totalItems,
+          total_pages: totalPages,
+        },
+      }));
     } catch (error) {
-      console.warn(`Tab ${tabKey} fetch failed:`, error);
+      setTabError(error.message || `Unable to load ${tabConfig.label.toLowerCase()}`);
     } finally {
       setTabLoading(false);
     }
-  }, [customerId]);
+  }, [customerId, tabPage, tabPageSize]);
 
   const handleDocumentUpload = async (event) => {
     event.preventDefault();
@@ -264,9 +334,9 @@ const CustomerDetails = () => {
 
   useEffect(() => {
     if (activeTab !== 'details') {
-      loadTabData(activeTab);
+      loadTabData(activeTab, tabPage, tabPageSize);
     }
-  }, [activeTab, loadTabData]);
+  }, [activeTab, tabPage, tabPageSize, loadTabData]);
 
   // ── Edit Handlers ────────────────────────────────────────────────────────────
 
@@ -433,7 +503,10 @@ const CustomerDetails = () => {
                 type="button"
                 role="tab"
                 aria-selected={activeTab === key}
-                onClick={() => setActiveTab(key)}
+                onClick={() => {
+                  setActiveTab(key);
+                  setTabPage(1);
+                }}
                 aria-label={label}
                 title={label}
                 className={[
@@ -465,6 +538,12 @@ const CustomerDetails = () => {
               Refresh
             </button>
           </div>
+
+          {tabError && activeTab !== 'details' && (
+            <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+              {tabError}
+            </p>
+          )}
 
           {loading && activeTab === 'details' ? (
             <div className="p-12 text-center text-sm text-gray-400">Loading customer details...</div>
@@ -913,18 +992,18 @@ const CustomerDetails = () => {
                   No reviews submitted by this customer.
                 </p>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
-                  <ManagementTable><table className="min-w-[1050px] divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
+                  <ManagementTable><table className="w-full table-fixed divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
                     <thead className="bg-gray-50 dark:bg-gray-800/70">
                       <tr>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Reviewer</th>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Rating</th>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Package ID</th>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Review</th>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Gallery</th>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Status</th>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Date</th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th>
+                        <th className="w-[18%] break-words px-1 py-3 font-semibold text-gray-700 dark:text-gray-200 sm:px-2 lg:px-4">Reviewer</th>
+                        <th className="w-[12%] break-words px-1 py-3 font-semibold text-gray-700 dark:text-gray-200 sm:px-2 lg:px-4">Rating</th>
+                        <th className="w-[15%] break-words px-1 py-3 font-semibold text-gray-700 dark:text-gray-200 sm:px-2 lg:px-4">Package ID</th>
+                        <th className="w-[13%] break-words px-1 py-3 font-semibold text-gray-700 dark:text-gray-200 sm:px-2 lg:px-4">Review</th>
+                        <th className="w-[12%] break-words px-1 py-3 font-semibold text-gray-700 dark:text-gray-200 sm:px-2 lg:px-4">Gallery</th>
+                        <th className="w-[12%] break-words px-1 py-3 font-semibold text-gray-700 dark:text-gray-200 sm:px-2 lg:px-4">Status</th>
+                        <th className="w-[8%] break-words px-1 py-3 font-semibold text-gray-700 dark:text-gray-200 sm:px-2 lg:px-4">Date</th>
+                        <th className="w-[10%] break-words px-1 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 sm:px-2 lg:px-4">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -934,7 +1013,7 @@ const CustomerDetails = () => {
                           onClick={() => setSelectedReview(rev)}
                           className="cursor-pointer transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10"
                         >
-                          <td className="px-4 py-3.5">
+                          <td className="min-w-0 px-1 py-3.5 sm:px-2 lg:px-4">
                             <div className="flex items-center gap-2.5">
                               {rev.customer_profile_picture ? (
                                 <img src={rev.customer_profile_picture} alt={rev.name || 'Reviewer'} className="h-9 w-9 shrink-0 rounded-full object-cover" />
@@ -949,8 +1028,8 @@ const CustomerDetails = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-1 text-amber-500" title={`${rev.rating || 0} out of 5`}>
+                          <td className="px-1 py-3.5 sm:px-2 lg:px-4">
+                            <div className="flex flex-wrap items-center gap-0.5 text-amber-500" title={`${rev.rating || 0} out of 5`}>
                               {Array.from({ length: 5 }).map((_, i) => (
                                 <Star
                                   key={i}
@@ -959,16 +1038,16 @@ const CustomerDetails = () => {
                               ))}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 font-mono text-xs text-gray-600 dark:text-gray-300" title={rev.package_id}>
+                          <td className="break-all px-1 py-3.5 font-mono text-xs text-gray-600 dark:text-gray-300 sm:px-2 lg:px-4" title={rev.package_id}>
                             {rev.package_id || '—'}
                           </td>
-                          <td className="max-w-xs px-4 py-3.5 text-xs text-gray-600 dark:text-gray-300">
-                            <p className="line-clamp-2">{rev.review || 'No written text'}</p>
+                          <td className="px-1 py-3.5 text-xs text-gray-600 dark:text-gray-300 sm:px-2 lg:px-4">
+                            <p className="line-clamp-2 break-words">{rev.review || 'No written text'}</p>
                           </td>
-                          <td className="px-4 py-3.5 text-xs text-gray-600 dark:text-gray-300">
+                          <td className="min-w-0 px-1 py-3.5 text-xs text-gray-600 dark:text-gray-300 sm:px-2 lg:px-4">
                             {Array.isArray(rev.review_gallery) && rev.review_gallery.length > 0 ? (
-                              <div className="flex items-center gap-2">
-                                {rev.review_gallery.slice(0, 2).map((media, mediaIndex) => {
+                              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                                {rev.review_gallery.slice(0, 1).map((media, mediaIndex) => {
                                   const url = typeof media === 'string' ? media : media?.url;
                                   const isVideo = media?.type === 'video' || /\.(mp4|mov|webm|ogg)(\?|$)/i.test(url || '');
                                   return url ? (
@@ -983,20 +1062,20 @@ const CustomerDetails = () => {
                               </div>
                             ) : 'None'}
                           </td>
-                          <td className="px-4 py-3.5">
+                          <td className="px-1 py-3.5 sm:px-2 lg:px-4">
                             <div className="flex flex-col items-start gap-1">
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${rev.is_verified ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                              <span title={rev.is_verified ? 'Verified' : 'Unverified'} className={`max-w-full truncate rounded-full px-2 py-0.5 text-[10px] font-semibold ${rev.is_verified ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
                                 {rev.is_verified ? 'Verified' : 'Unverified'}
                               </span>
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${rev.is_published ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                              <span title={rev.is_published ? 'Published' : 'Unpublished'} className={`max-w-full truncate rounded-full px-2 py-0.5 text-[10px] font-semibold ${rev.is_published ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
                                 {rev.is_published ? 'Published' : 'Unpublished'}
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 text-xs text-gray-500 dark:text-gray-400">
+                          <td className="break-words px-1 py-3.5 text-xs text-gray-500 dark:text-gray-400 sm:px-2 lg:px-4">
                             {formatShortDate(rev.created_at)}
                           </td>
-                          <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-1 py-3.5 text-right sm:px-2 lg:px-4" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end">
                               <ActionMenu
                                 menuId={`rev-${rev.id || idx}`}
@@ -1093,13 +1172,117 @@ const CustomerDetails = () => {
             </div>
           )}
 
-          {/* ── TAB 7: BILLS & INVOICES ── */}
-          {activeTab === 'bills' && (
+          {['wishlist', 'invoices', 'ledger'].includes(activeTab) && (
             <div className="space-y-4">
-              <p className="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-400 dark:border-gray-700">
-                No invoices or billing transactions on record.
-              </p>
+              {tabLoading ? (
+                <div className="p-12 text-center text-sm text-gray-400">
+                  <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin text-indigo-600" />
+                  Loading {TABS.find((tab) => tab.key === activeTab)?.label.toLowerCase()}...
+                </div>
+              ) : !tabData[activeTab]?.length ? (
+                <p className="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-400 dark:border-gray-700">
+                  No {TABS.find((tab) => tab.key === activeTab)?.label.toLowerCase()} records found for this customer.
+                </p>
+              ) : activeTab === 'invoices' ? (
+                <div className="space-y-3">
+                  {tabData.invoices.map((invoice, index) => {
+                    const breakdown = parseCostBreakdown(invoice.cost_breakdown);
+                    const currency = invoice.currency || breakdown.currency || 'INR';
+                    const status = invoice.status || 'Invoice';
+                    const amountRows = [
+                      { label: 'Subtotal', value: breakdown.subtotal },
+                      { label: 'Discount', value: breakdown.discount_amount },
+                      { label: 'Tax', value: breakdown.tax_amount },
+                      { label: 'Total', value: breakdown.total_amount, strong: true },
+                      { label: 'Paid', value: breakdown.paid_amount },
+                      { label: 'Balance due', value: breakdown.due_amount, due: Number(breakdown.due_amount) > 0 },
+                    ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '');
+                    const lineItems = Array.isArray(breakdown.items) ? breakdown.items : [];
+
+                    return (
+                      <article key={invoice.id || invoice.booking_id || invoice.invoice_id || index} className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+                        <div className="flex flex-col justify-between gap-3 border-b border-gray-100 bg-gray-50/70 px-4 py-3 dark:border-gray-800 dark:bg-gray-800/40 sm:flex-row sm:items-center">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">{invoice.booking_code || invoice.invoice_number || 'Booking invoice'}</p>
+                            <h3 className="mt-1 truncate text-sm font-bold text-gray-900 dark:text-white">{invoice.tour_name || invoice.package_name || 'Travel booking'}</h3>
+                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                              {invoice.booking_id && <span title={invoice.booking_id}>Booking ID: {invoice.booking_id.slice(0, 8)}…</span>}
+                              {invoice.passenger_count != null && <span>{invoice.passenger_count} passengers</span>}
+                            </div>
+                          </div>
+                          <span className={`inline-flex w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${getInvoiceStatusClass(status)}`}>{status.replace(/_/g, ' ')}</span>
+                        </div>
+
+                        <div className="space-y-4 p-4">
+                          {lineItems.length > 0 && (
+                            <div className="divide-y divide-gray-100 rounded-lg border border-gray-100 px-3 dark:divide-gray-800 dark:border-gray-800">
+                              {lineItems.map((item, itemIndex) => (
+                                <div key={item.id || itemIndex} className="flex items-center justify-between gap-3 py-2 text-sm">
+                                  <div className="min-w-0">
+                                    <p className="truncate font-medium text-gray-800 dark:text-gray-200">{item.name || item.description || item.title || `Charge ${itemIndex + 1}`}</p>
+                                    {item.quantity != null && <p className="text-xs text-gray-500">Qty {item.quantity}</p>}
+                                  </div>
+                                  {(item.amount != null || item.total_price != null || item.price != null) && <span className="shrink-0 font-semibold text-gray-900 dark:text-white">{formatCurrencyAmount(item.amount ?? item.total_price ?? item.price, currency)}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {amountRows.length > 0 ? (
+                            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                              {amountRows.map((item) => (
+                                <div key={item.label} className={`min-w-0 rounded-lg px-3 py-2 ${item.strong ? 'bg-indigo-50 dark:bg-indigo-900/20' : item.due ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-gray-50 dark:bg-gray-800/60'}`}>
+                                  <dt className="truncate text-xs text-gray-500 dark:text-gray-400">{item.label}</dt>
+                                  <dd className={`mt-1 break-words text-sm font-semibold ${item.due ? 'text-amber-700 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>{formatCurrencyAmount(item.value, currency)}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400">No price breakdown available.</p>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {tabData[activeTab].map((record, index) => {
+                    const fields = Object.entries(record || {});
+                    return (
+                      <dl key={record?.id || record?.invoice_id || record?.entry_id || index} className="grid grid-cols-1 gap-x-6 gap-y-3 py-4 first:pt-0 sm:grid-cols-2 lg:grid-cols-3">
+                        {fields.length ? fields.map(([key, value]) => (
+                          <div key={key} className="min-w-0">
+                            <dt className="text-xs capitalize text-gray-500 dark:text-gray-400">{key.replace(/_/g, ' ')}</dt>
+                            <dd className="mt-1 break-words text-sm font-medium text-gray-900 dark:text-white">{formatTabValue(value)}</dd>
+                          </div>
+                        )) : (
+                          <div className="sm:col-span-2 lg:col-span-3">
+                            <dt className="text-xs text-gray-500 dark:text-gray-400">Record</dt>
+                            <dd className="mt-1 break-all font-mono text-xs text-gray-700 dark:text-gray-300">{JSON.stringify(record)}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    );
+                  })}
+                </div>
+              )}
             </div>
+          )}
+
+          {activeTab !== 'details' && TABS.find((tab) => tab.key === activeTab)?.tabParam && (
+            <Pagination
+              currentPage={tabPagination[activeTab]?.page || tabPage}
+              totalItems={tabPagination[activeTab]?.total_items ?? tabData[activeTab]?.length ?? 0}
+              itemsPerPage={tabPagination[activeTab]?.page_size || tabPageSize}
+              onPageChange={setTabPage}
+              onLimitChange={(size) => {
+                setTabPageSize(size);
+                setTabPage(1);
+              }}
+              availableLimits={[10, 20, 50, 100]}
+              className="mt-5"
+            />
           )}
         </div>
       </div>
