@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ManagementTable from '../component/common/ManagementTable';
 import toast from 'react-hot-toast';
-import { BadgePercent, BookOpen, Layers, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { BadgePercent, BookOpen, Layers, Pencil, Plus, RefreshCw, Trash2, Search, Filter, X } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import CustomDatePicker from '../component/common/CustomDatePicker';
@@ -72,6 +72,9 @@ const TourOffers = () => {
   const [form, setForm] = useState(defaultForm);
   const [editingOffer, setEditingOffer] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const [variantsOffer, setVariantsOffer] = useState(null);
   const [chosenVariants, setChosenVariants] = useState([]);
@@ -317,6 +320,17 @@ const TourOffers = () => {
     }
   };
 
+  const filteredOffers = offers.filter((offer) => {
+    if (statusFilter !== 'ALL' && offer.status !== statusFilter) return false;
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      const matchName = (offer.name || '').toLowerCase().includes(q);
+      const matchDesc = (offer.description || '').toLowerCase().includes(q);
+      if (!matchName && !matchDesc) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-3 pb-6">
       <div className="px-2 text-slate-900 dark:text-slate-100">
@@ -336,9 +350,111 @@ const TourOffers = () => {
         </div>
       </div>
 
-      <div className="px-4 text-right text-sm text-gray-600 dark:text-gray-300">{offers.length} total offers</div>
+      {/* Search & Filter Toolbar */}
+      <div className="mt-5 px-2">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search offers..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+              statusFilter !== 'ALL'
+                ? 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {statusFilter !== 'ALL' && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-600 text-xs font-bold text-white">
+                1
+              </span>
+            )}
+          </button>
+
+          {(searchTerm || statusFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('ALL');
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+
+          <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+            {filteredOffers.length} record{filteredOffers.length === 1 ? '' : 's'}
+          </span>
+        </div>
+      </div>
+
+      {/* Filter Modal */}
+      <Modal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Tour Offers"
+        icon={Filter}
+        size="sm"
+        footer={(
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('ALL');
+                setIsFilterOpen(false);
+              }}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(false)}
+              className="flex-1 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-700"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-4 p-1">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+            <div className="grid grid-cols-2 gap-2">
+              {['ALL', ...statuses].map((st) => (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setStatusFilter(st)}
+                  className={`rounded-xl border py-2 text-xs font-semibold transition ${
+                    statusFilter === st
+                      ? 'border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-300'
+                      : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                  }`}
+                >
+                  {st === 'ALL' ? 'All Statuses' : st}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
       <div className="overflow-hidden md:rounded-2xl md:border md:border-gray-200 md:bg-white md:shadow-sm dark:border-gray-700 dark:bg-gray-900">
-        {loading ? <div className="p-12 text-center text-sm text-gray-500">Loading offers...</div> : offers.length === 0 ? <div className="p-12 text-center text-sm text-gray-500">No tour offers found.</div> : (
+        {loading ? <div className="p-12 text-center text-sm text-gray-500">Loading offers...</div> : filteredOffers.length === 0 ? <div className="p-12 text-center text-sm text-gray-500">No tour offers found.</div> : (
           <div className="overflow-x-auto">
             <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800/70"><tr>
@@ -350,7 +466,7 @@ const TourOffers = () => {
                 <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th>
               </tr></thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {offers.map((offer) => (
+                {filteredOffers.map((offer) => (
                   <tr key={offer.id} className="hover:bg-amber-50/40 dark:hover:bg-amber-900/10">
                     <td className="px-4 py-4"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-300"><BadgePercent className="h-4 w-4" /></span><div><p className="font-semibold text-gray-900 dark:text-white">{offer.name}</p><p className="max-w-xs truncate text-xs text-gray-500 dark:text-gray-400">{offer.description || 'No description'}</p></div></div></td>
                     <td className="px-4 py-4 text-gray-700 dark:text-gray-300"><p className="font-semibold">{offer.discount_type === 'PERCENTAGE' ? `${offer.discount_value}%` : formatAmount(offer.discount_value)}</p><p className="text-xs text-gray-500">Min. {formatAmount(offer.min_booking_amount)}</p></td>

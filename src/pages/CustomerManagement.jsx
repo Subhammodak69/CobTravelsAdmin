@@ -14,6 +14,8 @@ import {
   Shield,
   UserCheck,
   Eye,
+  Filter,
+  X,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
@@ -97,6 +99,7 @@ const CustomerManagement = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingCustomer, setDeletingCustomer] = useState(false);
   const [formState, setFormState] = useState(defaultForm);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // ── API ──────────────────────────────────────────────────────────────────────
 
@@ -302,9 +305,8 @@ const CustomerManagement = () => {
 
       {/* Filters */}
       <div className="mt-4 px-2">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          {/* Search */}
-          <div className="relative w-full md:max-w-sm">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               value={searchTerm}
@@ -313,19 +315,65 @@ const CustomerManagement = () => {
               className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+              isActiveFilter !== ''
+                ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {isActiveFilter !== '' && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">1</span>
+            )}
+          </button>
+          {(searchTerm || isActiveFilter !== '') && (
+            <button
+              type="button"
+              onClick={() => { handleSearchChange(''); handleActiveFilterChange(''); }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 sm:px-3"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+          <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+            {totalItems} record{totalItems === 1 ? '' : 's'}
+          </span>
+        </div>
+      </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Active filter */}
-            <div className="flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Filter Modal */}
+      <Modal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Customers"
+        icon={Filter}
+        size="sm"
+        footer={(
+          <div className="flex w-full gap-3">
+            <button type="button" onClick={() => { handleActiveFilterChange(''); setIsFilterOpen(false); }} className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300">Clear all</button>
+            <button type="button" onClick={() => setIsFilterOpen(false)} className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">Apply</button>
+          </div>
+        )}
+      >
+        <div className="space-y-4 p-1">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Account Status</label>
+            <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
               {[['', 'All'], ['true', 'Active'], ['false', 'Inactive']].map(([val, label]) => (
                 <button
                   key={val}
                   type="button"
                   onClick={() => handleActiveFilterChange(val)}
-                  className={`px-3 py-2 text-xs font-medium transition ${isActiveFilter === val
+                  className={`flex-1 py-2.5 text-sm font-medium transition ${
+                    isActiveFilter === val
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`}
+                      : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300'
+                  }`}
                 >
                   {label}
                 </button>
@@ -333,7 +381,7 @@ const CustomerManagement = () => {
             </div>
           </div>
         </div>
-      </div>
+      </Modal>
 
       {/* Table */}
       <div className="overflow-hidden md:rounded-2xl md:border md:border-gray-200 md:bg-white md:shadow-sm dark:border-gray-700 dark:bg-gray-900">

@@ -75,6 +75,7 @@ const QuotationManagement = () => {
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [enquiryFilter, setEnquiryFilter] = useState(initialEnquiryId);
   const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
@@ -452,20 +453,83 @@ const QuotationManagement = () => {
     </div>
 
     {/* Search & Filter Toolbar */}
-    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:flex-row md:items-center md:justify-between">
-      <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1 md:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            value={searchTerm}
-            onChange={(event) => { setSearchTerm(event.target.value); setCurrentPage(1); }}
-            placeholder="Search quotations..."
-            className={`${inputClass} pl-9`}
-          />
-        </div>
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          value={searchTerm}
+          onChange={(event) => { setSearchTerm(event.target.value); setCurrentPage(1); }}
+          placeholder="Search quotations..."
+          className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+        />
+      </div>
 
-        {/* Filter by Enquiry */}
-        <div className="w-full sm:w-72">
+      <button
+        type="button"
+        onClick={() => setIsFilterOpen(true)}
+        className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+          enquiryFilter || statusFilter
+            ? 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300'
+            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+        }`}
+      >
+        <Filter className="h-4 w-4" />
+        <span className="hidden sm:inline">Filter</span>
+        {(enquiryFilter || statusFilter) && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-600 text-xs font-bold text-white">
+            {[enquiryFilter, statusFilter].filter(Boolean).length}
+          </span>
+        )}
+      </button>
+
+      {(enquiryFilter || statusFilter || searchTerm) && (
+        <button
+          type="button"
+          onClick={clearAllFilters}
+          className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+        >
+          <X className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Clear</span>
+        </button>
+      )}
+
+      <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+        {totalItems} record{totalItems === 1 ? '' : 's'}
+      </span>
+    </div>
+
+    {/* Filter Modal */}
+    <Modal
+      isOpen={isFilterOpen}
+      onClose={() => setIsFilterOpen(false)}
+      title="Filter Quotations"
+      icon={Filter}
+      size="sm"
+      footer={(
+        <div className="flex w-full gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              clearAllFilters();
+              setIsFilterOpen(false);
+            }}
+            className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+          >
+            Clear all
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(false)}
+            className="flex-1 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700"
+          >
+            Apply
+          </button>
+        </div>
+      )}
+    >
+      <div className="space-y-4 p-1">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Enquiry</label>
           <SelectField
             options={enquiryOptions}
             isLoading={referencesLoading}
@@ -477,13 +541,12 @@ const QuotationManagement = () => {
             menuPlacement="auto"
           />
         </div>
-
-        {/* Filter by Status */}
-        <div className="w-full sm:w-40">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
           <select
             value={statusFilter}
             onChange={handleStatusFilterChange}
-            className={inputClass}
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
           >
             <option value="">All Statuses</option>
             <option value="DRAFT">Draft</option>
@@ -492,23 +555,8 @@ const QuotationManagement = () => {
             <option value="REJECTED">Rejected</option>
           </select>
         </div>
-
-        {(enquiryFilter || statusFilter || searchTerm) && (
-          <button
-            type="button"
-            onClick={clearAllFilters}
-            className="inline-flex items-center gap-1 rounded-xl border border-dashed border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-          >
-            <X className="h-3.5 w-3.5" />
-            Clear filters
-          </button>
-        )}
       </div>
-
-      <span className="text-sm text-gray-500 dark:text-gray-400">
-        {totalItems} record{totalItems === 1 ? '' : 's'}
-      </span>
-    </div>
+    </Modal>
 
     {/* Filter status indicator badge if filtered by enquiry */}
     {enquiryFilter && (

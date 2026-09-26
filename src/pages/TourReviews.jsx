@@ -15,6 +15,8 @@ import {
   Pencil,
   Trash2,
   Eye,
+  Search,
+  Filter,
   X,
   Images,
   ZoomIn,
@@ -91,6 +93,8 @@ const TourReviews = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
@@ -357,10 +361,19 @@ const TourReviews = () => {
 
   /* Filter reviews */
   const filteredReviews = useMemo(() => {
-    if (statusFilter === 'PUBLISHED') return reviews.filter((r) => r.is_published);
-    if (statusFilter === 'UNPUBLISHED') return reviews.filter((r) => !r.is_published);
-    return reviews;
-  }, [reviews, statusFilter]);
+    return reviews.filter((r) => {
+      if (statusFilter === 'PUBLISHED' && !r.is_published) return false;
+      if (statusFilter === 'UNPUBLISHED' && r.is_published) return false;
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        const matchesName = (r.name || r.customer_name || '').toLowerCase().includes(q);
+        const matchesComment = (r.review_text || r.comment || '').toLowerCase().includes(q);
+        const matchesTitle = (r.title || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesComment && !matchesTitle) return false;
+      }
+      return true;
+    });
+  }, [reviews, statusFilter, searchTerm]);
 
   const avgRating = useMemo(() => {
     if (!reviews.length) return '0.0';
@@ -437,29 +450,6 @@ const TourReviews = () => {
           </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {/* Filter pills */}
-            <div className="flex gap-1.5">
-              {[
-                { value: 'ALL', label: 'All' },
-                { value: 'PUBLISHED', label: 'Published' },
-                { value: 'UNPUBLISHED', label: 'Unpublished' },
-              ].map((s) => (
-                <button
-                  key={s.value}
-                  type="button"
-                  onClick={() => setStatusFilter(s.value)}
-                  className={[
-                    'rounded-xl px-3 py-1.5 text-xs font-semibold transition',
-                    statusFilter === s.value
-                      ? 'bg-violet-600 text-white shadow-sm'
-                      : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
-                  ].join(' ')}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-
             <button
               type="button"
               onClick={() => loadReviews(currentPage, itemsPerPage)}
@@ -483,6 +473,113 @@ const TourReviews = () => {
           </div>
         </div>
       </div>
+
+      {/* Search & Filter Toolbar */}
+      <div className="px-2">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search reviews by name or text..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+              statusFilter !== 'ALL'
+                ? 'border-violet-400 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {statusFilter !== 'ALL' && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white">
+                1
+              </span>
+            )}
+          </button>
+
+          {(searchTerm || statusFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('ALL');
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+
+          <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+            {filteredReviews.length} record{filteredReviews.length === 1 ? '' : 's'}
+          </span>
+        </div>
+      </div>
+
+      {/* Filter Modal */}
+      <Modal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Reviews"
+        icon={Filter}
+        size="sm"
+        footer={(
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('ALL');
+                setIsFilterOpen(false);
+              }}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(false)}
+              className="flex-1 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-700"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-4 p-1">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+            <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+              {[
+                ['ALL', 'All'],
+                ['PUBLISHED', 'Published'],
+                ['UNPUBLISHED', 'Unpublished'],
+              ].map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setStatusFilter(val)}
+                  className={`flex-1 py-2 text-xs font-semibold transition ${
+                    statusFilter === val
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Reviews Table ── */}
       <div className="px-2">

@@ -9,6 +9,7 @@ import {
   Search,
   RefreshCw,
   UploadCloud,
+  Filter,
   X,
   Image as ImageIcon,
   Check,
@@ -70,6 +71,9 @@ const VehicleManagement = () => {
   const [deleteVehicleTarget, setDeleteVehicleTarget] = useState(null);
   const [deletingVehicle, setDeletingVehicle] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
@@ -262,10 +266,13 @@ const VehicleManagement = () => {
   };
 
   const filteredVehicles = useMemo(() => {
-    const term = searchTerm.toLowerCase();
-    if (!term) return vehicles;
-
     return vehicles.filter((vehicle) => {
+      if (typeFilter !== 'ALL' && vehicle?.vehicle_type !== typeFilter) return false;
+      if (statusFilter === 'ACTIVE' && !vehicle?.is_active) return false;
+      if (statusFilter === 'INACTIVE' && vehicle?.is_active) return false;
+      const term = searchTerm.toLowerCase();
+      if (!term) return true;
+
       const searchString = [
         vehicle?.name,
         vehicle?.vehicle_type,
@@ -279,7 +286,7 @@ const VehicleManagement = () => {
 
       return searchString.includes(term);
     });
-  }, [vehicles, searchTerm]);
+  }, [vehicles, searchTerm, typeFilter, statusFilter]);
 
   const inputClass =
     'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
@@ -324,22 +331,125 @@ const VehicleManagement = () => {
         </div>
       </div>
 
+      {/* Search & Filter Toolbar */}
       <div className="mt-5 px-2">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:max-w-sm">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search vehicles..."
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              placeholder="Search vehicles by name, type, registration..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             />
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            {totalItems} record{totalItems === 1 ? '' : 's'}
-          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+              typeFilter !== 'ALL' || statusFilter !== 'ALL'
+                ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {(typeFilter !== 'ALL' || statusFilter !== 'ALL') && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">
+                {[typeFilter !== 'ALL', statusFilter !== 'ALL'].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+
+          {(searchTerm || typeFilter !== 'ALL' || statusFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setTypeFilter('ALL');
+                setStatusFilter('ALL');
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+
+          <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+            {filteredVehicles.length} record{filteredVehicles.length === 1 ? '' : 's'}
+          </span>
         </div>
       </div>
+
+      {/* Filter Modal */}
+      <Modal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Vehicles"
+        icon={Filter}
+        size="sm"
+        footer={(
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setTypeFilter('ALL');
+                setStatusFilter('ALL');
+                setIsFilterOpen(false);
+              }}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(false)}
+              className="flex-1 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-4 p-1">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Vehicle Type</label>
+            <SelectField
+              options={[{ value: 'ALL', label: 'All Types' }, ...vehicleTypeOptions]}
+              value={[{ value: 'ALL', label: 'All Types' }, ...vehicleTypeOptions].find((v) => v.value === typeFilter)}
+              onChange={(sel) => setTypeFilter(sel?.value || 'ALL')}
+              isSearchable={false}
+              placeholder="Filter by type"
+              menuPlacement="auto"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+            <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+              {[
+                ['ALL', 'All'],
+                ['ACTIVE', 'Active'],
+                ['INACTIVE', 'Inactive'],
+              ].map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setStatusFilter(val)}
+                  className={`flex-1 py-2 text-xs font-semibold transition ${
+                    statusFilter === val
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.04)] dark:border-gray-700 dark:bg-gray-800">
         {loading ? (

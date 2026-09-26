@@ -572,48 +572,50 @@ const BookingManagementWizard = () => {
       </div>
 
       {/* Search & Filter Toolbar */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search code, customer, email, phone..."
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-              className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-            />
-          </div>
+      <div className="flex items-center gap-2 gap-3">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search code, customer, email, phone..."
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+            className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          />
+        </div>
 
+        <button
+          type="button"
+          onClick={() => setIsFilterOpen(true)}
+          className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+            statusFilter || sourceFilter
+              ? 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300'
+              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+          }`}
+        >
+          <Filter className="h-4 w-4" />
+          <span className="hidden sm:inline">Filter</span>
+          {(statusFilter || sourceFilter) && (
+            <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-600 text-xs font-bold text-white dark:bg-cyan-500">
+              {[statusFilter, sourceFilter].filter(Boolean).length}
+            </span>
+          )}
+        </button>
+
+        {(statusFilter || sourceFilter || searchQuery) && (
           <button
             type="button"
-            onClick={() => setIsFilterOpen(true)}
-            className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
-              statusFilter || sourceFilter
-                ? 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300'
-                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-            }`}
+            onClick={() => { setStatusFilter(''); setSourceFilter(''); setSearchQuery(''); setPage(1); }}
+            className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
           >
-            <Filter className="h-4 w-4" />
-            Filter
-            {(statusFilter || sourceFilter) && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-600 text-xs font-bold text-white dark:bg-cyan-500">
-                {[statusFilter, sourceFilter].filter(Boolean).length}
-              </span>
-            )}
+            <X className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Clear</span>
           </button>
+        )}
 
-          {(statusFilter || sourceFilter || searchQuery) && (
-            <button
-              type="button"
-              onClick={() => { setStatusFilter(''); setSourceFilter(''); setSearchQuery(''); setPage(1); }}
-              className="inline-flex items-center gap-1 rounded-xl border border-dashed border-gray-300 px-3 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-            >
-              <X className="h-3.5 w-3.5" />
-              Clear filters
-            </button>
-          )}
-        </div>
+        <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+          {totalItems} record{totalItems === 1 ? '' : 's'}
+        </span>
       </div>
 
       {/* Filter Modal */}

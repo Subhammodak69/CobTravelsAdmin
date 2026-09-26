@@ -10,6 +10,7 @@ import {
   RefreshCw,
   MapPin,
   Phone,
+  Filter,
   X,
   UploadCloud,
   CheckCircle2,
@@ -46,6 +47,7 @@ const HotelManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [destinationFilter, setDestinationFilter] = useState('ALL');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -425,51 +427,113 @@ const HotelManagement = () => {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Search & Filter Toolbar */}
       <div className="mt-5 px-2">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 flex-col sm:flex-row gap-3">
-            {/* Search */}
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search hotels..."
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-              />
-            </div>
-
-            {/* Category Filter */}
-            <div className="w-full sm:w-48">
-              <SelectField
-                options={[{ value: 'ALL', label: 'All Categories' }, ...categoryOptions]}
-                value={[{ value: 'ALL', label: 'All Categories' }, ...categoryOptions].find((o) => o.value === categoryFilter)}
-                onChange={(sel) => setCategoryFilter(sel?.value || 'ALL')}
-                isSearchable={false}
-                placeholder="Filter category"
-                menuPlacement="auto"
-              />
-            </div>
-
-            {/* Destination Filter */}
-            <div className="w-full sm:w-52">
-              <SelectField
-                options={[{ value: 'ALL', label: 'All Destinations' }, ...destinations]}
-                value={[{ value: 'ALL', label: 'All Destinations' }, ...destinations].find((d) => d.value === destinationFilter)}
-                onChange={(sel) => setDestinationFilter(sel?.value || 'ALL')}
-                isLoading={destLoading}
-                placeholder="Filter destination"
-                menuPlacement="auto"
-              />
-            </div>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search hotels..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            />
           </div>
 
-          <div className="text-sm text-gray-600 dark:text-gray-300 shrink-0">
-            {filteredHotels.length} total records
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+              categoryFilter !== 'ALL' || destinationFilter !== 'ALL'
+                ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {(categoryFilter !== 'ALL' || destinationFilter !== 'ALL') && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                {[categoryFilter !== 'ALL', destinationFilter !== 'ALL'].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+
+          {(searchTerm || categoryFilter !== 'ALL' || destinationFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setCategoryFilter('ALL');
+                setDestinationFilter('ALL');
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+
+          <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+            {filteredHotels.length} record{filteredHotels.length === 1 ? '' : 's'}
+          </span>
         </div>
       </div>
+
+      {/* Filter Modal */}
+      <Modal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Hotels"
+        icon={Filter}
+        size="sm"
+        footer={(
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setCategoryFilter('ALL');
+                setDestinationFilter('ALL');
+                setIsFilterOpen(false);
+              }}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(false)}
+              className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-4 p-1">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
+            <SelectField
+              options={[{ value: 'ALL', label: 'All Categories' }, ...categoryOptions]}
+              value={[{ value: 'ALL', label: 'All Categories' }, ...categoryOptions].find((o) => o.value === categoryFilter)}
+              onChange={(sel) => setCategoryFilter(sel?.value || 'ALL')}
+              isSearchable={false}
+              placeholder="Filter category"
+              menuPlacement="auto"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Destination</label>
+            <SelectField
+              options={[{ value: 'ALL', label: 'All Destinations' }, ...destinations]}
+              value={[{ value: 'ALL', label: 'All Destinations' }, ...destinations].find((d) => d.value === destinationFilter)}
+              onChange={(sel) => setDestinationFilter(sel?.value || 'ALL')}
+              isLoading={destLoading}
+              placeholder="Filter destination"
+              menuPlacement="auto"
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Hotel Cards / Table */}
       <div className="overflow-hidden md:rounded-2xl md:border md:border-gray-200 md:bg-white md:shadow-sm dark:border-gray-700 dark:bg-gray-900">

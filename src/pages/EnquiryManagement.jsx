@@ -21,6 +21,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Filter,
+  X,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import CustomDatePicker from '../component/common/CustomDatePicker';
@@ -155,6 +157,7 @@ const EnquiryManagement = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Active items
   const [createForm, setCreateForm] = useState(defaultCreateForm);
@@ -604,63 +607,126 @@ const EnquiryManagement = () => {
         </div>
       </div>
 
-      {/* Filter / Search Bar */}
+      {/* Search & Filter Toolbar */}
       <div className="mt-5 px-2">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
-            {/* Search */}
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search code, name, phone..."
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:focus:bg-gray-800"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <SelectField
-                options={[{ value: 'ALL', label: 'All Statuses' }, ...STATUSES]}
-                value={[{ value: 'ALL', label: 'All Statuses' }, ...STATUSES].find((s) => s.value === statusFilter)}
-                onChange={(sel) => setStatusFilter(sel?.value || 'ALL')}
-                isSearchable={false}
-                placeholder="Filter status"
-                menuPlacement="auto"
-              />
-            </div>
-
-            {/* Enquiry Type Filter */}
-            <div>
-              <SelectField
-                options={[{ value: 'ALL', label: 'All Types' }, ...ENQUIRY_TYPES]}
-                value={[{ value: 'ALL', label: 'All Types' }, ...ENQUIRY_TYPES].find((t) => t.value === typeFilter)}
-                onChange={(sel) => setTypeFilter(sel?.value || 'ALL')}
-                isSearchable={false}
-                placeholder="Filter type"
-                menuPlacement="auto"
-              />
-            </div>
-
-            {/* Channel Filter */}
-            <div>
-              <SelectField
-                options={[{ value: 'ALL', label: 'All Channels' }, ...CHANNELS]}
-                value={[{ value: 'ALL', label: 'All Channels' }, ...CHANNELS].find((c) => c.value === channelFilter)}
-                onChange={(sel) => setChannelFilter(sel?.value || 'ALL')}
-                isSearchable={false}
-                placeholder="Filter channel"
-                menuPlacement="auto"
-              />
-            </div>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search code, name, phone..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            />
           </div>
 
-          <div className="text-sm text-gray-600 dark:text-gray-300 shrink-0">
-            {filteredEnquiries.length} total records
-          </div>
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+              statusFilter !== 'ALL' || typeFilter !== 'ALL' || channelFilter !== 'ALL'
+                ? 'border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {(statusFilter !== 'ALL' || typeFilter !== 'ALL' || channelFilter !== 'ALL') && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                {[statusFilter !== 'ALL', typeFilter !== 'ALL', channelFilter !== 'ALL'].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+
+          {(searchTerm || statusFilter !== 'ALL' || typeFilter !== 'ALL' || channelFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('ALL');
+                setTypeFilter('ALL');
+                setChannelFilter('ALL');
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+
+          <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+            {filteredEnquiries.length} record{filteredEnquiries.length === 1 ? '' : 's'}
+          </span>
         </div>
       </div>
+
+      {/* Filter Modal */}
+      <Modal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Enquiries"
+        icon={Filter}
+        size="sm"
+        footer={(
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('ALL');
+                setTypeFilter('ALL');
+                setChannelFilter('ALL');
+                setIsFilterOpen(false);
+              }}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(false)}
+              className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-4 p-1">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+            <SelectField
+              options={[{ value: 'ALL', label: 'All Statuses' }, ...STATUSES]}
+              value={[{ value: 'ALL', label: 'All Statuses' }, ...STATUSES].find((s) => s.value === statusFilter)}
+              onChange={(sel) => setStatusFilter(sel?.value || 'ALL')}
+              isSearchable={false}
+              placeholder="Filter status"
+              menuPlacement="auto"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Enquiry Type</label>
+            <SelectField
+              options={[{ value: 'ALL', label: 'All Types' }, ...ENQUIRY_TYPES]}
+              value={[{ value: 'ALL', label: 'All Types' }, ...ENQUIRY_TYPES].find((t) => t.value === typeFilter)}
+              onChange={(sel) => setTypeFilter(sel?.value || 'ALL')}
+              isSearchable={false}
+              placeholder="Filter type"
+              menuPlacement="auto"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Channel</label>
+            <SelectField
+              options={[{ value: 'ALL', label: 'All Channels' }, ...CHANNELS]}
+              value={[{ value: 'ALL', label: 'All Channels' }, ...CHANNELS].find((c) => c.value === channelFilter)}
+              onChange={(sel) => setChannelFilter(sel?.value || 'ALL')}
+              isSearchable={false}
+              placeholder="Filter channel"
+              menuPlacement="auto"
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Enquiries Table */}
       <div className="overflow-hidden md:rounded-2xl md:border md:border-gray-200 md:bg-white md:shadow-sm dark:border-gray-700 dark:bg-gray-900">

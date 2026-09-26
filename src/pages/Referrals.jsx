@@ -12,6 +12,8 @@ import {
   User,
   ChevronRight,
   Filter,
+  Search,
+  X,
 } from 'lucide-react';
 import ReferralTabs from '../component/referrals/ReferralTabs';
 import Modal from '../component/common/Modal';
@@ -83,6 +85,8 @@ const Referrals = () => {
 
   // Filter
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   // Update modal state
   const [selectedReferral, setSelectedReferral] = useState(null);
@@ -190,6 +194,15 @@ const Referrals = () => {
     );
   };
 
+  const filteredReferrals = referrals.filter((item) => {
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    const referrer = [item?.referrer_name, item?.referrer_email, item?.referrer_phone].filter(Boolean).join(' ').toLowerCase();
+    const referred = [item?.referred_name, item?.referred_email, item?.referred_phone, item?.referred_user_name].filter(Boolean).join(' ').toLowerCase();
+    const code = (item?.referral_code || '').toLowerCase();
+    return referrer.includes(q) || referred.includes(q) || code.includes(q);
+  });
+
   return (
     <div className="space-y-4 pb-8">
       {/* Header */}
@@ -222,14 +235,91 @@ const Referrals = () => {
       {/* Tabs */}
       <ReferralTabs activeTab="referrals" />
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white dark:bg-gray-850 p-3.5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
+      {/* Search & Filter Toolbar */}
+      <div className="px-1">
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            Filter by Status:
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search referrals by name, email, phone, code..."
+              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+              statusFilter !== ''
+                ? 'border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            <span className="hidden sm:inline">Filter</span>
+            {statusFilter !== '' && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                1
+              </span>
+            )}
+          </button>
+
+          {(searchTerm || statusFilter !== '') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('');
+                setCurrentPage(1);
+              }}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+            >
+              <X className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+
+          <span className="hidden shrink-0 text-sm text-gray-500 dark:text-gray-400 sm:block">
+            {filteredReferrals.length} record{filteredReferrals.length === 1 ? '' : 's'}
           </span>
-          <div className="w-48">
+        </div>
+      </div>
+
+      {/* Filter Modal */}
+      <Modal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Referrals"
+        icon={Filter}
+        size="sm"
+        footer={(
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('');
+                setCurrentPage(1);
+                setIsFilterOpen(false);
+              }}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFilterOpen(false)}
+              className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              Apply
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-4 p-1">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
             <SelectField
               options={statusFilterOptions}
               value={statusFilterOptions.find((opt) => opt.value === statusFilter) || statusFilterOptions[0]}
@@ -241,11 +331,7 @@ const Referrals = () => {
             />
           </div>
         </div>
-
-        <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-          Showing <span className="font-semibold text-gray-900 dark:text-white">{referrals.length}</span> records
-        </div>
-      </div>
+      </Modal>
 
       {/* Table Container */}
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-sm">
@@ -270,18 +356,18 @@ const Referrals = () => {
                     Loading referral records...
                   </td>
                 </tr>
-              ) : referrals.length === 0 ? (
+              ) : filteredReferrals.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-4 py-16 text-center text-sm text-gray-400">
                     <Gift className="mx-auto mb-2 h-8 w-8 text-gray-300 dark:text-gray-600" />
                     <p className="font-medium text-gray-600 dark:text-gray-300">No referral records found</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {statusFilter ? 'Try clearing the status filter' : 'Referrals will appear here as users invite customers'}
+                      {statusFilter || searchTerm ? 'Try clearing your filters' : 'Referrals will appear here as users invite customers'}
                     </p>
                   </td>
                 </tr>
               ) : (
-                referrals.map((item) => {
+                filteredReferrals.map((item) => {
                   const referrerAvatar = item.referrer_profile_image;
                   const referredAvatar = item.referred_customer_profile_image;
 
