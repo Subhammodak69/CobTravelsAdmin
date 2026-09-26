@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ManagementTable from '../component/common/ManagementTable';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Eye, FileText, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import Modal from '../component/common/Modal';
@@ -45,6 +45,7 @@ const referenceEndpoints = {
 
 const BookingManagementWizard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { getEnumOptions } = useEnums();
   const apiBookingSources = getEnumOptions('BookingSource');
   const bookingSourceOptions = apiBookingSources.length ? apiBookingSources : fallbackEnumOptions(bookingSources);
@@ -100,7 +101,32 @@ const BookingManagementWizard = () => {
     loadBookings(page, limit);
   }, [loadBookings, page, limit]);
 
-  const loadReference = async (field) => {
+  const loadQuotationsForEnquiry = useCallback(async (enquiryId) => {
+    if (!enquiryId) {
+      setReferences((current) => ({ ...current, quotation_id: [] }));
+      return;
+    }
+    setReferencesLoading((current) => ({ ...current, quotation_id: true }));
+    try {
+      const response = await apiCall(`/api/v1/admin/quotations?enquiry_id=${encodeURIComponent(enquiryId)}&page=1&page_size=100`, 'GET');
+      const payload = await response.json().catch(() => ({}));
+      const records = response.ok && Array.isArray(payload?.data) ? payload.data : [];
+      setReferences((current) => ({ ...current, quotation_id: records }));
+    } catch (error) {
+      handleApiError(error, 'Unable to load quotations for enquiry');
+      setReferences((current) => ({ ...current, quotation_id: [] }));
+    } finally {
+      setReferencesLoading((current) => ({ ...current, quotation_id: false }));
+    }
+  }, []);
+
+  const loadReference = useCallback(async (field) => {
+    if (field === 'quotation_id') {
+      if (form.enquiry_id) {
+        await loadQuotationsForEnquiry(form.enquiry_id);
+      }
+      return;
+    }
     if (!referenceEndpoints[field] || references[field] || referencesLoading[field]) return;
     setReferencesLoading((current) => ({ ...current, [field]: true }));
     try {
@@ -114,7 +140,27 @@ const BookingManagementWizard = () => {
     } finally {
       setReferencesLoading((current) => ({ ...current, [field]: false }));
     }
-  };
+  }, [form.enquiry_id, references, referencesLoading, loadQuotationsForEnquiry]);
+
+  useEffect(() => {
+    if (location.state?.enquiry_id || location.state?.quotation_id) {
+      const { enquiry_id, quotation_id, customer_id } = location.state;
+      setCustomerSource('ENQUIRY');
+      setCreateStep(1);
+      setIsCreateOpen(true);
+      setForm((current) => ({
+        ...current,
+        enquiry_id: enquiry_id || current.enquiry_id,
+        quotation_id: quotation_id || current.quotation_id,
+        customer_id: customer_id || current.customer_id,
+      }));
+      loadReference('enquiry_id');
+      if (enquiry_id) {
+        loadQuotationsForEnquiry(enquiry_id);
+      }
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, loadQuotationsForEnquiry, loadReference]);
 
   const updateForm = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   const updateTraveller = (index, field, value) => setForm((current) => ({ ...current, travellers: current.travellers.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item) }));
@@ -138,7 +184,15 @@ const BookingManagementWizard = () => {
   const recordLabel = (record, field) => field === 'customer_id'
     ? [record.name || record.full_name || record.customer_name, record.mobile || record.email].filter(Boolean).join(' - ')
     : field === 'enquiry_id'
-      ? [record.enquirer_name || record.name || record.customer_name, record.enquiry_code || record.id].filter(Boolean).join(' - ')
+      ? [record.enquiry_code || record.id, record.enquirer_name || record.name || record.customer_name, record.enquirer_phone || record.phone, record.email].filter(Boolean).join(' - ')
+      : field === 'quotation_id'
+        ? [
+            record.quotation_code || record.id,
+            record.tour_name,
+            record.status,
+            record.total_amount != null ? `₹${Number(record.total_amount).toLocaleString('en-IN')}` : null,
+            record.travel_date ? new Date(record.travel_date).toLocaleDateString() : null,
+          ].filter(Boolean).join(' - ')
       : field === 'destination_id'
         ? [record.name || record.title, record.country].filter(Boolean).join(' - ') || 'Unnamed destination'
         : field === 'package_id'
@@ -171,6 +225,7 @@ const BookingManagementWizard = () => {
     }
     if (field === 'enquiry_id') {
       const enquiry = option?.raw || {};
+      const enquiryId = option?.value || '';
       const linkedCustomerId = enquiry.customer_id || enquiry.customer?.id || '';
       const hasPackage = Boolean(enquiry.package_id);
       const enquirySource = bookingSourceOptions.some((source) => source.value === enquiry.channel) ? enquiry.channel : 'OFFLINE';
@@ -194,6 +249,14 @@ const BookingManagementWizard = () => {
         special_notes: enquiry.special_requirements || enquiry.message || '',
         travellers: [{ ...current.travellers[0], full_name: enquiry.enquirer_name || '', mobile: enquiry.enquirer_phone || '', email: enquiry.enquirer_email || '', is_primary: Boolean(enquiry.enquirer_name || enquiry.enquirer_phone || enquiry.enquirer_email) }, ...current.travellers.slice(1)],
       }));
+
+      // Filter quotations by chosen enquiry ID
+      if (enquiryId) {
+        await loadQuotationsForEnquiry(enquiryId);
+      } else {
+        setReferences((current) => ({ ...current, quotation_id: [] }));
+      }
+
       if (hasPackage) {
         await loadReference('package_id');
         try {
@@ -204,6 +267,38 @@ const BookingManagementWizard = () => {
       } else {
         setReferences((current) => ({ ...current, variant_id: [], departure_id: [] }));
         if (enquiry.destination_id) await loadReference('destination_id');
+      }
+    }
+    if (field === 'quotation_id') {
+      const quotation = option?.raw || {};
+      if (option?.value) {
+        setForm((current) => ({
+          ...current,
+          quotation_id: option.value,
+          customer_id: quotation.customer_id || current.customer_id,
+          package_id: quotation.package_id || current.package_id,
+          variant_id: quotation.variant_id || current.variant_id,
+          destination_id: quotation.destination_id || current.destination_id,
+          departure_date: quotation.travel_date ? String(quotation.travel_date).slice(0, 10) : current.departure_date,
+          return_date: quotation.return_date ? String(quotation.return_date).slice(0, 10) : current.return_date,
+          total_selling_price: quotation.total_amount ? String(quotation.total_amount) : current.total_selling_price,
+        }));
+        if (quotation.package_id) {
+          setTripSelection('PACKAGE');
+          await loadReference('package_id');
+          try {
+            const response = await apiCall(`/api/v1/admin/tour-packages/${encodeURIComponent(quotation.package_id)}/variants?page=1&page_size=100`, 'GET');
+            const payload = await response.json().catch(() => ({}));
+            setReferences((current) => ({ ...current, variant_id: response.ok && Array.isArray(payload?.data) ? payload.data : [], departure_id: [] }));
+          } catch {
+            setReferences((current) => ({ ...current, variant_id: [], departure_id: [] }));
+          }
+        } else if (quotation.destination_id) {
+          setTripSelection('DESTINATION');
+          await loadReference('destination_id');
+        }
+      } else {
+        updateForm('quotation_id', '');
       }
     }
     if (field === 'destination_id') {
@@ -237,8 +332,12 @@ const BookingManagementWizard = () => {
   const referenceField = (label, fieldName, placeholder) => {
     const options = optionFor(fieldName);
     const selected = options.find((option) => option.value === form[fieldName]) || null;
+    const isQuotationField = fieldName === 'quotation_id';
+    const isQuotationDisabled = isQuotationField && !form.enquiry_id;
     const previewKeys = fieldName === 'enquiry_id'
       ? ['enquirer_name', 'name', 'customer_name', 'enquiry_code', 'email', 'enquirer_email', 'mobile', 'enquirer_phone', 'status']
+      : fieldName === 'quotation_id'
+        ? ['quotation_code', 'tour_name', 'status', 'total_amount', 'travel_date', 'return_date']
       : fieldName === 'destination_id'
         ? ['name', 'title', 'country', 'description', 'status']
       : fieldName === 'package_id'
@@ -248,24 +347,51 @@ const BookingManagementWizard = () => {
           : ['name', 'full_name', 'customer_name', 'email', 'mobile', 'phone', 'status', 'departure_date', 'date'];
     return (
       <div className="border-b border-slate-100 pb-5 last:border-b-0 dark:border-gray-700">
-        <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
+        <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          {label}
+          {isQuotationField && form.enquiry_id && (
+            <span className="ml-2 text-xs font-normal text-cyan-600 dark:text-cyan-400">
+              (Filtered by chosen enquiry)
+            </span>
+          )}
+        </label>
         <SelectField
           options={options}
           value={selected}
+          isDisabled={isQuotationDisabled}
           onMenuOpen={() => loadReference(fieldName)}
           onChange={(option) => chooseReference(fieldName, option)}
           isSearchable
           isClearable
           isLoading={Boolean(referencesLoading[fieldName])}
-          placeholder={placeholder}
-          noOptionsMessage={() => referencesLoading[fieldName] ? 'Loading records...' : 'No records available'}
+          placeholder={isQuotationDisabled ? 'Select an enquiry first to choose quotation' : placeholder}
+          noOptionsMessage={() => {
+            if (isQuotationField) {
+              if (!form.enquiry_id) return 'Please select an enquiry first';
+              if (referencesLoading.quotation_id) return 'Loading quotations...';
+              return 'No quotations found for this enquiry';
+            }
+            return referencesLoading[fieldName] ? 'Loading records...' : 'No records available';
+          }}
         />
-        <p className="mt-1.5 text-xs text-gray-500">{selected ? `Selected: ${selected.label}` : 'Click to load and search by name, code, or email'}</p>
+        <p className="mt-1.5 text-xs text-gray-500">
+          {isQuotationField && !form.enquiry_id
+            ? 'Select an enquiry above to view and link its quotations.'
+            : isQuotationField && form.enquiry_id
+            ? (selected ? `Selected quotation: ${selected.label}` : `${options.length} quotation${options.length === 1 ? '' : 's'} available for this enquiry`)
+            : (selected ? `Selected: ${selected.label}` : 'Click to load and search by name, code, or email')}
+        </p>
         {selected?.raw && (
           <div className="mt-3 rounded-xl border border-cyan-100 bg-cyan-50/60 p-4 text-xs text-cyan-900 dark:border-cyan-900/50 dark:bg-cyan-950/20 dark:text-cyan-200">
-            <strong className="text-sm">Selected {fieldName === 'enquiry_id' ? 'enquiry' : fieldName === 'package_id' ? 'package' : 'record'}</strong>
+            <strong className="text-sm">
+              Selected {fieldName === 'enquiry_id' ? 'enquiry' : fieldName === 'package_id' ? 'package' : fieldName === 'quotation_id' ? 'quotation' : 'record'}
+            </strong>
             <div className="mt-2 grid gap-x-5 gap-y-1 sm:grid-cols-2">
-              {previewKeys.map((key) => selected.raw[key] ? <span key={key}><b>{key.replaceAll('_', ' ')}:</b> {String(selected.raw[key])}</span> : null)}
+              {previewKeys.map((key) => selected.raw[key] != null && selected.raw[key] !== '' ? (
+                <span key={key}>
+                  <b>{key.replaceAll('_', ' ')}:</b> {String(selected.raw[key])}
+                </span>
+              ) : null)}
             </div>
           </div>
         )}
@@ -668,14 +794,14 @@ const BookingManagementWizard = () => {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => { setCustomerSource('CUSTOMER'); setForm((current) => ({ ...current, enquiry_id: '', quotation_id: '' })); }}
+                    onClick={() => { setCustomerSource('CUSTOMER'); setForm((current) => ({ ...current, enquiry_id: '', quotation_id: '' })); setReferences((current) => ({ ...current, quotation_id: [] })); }}
                     className={`rounded-lg px-4 py-2 text-sm font-semibold ${customerSource === 'CUSTOMER' ? 'bg-cyan-600 text-white' : 'border border-gray-300 text-gray-700 dark:border-gray-700 dark:text-gray-300'}`}
                   >
                     Customer
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setCustomerSource('ENQUIRY'); setForm((current) => ({ ...current, customer_id: '', quotation_id: '' })); }}
+                    onClick={() => { setCustomerSource('ENQUIRY'); setForm((current) => ({ ...current, customer_id: '', quotation_id: '' })); setReferences((current) => ({ ...current, quotation_id: [] })); }}
                     className={`rounded-lg px-4 py-2 text-sm font-semibold ${customerSource === 'ENQUIRY' ? 'bg-cyan-600 text-white' : 'border border-gray-300 text-gray-700 dark:border-gray-700 dark:text-gray-300'}`}
                   >
                     Enquiry / Quotation
@@ -689,7 +815,11 @@ const BookingManagementWizard = () => {
                 ) : (
                   <>
                     {referenceField('Enquiry', 'enquiry_id', 'Search enquiry')}
-                    {referenceField('Quotation', 'quotation_id', 'Search quotation')}
+                    {referenceField(
+                      'Quotation',
+                      'quotation_id',
+                      form.enquiry_id ? 'Search quotation for this enquiry' : 'Select an enquiry first to choose quotation'
+                    )}
                   </>
                 )}
               </div>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ManagementTable from '../component/common/ManagementTable';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   ArrowRight,
@@ -8,10 +8,12 @@ import {
   Calendar,
   Check,
   FileText,
+  Filter,
   Plus,
   RefreshCw,
   Search,
   Trash2,
+  X,
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
@@ -55,6 +57,9 @@ const statusClasses = {
 
 const QuotationManagement = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialEnquiryId = searchParams.get('enquiry_id') || '';
+  const initialStatus = searchParams.get('status') || '';
   const { getEnumOptions } = useEnums();
   const quotationItemTypeOptions = getEnumOptions('CostItemType');
   const roomTypeOptions = getEnumOptions('RoomType');
@@ -67,7 +72,9 @@ const QuotationManagement = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [form, setForm] = useState(defaultForm);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [enquiryFilter, setEnquiryFilter] = useState(initialEnquiryId);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
@@ -90,10 +97,24 @@ const QuotationManagement = () => {
     { id: 4, label: 'Pricing & notes' },
   ];
 
-  const loadQuotations = useCallback(async (page = currentPage, limit = itemsPerPage) => {
+  const loadQuotations = useCallback(async (
+    page = currentPage,
+    limit = itemsPerPage,
+    enquiryId = enquiryFilter,
+    status = statusFilter,
+    search = searchTerm
+  ) => {
     setLoading(true);
     try {
-      const response = await apiCall(`/api/v1/admin/quotations?page=${page}&page_size=${limit}`, 'GET');
+      const params = new URLSearchParams({
+        page: String(page),
+        page_size: String(limit),
+      });
+      if (enquiryId) params.append('enquiry_id', enquiryId);
+      if (status) params.append('status', status);
+      if (search && search.trim()) params.append('search', search.trim());
+
+      const response = await apiCall(`/api/v1/admin/quotations?${params.toString()}`, 'GET');
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.message || payload?.detail || 'Unable to fetch quotations');
       const data = Array.isArray(payload?.data) ? payload.data : [];
@@ -102,9 +123,43 @@ const QuotationManagement = () => {
     } catch (error) {
       handleApiError(error, 'Unable to load quotations');
     } finally { setLoading(false); }
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, enquiryFilter, statusFilter, searchTerm]);
 
-  useEffect(() => { loadQuotations(currentPage, itemsPerPage); }, [loadQuotations, currentPage, itemsPerPage]);
+  useEffect(() => {
+    loadQuotations(currentPage, itemsPerPage, enquiryFilter, statusFilter, searchTerm);
+  }, [loadQuotations, currentPage, itemsPerPage, enquiryFilter, statusFilter, searchTerm]);
+
+  const handleEnquiryFilterChange = (option) => {
+    const val = option?.value || '';
+    setEnquiryFilter(val);
+    setCurrentPage(1);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (val) next.set('enquiry_id', val);
+      else next.delete('enquiry_id');
+      return next;
+    });
+  };
+
+  const handleStatusFilterChange = (e) => {
+    const val = e.target.value;
+    setStatusFilter(val);
+    setCurrentPage(1);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (val) next.set('status', val);
+      else next.delete('status');
+      return next;
+    });
+  };
+
+  const clearAllFilters = () => {
+    setEnquiryFilter('');
+    setStatusFilter('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setSearchParams({});
+  };
 
   const loadReferenceOptions = useCallback(async () => {
     setReferencesLoading(true);
@@ -242,7 +297,18 @@ const QuotationManagement = () => {
   const addArrayItem = (field, template) => setForm((current) => ({ ...current, [field]: [...current[field], { ...template }] }));
   const removeArrayItem = (field, index) => setForm((current) => ({ ...current, [field]: current[field].filter((_, itemIndex) => itemIndex !== index) }));
 
-  const openCreate = () => { setForm(defaultForm); setTripSelectionType('DESTINATION'); setCreateStep(1); setIsCreateOpen(true); };
+  const openCreate = () => {
+    setForm(defaultForm);
+    setTripSelectionType('DESTINATION');
+    setCreateStep(1);
+    setIsCreateOpen(true);
+    if (enquiryFilter) {
+      const match = enquiryOptions.find((opt) => opt.value === enquiryFilter);
+      if (match) {
+        handleEnquiryChange(match);
+      }
+    }
+  };
   const closeCreate = () => { setIsCreateOpen(false); setForm(defaultForm); setTripSelectionType('DESTINATION'); setCreateStep(1); };
   const isCreateStepValid = (step) => {
     if (step === 1) return Boolean(form.enquiry_id.trim());
@@ -353,16 +419,135 @@ const QuotationManagement = () => {
     </section>
   );
 
+  const selectedFilterEnquiry = enquiryOptions.find((opt) => opt.value === enquiryFilter);
+
   return <div className="space-y-5 pb-8">
-    <div className="flex flex-col gap-3 px-2 md:flex-row md:items-end md:justify-between"><div><h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Quotations</h1><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Build, review, and send customer-ready travel quotations.</p></div><div className="flex gap-2"><button type="button" aria-label="Refresh quotations" title="Refresh quotations" onClick={() => loadQuotations(currentPage, itemsPerPage)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-sm font-semibold text-gray-700 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span></button><button type="button" aria-label="New quotation" title="New quotation" onClick={openCreate} className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 p-2.5 text-sm font-semibold text-white hover:bg-cyan-700 sm:px-4"><Plus className="h-4 w-4" /><span className="hidden sm:inline">New quotation</span></button></div></div>
-    <div className="flex flex-col gap-3 px-2 md:flex-row md:items-center md:justify-between"><div className="relative w-full md:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Search quotations..." className={`${inputClass} pl-9`} /></div><span className="text-sm text-gray-500 dark:text-gray-400">{totalItems} record{totalItems === 1 ? '' : 's'}</span></div>
+    <div className="flex flex-col gap-3 px-2 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Quotations</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Build, review, and send customer-ready travel quotations.</p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          aria-label="Refresh quotations"
+          title="Refresh quotations"
+          onClick={() => loadQuotations(currentPage, itemsPerPage, enquiryFilter, statusFilter, searchTerm)}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-sm font-semibold text-gray-700 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+        <button
+          type="button"
+          aria-label="New quotation"
+          title="New quotation"
+          onClick={openCreate}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 p-2.5 text-sm font-semibold text-white hover:bg-cyan-700 sm:px-4"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">New quotation</span>
+        </button>
+      </div>
+    </div>
+
+    {/* Search & Filter Toolbar */}
+    <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 md:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            value={searchTerm}
+            onChange={(event) => { setSearchTerm(event.target.value); setCurrentPage(1); }}
+            placeholder="Search quotations..."
+            className={`${inputClass} pl-9`}
+          />
+        </div>
+
+        {/* Filter by Enquiry */}
+        <div className="w-full sm:w-72">
+          <SelectField
+            options={enquiryOptions}
+            isLoading={referencesLoading}
+            isSearchable
+            isClearable
+            value={selectedFilterEnquiry || null}
+            onChange={handleEnquiryFilterChange}
+            placeholder="Filter by enquiry..."
+            menuPlacement="auto"
+          />
+        </div>
+
+        {/* Filter by Status */}
+        <div className="w-full sm:w-40">
+          <select
+            value={statusFilter}
+            onChange={handleStatusFilterChange}
+            className={inputClass}
+          >
+            <option value="">All Statuses</option>
+            <option value="DRAFT">Draft</option>
+            <option value="SENT">Sent</option>
+            <option value="ACCEPTED">Accepted</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </div>
+
+        {(enquiryFilter || statusFilter || searchTerm) && (
+          <button
+            type="button"
+            onClick={clearAllFilters}
+            className="inline-flex items-center gap-1 rounded-xl border border-dashed border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      <span className="text-sm text-gray-500 dark:text-gray-400">
+        {totalItems} record{totalItems === 1 ? '' : 's'}
+      </span>
+    </div>
+
+    {/* Filter status indicator badge if filtered by enquiry */}
+    {enquiryFilter && (
+      <div className="flex items-center justify-between rounded-xl border border-cyan-200 bg-cyan-50/70 px-4 py-2.5 text-xs text-cyan-900 dark:border-cyan-900/50 dark:bg-cyan-950/30 dark:text-cyan-200">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 shrink-0 text-cyan-600 dark:text-cyan-400" />
+          <span>
+            Showing quotations for enquiry:{' '}
+            <strong>
+              {selectedFilterEnquiry?.label || enquiryFilter}
+            </strong>
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => handleEnquiryFilterChange(null)}
+          className="font-semibold text-cyan-700 hover:underline dark:text-cyan-300"
+        >
+          Clear filter
+        </button>
+      </div>
+    )}
+
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
       {loading ? (
         <div className="flex min-h-[240px] items-center justify-center text-sm text-gray-500">Loading quotations...</div>
       ) : visibleQuotations.length === 0 ? (
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-2 text-sm text-gray-500">
           <FileText className="h-9 w-9 text-gray-300" />
-          <p>No quotations found.</p>
+          <p>No quotations found{enquiryFilter ? ' for this enquiry' : ''}.</p>
+          {enquiryFilter && (
+            <button
+              type="button"
+              onClick={() => handleEnquiryFilterChange(null)}
+              className="mt-1 text-xs font-semibold text-cyan-600 hover:underline"
+            >
+              Show all quotations
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -377,13 +562,22 @@ const QuotationManagement = () => {
                     {quotation.quotation_code || 'Draft quotation'}
                   </button>
                   <div className="truncate text-xs text-slate-500 dark:text-slate-400">{quotation.tour_name || 'Untitled tour'} · v{quotation.version || 1}</div>
+                  {quotation.enquiry_id && (
+                    <div className="truncate text-[11px] text-cyan-700 dark:text-cyan-400">
+                      Enquiry: {quotation.enquiry_code || quotation.enquiry_id.slice(0, 8)}
+                    </div>
+                  )}
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className={`max-w-full truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusClasses[quotation.status] || statusClasses.DRAFT}`}>{quotation.status || 'DRAFT'}</span>
                     <span className="text-[11px] text-slate-500 dark:text-slate-400">{formatDate(quotation.travel_date)}</span>
                     <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">{formatAmount(quotation.total_amount)}</span>
                   </div>
                 </div>
-                <ActionMenu actions={[{ label: 'Open quotation', icon: <ArrowRight className="h-4 w-4" />, onClick: () => navigate(`/quotations/${quotation.id}`) }, { label: 'Delete quotation', icon: <Trash2 className="h-4 w-4" />, onClick: () => { setDeleteTarget(quotation); setIsDeleteOpen(true); }, className: 'text-rose-600 dark:text-rose-400' }]} />
+                <ActionMenu actions={[
+                  { label: 'Open quotation', icon: <ArrowRight className="h-4 w-4" />, onClick: () => navigate(`/quotations/${quotation.id}`) },
+                  { label: 'Create booking', icon: <Plus className="h-4 w-4" />, onClick: () => navigate('/bookings', { state: { quotation_id: quotation.id, enquiry_id: quotation.enquiry_id, customer_id: quotation.customer_id } }) },
+                  { label: 'Delete quotation', icon: <Trash2 className="h-4 w-4" />, onClick: () => { setDeleteTarget(quotation); setIsDeleteOpen(true); }, className: 'text-rose-600 dark:text-rose-400' }
+                ]} />
               </div>
             ))}
           </div>
@@ -405,6 +599,11 @@ const QuotationManagement = () => {
                       <button type="button" onClick={() => navigate(`/quotations/${quotation.id}`)} className="text-left">
                         <div className="break-words font-semibold text-slate-900 hover:text-cyan-700 dark:text-slate-100 dark:hover:text-cyan-300">{quotation.quotation_code || 'Draft quotation'}</div>
                         <div className="mt-1 break-words text-xs text-slate-500">{quotation.tour_name || 'Untitled tour'} · v{quotation.version || 1}</div>
+                        {quotation.enquiry_id && (
+                          <div className="mt-1 text-[11px] text-cyan-700 dark:text-cyan-400">
+                            Enquiry: {quotation.enquiry_code || quotation.enquiry_id.slice(0, 8)}
+                          </div>
+                        )}
                       </button>
                     </td>
                     <td className="px-4 py-4">
@@ -418,7 +617,11 @@ const QuotationManagement = () => {
                       <span className={`rounded-full border px-2 py-1 text-xs font-semibold ${statusClasses[quotation.status] || statusClasses.DRAFT}`}>{quotation.status || 'DRAFT'}</span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <ActionMenu actions={[{ label: 'Open quotation', icon: <ArrowRight className="h-4 w-4" />, onClick: () => navigate(`/quotations/${quotation.id}`) }, { label: 'Delete quotation', icon: <Trash2 className="h-4 w-4" />, onClick: () => { setDeleteTarget(quotation); setIsDeleteOpen(true); }, className: 'text-rose-600 dark:text-rose-400' }]} />
+                      <ActionMenu actions={[
+                        { label: 'Open quotation', icon: <ArrowRight className="h-4 w-4" />, onClick: () => navigate(`/quotations/${quotation.id}`) },
+                        { label: 'Create booking', icon: <Plus className="h-4 w-4" />, onClick: () => navigate('/bookings', { state: { quotation_id: quotation.id, enquiry_id: quotation.enquiry_id, customer_id: quotation.customer_id } }) },
+                        { label: 'Delete quotation', icon: <Trash2 className="h-4 w-4" />, onClick: () => { setDeleteTarget(quotation); setIsDeleteOpen(true); }, className: 'text-rose-600 dark:text-rose-400' }
+                      ]} />
                     </td>
                   </tr>
                 ))}
