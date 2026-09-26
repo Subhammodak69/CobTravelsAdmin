@@ -13,6 +13,7 @@ import {
   Car,
   Receipt,
   CalendarCheck,
+  Wallet,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -62,6 +63,11 @@ const Sidebar = ({
       icon: CalendarCheck,
       label: "Bookings",
       path: "/bookings",
+    },
+    {
+      icon: Wallet,
+      label: "Financial Management",
+      path: "/financial",
     },
     {
       icon: FileText,

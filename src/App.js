@@ -27,6 +27,7 @@ import EnquiryManagement from './pages/EnquiryManagement';
 import LeadManagement from './pages/LeadManagement';
 import Referrals from './pages/Referrals';
 import ReferralsConfiguration from './pages/ReferralsConfiguration';
+import FinancialManagement from './pages/FinancialManagement';
 import ServerUnavailable from './pages/ServerUnavailable';
 import NotFound from './pages/NotFound';
 
@@ -57,6 +58,7 @@ function App() {
           <Route path="/customers/:customerId" element={<CustomerDetails />} />
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/referrals/configuration" element={<ReferralsConfiguration />} />
+          <Route path="/financial" element={<FinancialManagement />} />
           <Route path="/enquiries" element={<EnquiryManagement />} />
           <Route path="/enquiries/:enquiryId/lead" element={<LeadManagement />} />
           <Route path="/leads/:leadId" element={<LeadManagement />} />
