@@ -16,6 +16,7 @@ const documentTypeOptions = documentTypes.map((type) => ({ value: type, label: t
 const defaultForm = {
   customer_id: '',
   file: '',
+  file_name: '',
   document_type: 'ID_PROOF',
   title: '',
   description: '',
@@ -241,15 +242,13 @@ const DocumentManagement = () => {
     setSaving(true);
 
     try {
-      const formData = new FormData();
-      formData.append('customer_id', formState.customer_id);
-      formData.append('file', formState.file);
-      formData.append('document_type', formState.document_type);
-      formData.append('title', formState.title);
-      formData.append('description', formState.description || '');
-
-      const response = await apiCall('/api/v1/admin/documents', 'POST', formData, {
-        'Content-Type': undefined,
+      const response = await apiCall('/api/v1/admin/documents', 'POST', {
+        customer_id: formState.customer_id,
+        file: formState.file,
+        file_name: formState.file_name || 'document',
+        document_type: formState.document_type,
+        title: formState.title,
+        description: formState.description || '',
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -655,7 +654,10 @@ const DocumentManagement = () => {
               <DragDropUpload
                 label="Document file"
                 value={formState.file}
-                onChange={(url) => handleFieldChange('file', url)}
+                onChange={(url, _uploadResult, file) => {
+                  handleFieldChange('file', url);
+                  handleFieldChange('file_name', file?.name || '');
+                }}
                 accept="application/pdf,image/*"
                 helperText="PDF, JPG, PNG, TIFF"
               />

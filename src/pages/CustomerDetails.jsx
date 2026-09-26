@@ -150,6 +150,15 @@ const CustomerDetails = () => {
 
   // Row Details Modals
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false);
+  const [documentUploadSaving, setDocumentUploadSaving] = useState(false);
+  const [documentUploadForm, setDocumentUploadForm] = useState({
+    file: '',
+    file_name: '',
+    document_type: 'ID_PROOF',
+    title: '',
+    description: '',
+  });
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
   const [selectedReview, setSelectedReview] = useState(null);
@@ -213,6 +222,44 @@ const CustomerDetails = () => {
       setTabLoading(false);
     }
   }, [customerId]);
+
+  const handleDocumentUpload = async (event) => {
+    event.preventDefault();
+    if (!documentUploadForm.file || !documentUploadForm.title.trim()) {
+      toast.error('Title and document file are required');
+      return;
+    }
+
+    setDocumentUploadSaving(true);
+    try {
+      const response = await apiCall('/api/v1/admin/documents', 'POST', {
+        customer_id: customerId,
+        file: documentUploadForm.file,
+        file_name: documentUploadForm.file_name || 'document',
+        document_type: documentUploadForm.document_type,
+        title: documentUploadForm.title,
+        description: documentUploadForm.description || '',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.detail || 'Unable to upload document');
+      }
+
+      toast.success('Document uploaded successfully');
+      setIsDocumentUploadOpen(false);
+      setDocumentUploadForm({ file: '', file_name: '', document_type: 'ID_PROOF', title: '', description: '' });
+      await loadTabData('documents');
+    } catch (error) {
+      handleApiError(error, 'Unable to upload document');
+    } finally {
+      setDocumentUploadSaving(false);
+    }
+  };
+
+  const closeDocumentUpload = () => {
+    setIsDocumentUploadOpen(false);
+    setDocumentUploadForm({ file: '', file_name: '', document_type: 'ID_PROOF', title: '', description: '' });
+  };
 
   useEffect(() => {
     if (activeTab !== 'details') {
@@ -565,7 +612,7 @@ const CustomerDetails = () => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => navigate('/document-management')}
+                  onClick={() => setIsDocumentUploadOpen(true)}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-indigo-400 shadow-sm"
                 >
                   <Plus className="h-3.5 w-3.5" /> Upload document
@@ -1003,6 +1050,70 @@ const CustomerDetails = () => {
           )}
         </div>
       </div>
+
+      <Modal
+        isOpen={isDocumentUploadOpen}
+        onClose={closeDocumentUpload}
+        title="Upload customer document"
+        icon={FileText}
+        size="lg"
+        footer={(
+          <div className="flex items-center justify-end gap-3">
+            <button type="button" onClick={closeDocumentUpload} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">
+              Cancel
+            </button>
+            <button type="submit" form="customer-document-form" disabled={documentUploadSaving} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60">
+              {documentUploadSaving ? 'Uploading...' : 'Upload document'}
+            </button>
+          </div>
+        )}
+      >
+        <form id="customer-document-form" onSubmit={handleDocumentUpload} className="space-y-4 p-1">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Document type</label>
+            <SelectField
+              options={['ID_PROOF', 'ADDRESS_PROOF', 'PASSPORT', 'PAN_CARD', 'BANK_ACCOUNT'].map((type) => ({ value: type, label: type }))}
+              value={{ value: documentUploadForm.document_type, label: documentUploadForm.document_type }}
+              onChange={(selected) => setDocumentUploadForm((current) => ({ ...current, document_type: selected?.value || 'ID_PROOF' }))}
+              isSearchable={false}
+              placeholder="Select document type"
+              menuPlacement="auto"
+              classNamePrefix="react-select"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
+            <input
+              value={documentUploadForm.title}
+              onChange={(event) => setDocumentUploadForm((current) => ({ ...current, title: event.target.value }))}
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              placeholder="Enter title"
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+            <textarea
+              value={documentUploadForm.description}
+              onChange={(event) => setDocumentUploadForm((current) => ({ ...current, description: event.target.value }))}
+              rows={3}
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              placeholder="Optional description"
+            />
+          </div>
+          <DragDropUpload
+            label="Document file"
+            value={documentUploadForm.file}
+            onChange={(url, _uploadResult, file) => setDocumentUploadForm((current) => ({
+              ...current,
+              file: url,
+              file_name: file?.name || '',
+            }))}
+            accept="application/pdf,image/*"
+            helperText="PDF, JPG, PNG, TIFF"
+          />
+        </form>
+      </Modal>
 
       {/* ── Document Preview Modal (MediaViewerModal) ── */}
       <MediaViewerModal isOpen={!!previewDoc} onClose={() => setPreviewDoc(null)}>

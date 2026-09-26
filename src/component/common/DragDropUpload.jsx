@@ -49,7 +49,7 @@ const DragDropUpload = ({
       }
 
       setPreview(uploadUrl);
-      onChange(uploadUrl, uploadResult);
+      onChange(uploadUrl, uploadResult, file);
     } catch (uploadError) {
       setError(uploadError?.message || 'Image upload failed.');
     } finally {
@@ -71,7 +71,7 @@ const DragDropUpload = ({
     setPreview('');
     setError('');
     if (inputRef.current) inputRef.current.value = '';
-    onChange?.('', null);
+    onChange?.('', null, null);
   };
 
   return (
