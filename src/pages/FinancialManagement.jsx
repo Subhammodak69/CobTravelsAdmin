@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ArrowDownLeft, ArrowUpRight, CalendarDays, ChartNoAxesCombined, Download, FileText, Filter, Landmark, Pencil, Plus, RefreshCw, Search, Trash2, Wallet, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CalendarDays, ChartNoAxesCombined, Download, FileSpreadsheet, FileText, Filter, Landmark, Layers, Pencil, Plus, RefreshCw, Search, Trash2, Wallet, X } from 'lucide-react';
 import ActionMenu from '../component/common/ActionMenu';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import CustomDatePicker from '../component/common/CustomDatePicker';
@@ -10,15 +10,55 @@ import Pagination from '../component/common/PaginationComponent';
 import SelectField from '../component/common/SelectField';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
-const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
+const inputClass = 'w-full h-[42px] rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
 const today = new Date().toISOString().slice(0, 10);
-const emptyFilters = { transaction_type: '', category: '', status: '', booking_id: '', customer_id: '', vendor_id: '', start_date: '', end_date: '', search: '' };
-const emptyTransaction = { transaction_type: 'INCOME', category: '', amount: '', description: '', transaction_date: today, payment_method: '', booking_id: '', customer_id: '', vendor_id: '' };
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const start_date = `${year}-${month}-01`;
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+  const end_date = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+  return { start_date, end_date };
+};
+const emptyFilters = { transaction_type: '', category: '', status: '', booking_id: '', customer_id: '', vendor_id: '', start_date: '', end_date: '', search: '', payment_method: '' };
+const emptyTransaction = { transaction_type: 'INCOME', category: '', amount: '', description: '', transaction_date: today, payment_method: '', booking_id: '', customer_id: '', vendor_id: '', status: 'PENDING' };
 const periodOptions = [{ value: 'daily', label: 'Daily' }, { value: 'weekly', label: 'Weekly' }, { value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly' }];
 const reportTypeOptions = [{ value: 'income', label: 'Income' }, { value: 'expenses', label: 'Expenses' }, { value: 'referral_income', label: 'Referral income' }, { value: 'all', label: 'All activity' }];
 const transactionTypeOptions = [{ value: '', label: 'All types' }, { value: 'INCOME', label: 'Income' }, { value: 'EXPENSE', label: 'Expense' }];
 const transactionDirectionOptions = transactionTypeOptions.filter(option => option.value);
-const transactionStatusOptions = [{ value: '', label: 'All statuses' }, { value: 'PENDING', label: 'Pending' }, { value: 'COMPLETED', label: 'Completed' }, { value: 'FAILED', label: 'Failed' }, { value: 'CANCELLED', label: 'Cancelled' }];
+
+const paymentMethodOptions = [
+  { value: 'WALLET', label: 'Wallet' },
+  { value: 'RAZORPAY', label: 'Razorpay' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'CASH', label: 'Cash' },
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+  { value: 'NET_BANKING', label: 'Net Banking' },
+  { value: 'CARD', label: 'Card' },
+  { value: 'OFFLINE', label: 'Offline' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const paymentMethodFilterOptions = [
+  { value: '', label: 'All payment methods' },
+  ...paymentMethodOptions,
+];
+
+const transactionEditStatusOptions = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'CONFIRMED', label: 'Confirmed' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'FAILED', label: 'Failed' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+  { value: 'REVERSED', label: 'Reversed' },
+];
+
+const transactionStatusOptions = [
+  { value: '', label: 'All statuses' },
+  ...transactionEditStatusOptions,
+];
+
 const views = [
   { id: 'transactions', label: 'Transactions', icon: Wallet },
   { id: 'reports', label: 'Reports', icon: FileText },
@@ -49,9 +89,10 @@ const getRows = payload => {
 };
 const statusClass = status => {
   const value = String(status || '').toUpperCase();
-  if (['COMPLETED', 'PAID', 'SUCCESS', 'SETTLED'].includes(value)) return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+  if (['COMPLETED', 'PAID', 'SUCCESS', 'SETTLED', 'CONFIRMED'].includes(value)) return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
   if (['FAILED', 'CANCELLED', 'REJECTED'].includes(value)) return 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300';
   if (['PENDING', 'PROCESSING', 'PARTIALLY_PAID'].includes(value)) return 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+  if (['REVERSED', 'REFUNDED'].includes(value)) return 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
   return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
 };
 
@@ -79,12 +120,13 @@ const FinancialManagement = () => {
 
   const [period, setPeriod] = useState('monthly');
   const [reportType, setReportType] = useState('income');
-  const [dateRange, setDateRange] = useState({ start_date: '', end_date: '' });
+  const [dateRange, setDateRange] = useState(getCurrentMonthRange);
   const [statistics, setStatistics] = useState(null);
   const [loadingStatistics, setLoadingStatistics] = useState(false);
   const [report, setReport] = useState(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [downloadingFormat, setDownloadingFormat] = useState('');
+  const [reportSearchTerm, setReportSearchTerm] = useState('');
 
   const loadTransactions = useCallback(async (page = currentPage, limit = pageSize) => {
     setLoadingTransactions(true);
@@ -203,12 +245,14 @@ const FinancialManagement = () => {
       amount: Number(transactionForm.amount),
       description: transactionForm.description.trim(),
       transaction_date: transactionForm.transaction_date,
-      payment_method: transactionForm.payment_method.trim() || null,
-      booking_id: transactionForm.booking_id.trim() || null,
-      customer_id: transactionForm.customer_id.trim() || null,
-      vendor_id: transactionForm.vendor_id.trim() || null,
+      payment_method: transactionForm.payment_method ? String(transactionForm.payment_method).trim() : null,
+      booking_id: transactionForm.booking_id ? String(transactionForm.booking_id).trim() : null,
+      customer_id: transactionForm.customer_id ? String(transactionForm.customer_id).trim() : null,
+      vendor_id: transactionForm.vendor_id ? String(transactionForm.vendor_id).trim() : null,
     };
-    if (editingTransaction && transactionForm.status) body.status = transactionForm.status;
+    if (editingTransaction) {
+      body.status = transactionForm.status || null;
+    }
     try {
       const endpoint = editingTransaction
         ? `/api/v1/admin/financial/transactions/${editingTransaction.id}`
@@ -243,13 +287,13 @@ const FinancialManagement = () => {
     }
   };
 
-  const generateReport = async event => {
-    event.preventDefault();
+  const generateReport = useCallback(async (event, customRange = dateRange, customType = reportType) => {
+    if (event && event.preventDefault) event.preventDefault();
     setLoadingReport(true);
     try {
-      const params = new URLSearchParams({ report_type: reportType });
-      if (dateRange.start_date) params.set('start_date', dateRange.start_date);
-      if (dateRange.end_date) params.set('end_date', dateRange.end_date);
+      const params = new URLSearchParams({ report_type: customType });
+      if (customRange.start_date) params.set('start_date', customRange.start_date);
+      if (customRange.end_date) params.set('end_date', customRange.end_date);
       const response = await apiCall(`/api/v1/admin/financial/reports?${params}`, 'GET');
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.message || payload?.detail || 'Unable to generate report');
@@ -259,6 +303,61 @@ const FinancialManagement = () => {
     } finally {
       setLoadingReport(false);
     }
+  }, [dateRange, reportType]);
+
+  useEffect(() => {
+    if (activeView === 'reports' && !report && !loadingReport) {
+      generateReport();
+    }
+  }, [activeView, report, loadingReport, generateReport]);
+
+  const reportTypes = [
+    { id: 'income', label: 'Income', icon: ArrowDownLeft, color: 'emerald' },
+    { id: 'expenses', label: 'Expenses', icon: ArrowUpRight, color: 'rose' },
+    { id: 'referral_income', label: 'Referral', icon: Landmark, color: 'blue' },
+    { id: 'all', label: 'All Activity', icon: Layers, color: 'cyan' },
+  ];
+
+  const datePresets = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    const toISO = d => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    const thisMonthStart = new Date(year, month, 1);
+    const thisMonthEnd = new Date(year, month + 1, 0);
+
+    const lastMonthStart = new Date(year, month - 1, 1);
+    const lastMonthEnd = new Date(year, month, 0);
+
+    const last30Start = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000);
+    const last30End = now;
+
+    const thisYearStart = new Date(year, 0, 1);
+    const thisYearEnd = new Date(year, 11, 31);
+
+    return [
+      { label: 'This Month', range: { start_date: toISO(thisMonthStart), end_date: toISO(thisMonthEnd) } },
+      { label: 'Last Month', range: { start_date: toISO(lastMonthStart), end_date: toISO(lastMonthEnd) } },
+      { label: 'Last 30 Days', range: { start_date: toISO(last30Start), end_date: toISO(last30End) } },
+      { label: 'This Year', range: { start_date: toISO(thisYearStart), end_date: toISO(thisYearEnd) } },
+    ];
+  }, []);
+
+  const applyPreset = preset => {
+    setDateRange(preset.range);
+    generateReport(undefined, preset.range, reportType);
+  };
+
+  const handleReportTypeSelect = type => {
+    setReportType(type);
+    generateReport(undefined, dateRange, type);
   };
 
   const downloadReport = async format => {
@@ -297,11 +396,113 @@ const FinancialManagement = () => {
     if (Array.isArray(report?.items)) return report.items;
     return [];
   }, [report]);
+
+  const filteredReportRows = useMemo(() => {
+    if (!reportSearchTerm.trim()) return reportRows;
+    const q = reportSearchTerm.toLowerCase();
+    return reportRows.filter(row => {
+      if (!row || typeof row !== 'object') return false;
+      return Object.values(row).some(val =>
+        String(val ?? '').toLowerCase().includes(q)
+      );
+    });
+  }, [reportRows, reportSearchTerm]);
+
   const reportColumns = useMemo(() => {
     const keys = new Set();
     reportRows.forEach(row => Object.keys(row || {}).forEach(key => keys.add(key)));
     return Array.from(keys);
   }, [reportRows]);
+
+  const summaryMetrics = useMemo(() => {
+    if (!report || typeof report !== 'object') return [];
+    return Object.entries(report).filter(
+      ([key, value]) =>
+        key !== 'rows' &&
+        key !== 'items' &&
+        key !== 'period' &&
+        key !== 'start_date' &&
+        key !== 'end_date' &&
+        (typeof value !== 'object' || value === null)
+    );
+  }, [report]);
+
+  const getMetricAccent = key => {
+    const k = key.toLowerCase();
+    if (k.includes('income') || k.includes('profit') || k.includes('revenue')) {
+      return { icon: ArrowDownLeft, bg: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' };
+    }
+    if (k.includes('expense') || k.includes('loss') || k.includes('due')) {
+      return { icon: ArrowUpRight, bg: 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800' };
+    }
+    if (k.includes('referral')) {
+      return { icon: Landmark, bg: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' };
+    }
+    return { icon: Wallet, bg: 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800' };
+  };
+
+  const renderReportCell = (column, value) => {
+    if (value == null || value === '') return '—';
+    const col = column.toLowerCase();
+
+    if (
+      col.includes('amount') ||
+      col.includes('income') ||
+      col.includes('expense') ||
+      col.includes('price') ||
+      col.includes('cost') ||
+      col.includes('profit') ||
+      col.includes('balance') ||
+      col.includes('total')
+    ) {
+      const num = Number(value);
+      const isNegative = !Number.isNaN(num) && num < 0;
+      const isPositive = !Number.isNaN(num) && num > 0;
+      return (
+        <span
+          className={`font-semibold ${
+            isNegative || col.includes('expense')
+              ? 'text-rose-600 dark:text-rose-400'
+              : isPositive || col.includes('income')
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-gray-900 dark:text-white'
+          }`}
+        >
+          {formatAmount(value)}
+        </span>
+      );
+    }
+
+    if (col.includes('status')) {
+      return (
+        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusClass(value)}`}>
+          {prettyLabel(value)}
+        </span>
+      );
+    }
+
+    if (col.includes('date') || col.includes('created_at') || col.includes('updated_at')) {
+      return (
+        <span className="whitespace-nowrap text-xs text-gray-600 dark:text-gray-300">
+          {formatDate(value)}
+        </span>
+      );
+    }
+
+    if (col.includes('id') || col.includes('code') || col.includes('ref')) {
+      return (
+        <span className="font-mono text-xs text-gray-500 dark:text-gray-400" title={String(value)}>
+          {String(value)}
+        </span>
+      );
+    }
+
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+
+    return String(value);
+  };
 
   const applyFilters = event => {
     event.preventDefault();
@@ -355,7 +556,7 @@ const FinancialManagement = () => {
               onClick={() => loadTransactions(currentPage, pageSize)}
               aria-label="Refresh transactions"
               title="Refresh transactions"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-sm font-semibold text-gray-700 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             >
               <RefreshCw className={`h-4 w-4 ${loadingTransactions ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
@@ -365,10 +566,22 @@ const FinancialManagement = () => {
             <button
               type="button"
               onClick={openCreateTransaction}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 p-2.5 text-sm font-semibold text-white hover:bg-cyan-700 sm:px-4"
+              className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-sm font-semibold text-white hover:bg-cyan-700"
             >
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">New transaction</span>
+            </button>
+          )}
+          {activeView === 'reports' && (
+            <button
+              type="button"
+              onClick={() => generateReport()}
+              aria-label="Refresh report"
+              title="Refresh report"
+              className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingReport ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           )}
           {activeView === 'statistics' && (
@@ -377,7 +590,7 @@ const FinancialManagement = () => {
               onClick={loadStatistics}
               aria-label="Refresh statistics"
               title="Refresh statistics"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-sm font-semibold text-gray-700 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             >
               <RefreshCw className={`h-4 w-4 ${loadingStatistics ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Refresh</span>
@@ -389,7 +602,21 @@ const FinancialManagement = () => {
       <nav aria-label="Financial views" className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
         {views.map(view => {
           const Icon = view.icon;
-          return <button key={view.id} type="button" onClick={() => setActiveView(view.id)} className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition ${activeView === view.id ? 'bg-cyan-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}`}><Icon className="h-4 w-4" />{view.label}</button>;
+          return (
+            <button
+              key={view.id}
+              type="button"
+              onClick={() => setActiveView(view.id)}
+              className={`inline-flex h-[42px] shrink-0 items-center gap-2 rounded-lg px-3.5 text-sm font-semibold transition ${
+                activeView === view.id
+                  ? 'bg-cyan-600 text-white'
+                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {view.label}
+            </button>
+          );
         })}
       </nav>
 
@@ -402,7 +629,7 @@ const FinancialManagement = () => {
               value={filters.search}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search transactions..."
-              className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              className="w-full h-[42px] rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             />
           </div>
 
@@ -413,7 +640,7 @@ const FinancialManagement = () => {
               loadReferenceOptions();
               setIsFilterModalOpen(true);
             }}
-            className={`relative inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-semibold transition sm:px-4 ${
+            className={`relative inline-flex h-[42px] shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition sm:px-4 ${
               activeFilterCount > 0
                 ? 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300'
                 : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
@@ -432,7 +659,7 @@ const FinancialManagement = () => {
             <button
               type="button"
               onClick={clearAllFilters}
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-2.5 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:px-3"
+              className="inline-flex h-[42px] shrink-0 items-center gap-1 rounded-xl border border-dashed border-gray-300 px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
               <X className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Clear</span>
@@ -476,27 +703,225 @@ const FinancialManagement = () => {
             <label className="min-w-40 flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Reporting period<SelectField options={periodOptions} value={periodOptions.find(option => option.value === period) || null} onChange={option => setPeriod(option?.value || 'monthly')} isSearchable={false} className="mt-1" menuPlacement="auto" classNamePrefix="react-select" /></label>
             <label className="flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Start date<input type="date" value={dateRange.start_date} onChange={event => setDateRange({ ...dateRange, start_date: event.target.value })} className={`${inputClass} mt-1`} /></label>
             <label className="flex-1 text-xs font-semibold text-gray-600 dark:text-gray-300">End date<input type="date" value={dateRange.end_date} onChange={event => setDateRange({ ...dateRange, end_date: event.target.value })} className={`${inputClass} mt-1`} /></label>
-            <button type="button" onClick={loadStatistics} disabled={loadingStatistics} className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"><CalendarDays className="h-4 w-4" />Update</button>
+            <button type="button" onClick={loadStatistics} disabled={loadingStatistics} className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-sm font-semibold text-white disabled:opacity-60"><CalendarDays className="h-4 w-4" />Update</button>
           </div>
           {loadingStatistics ? <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-gray-500"><RefreshCw className="h-4 w-4 animate-spin" />Loading statistics...</div> : statistics ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(metric => { const Icon = metric.icon; return <article key={metric.key} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900"><div className="flex items-center justify-between"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">{metric.label}</p><span className={`rounded-xl p-2 ${metricColors[metric.color]}`}><Icon className="h-4 w-4" /></span></div><p className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">{formatAmount(statistics[metric.key])}</p><p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{statistics.start_date || 'Period start not specified'}{statistics.end_date ? ` to ${statistics.end_date}` : ''}</p></article>; })}</div> : <div className="p-12 text-center text-sm text-gray-500">No statistics available.</div>}
         </section>
       )}
 
       {activeView === 'reports' && (
-        <section className="space-y-4">
-          <form onSubmit={generateReport} className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
-            <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Report type<SelectField options={reportTypeOptions} value={reportTypeOptions.find(option => option.value === reportType) || null} onChange={option => setReportType(option?.value || 'income')} isSearchable={false} className="mt-1" menuPlacement="auto" classNamePrefix="react-select" /></label>
-            <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">Start date<input type="date" value={dateRange.start_date} onChange={event => setDateRange({ ...dateRange, start_date: event.target.value })} className={`${inputClass} mt-1`} /></label>
-            <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">End date<input type="date" value={dateRange.end_date} onChange={event => setDateRange({ ...dateRange, end_date: event.target.value })} className={`${inputClass} mt-1`} /></label>
-            <button type="submit" disabled={loadingReport} className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"><ChartNoAxesCombined className="h-4 w-4" />{loadingReport ? 'Generating...' : 'Generate report'}</button>
-            <div className="flex gap-2">{['csv', 'excel', 'pdf'].map(format => <button key={format} type="button" disabled={Boolean(downloadingFormat)} onClick={() => downloadReport(format)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold capitalize text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"><Download className="h-4 w-4" />{downloadingFormat === format ? '...' : format}</button>)}</div>
-          </form>
-          {!report && !loadingReport ? <div className="flex min-h-48 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-gray-300 text-center dark:border-gray-700"><FileText className="h-8 w-8 text-gray-300" /><p className="text-sm text-gray-500">Choose a report and generate it to review the results.</p></div> : null}
-          {loadingReport && <div className="flex min-h-48 items-center justify-center gap-2 text-sm text-gray-500"><RefreshCw className="h-4 w-4 animate-spin" />Generating report...</div>}
-          {report && !loadingReport && <div className="space-y-4">
-            {Object.entries(report).filter(([key, value]) => key !== 'rows' && key !== 'items' && key !== 'period' && key !== 'start_date' && key !== 'end_date' && (typeof value !== 'object' || value === null)).length > 0 && <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{Object.entries(report).filter(([key, value]) => key !== 'rows' && key !== 'items' && key !== 'period' && key !== 'start_date' && key !== 'end_date' && (typeof value !== 'object' || value === null)).map(([key, value]) => <div key={key} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"><p className="text-xs text-gray-500">{prettyLabel(key)}</p><p className="mt-2 break-words text-lg font-bold text-gray-900 dark:text-white">{key.includes('amount') || key.includes('income') || key.includes('expense') || key.includes('total') ? formatAmount(value) : String(value ?? '—')}</p></div>)}</div>}
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900"><div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800"><h2 className="font-semibold text-gray-900 dark:text-white">Report details</h2><p className="text-xs text-gray-500">{reportRows.length} rows</p></div>{reportRows.length && reportColumns.length ? <div className="overflow-x-auto"><ManagementTable><table className="min-w-full text-left text-sm"><thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-800/70 dark:text-gray-400"><tr>{reportColumns.map(column => <th key={column} className="whitespace-nowrap px-4 py-3">{prettyLabel(column)}</th>)}</tr></thead><tbody className="divide-y divide-gray-100 dark:divide-gray-800">{reportRows.map((row, index) => <tr key={row.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">{reportColumns.map(column => <td key={column} className="max-w-sm px-4 py-3 text-gray-700 dark:text-gray-200">{row[column] == null ? '—' : typeof row[column] === 'object' ? JSON.stringify(row[column]) : String(row[column])}</td>)}</tr>)}</tbody></table></ManagementTable></div> : <div className="p-10 text-center text-sm text-gray-500">No report rows for this period.</div>}</div>
-          </div>}
+        <section className="space-y-5">
+          {/* Controls Card */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+            <div className="flex flex-col gap-4">
+              {/* Statement Type Segmented Control */}
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Select Statement Type
+                </span>
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {reportTypes.map(rt => {
+                    const Icon = rt.icon;
+                    const isActive = reportType === rt.id;
+                    return (
+                      <button
+                        key={rt.id}
+                        type="button"
+                        onClick={() => handleReportTypeSelect(rt.id)}
+                        className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition sm:text-sm ${
+                          isActive
+                            ? 'border-cyan-600 bg-cyan-50/80 text-cyan-700 shadow-sm dark:border-cyan-500 dark:bg-cyan-950/40 dark:text-cyan-300'
+                            : 'border-gray-200 bg-gray-50/50 text-gray-600 hover:border-gray-300 hover:bg-gray-100/70 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-300 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <Icon className={`h-4 w-4 ${isActive ? 'text-cyan-600 dark:text-cyan-400' : 'text-gray-400'}`} />
+                        <span>{rt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Quick Period Presets */}
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  Quick Date Presets
+                </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {datePresets.map(preset => {
+                    const isActive =
+                      dateRange.start_date === preset.range.start_date &&
+                      dateRange.end_date === preset.range.end_date;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => applyPreset(preset)}
+                        className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                          isActive
+                            ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-600/25'
+                            : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Custom Date Range & Action Buttons */}
+              <form onSubmit={generateReport} className="flex flex-col gap-3 pt-1 lg:flex-row lg:items-end">
+                <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    From date
+                    <div className="relative mt-1">
+                      <input
+                        type="date"
+                        value={dateRange.start_date}
+                        onChange={event => setDateRange({ ...dateRange, start_date: event.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+                  </label>
+                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    To date
+                    <div className="relative mt-1">
+                      <input
+                        type="date"
+                        value={dateRange.end_date}
+                        onChange={event => setDateRange({ ...dateRange, end_date: event.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={loadingReport}
+                    className="inline-flex h-[42px] flex-1 items-center justify-center gap-2 rounded-xl bg-cyan-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-cyan-700 disabled:opacity-60 sm:flex-none"
+                  >
+                    <ChartNoAxesCombined className={`h-4 w-4 ${loadingReport ? 'animate-spin' : ''}`} />
+                    <span>{loadingReport ? 'Generating...' : 'Generate report'}</span>
+                  </button>
+
+                  <div className="flex flex-1 items-center gap-1.5 sm:flex-none">
+                    <span className="hidden text-xs font-semibold text-gray-400 sm:inline">Export:</span>
+                    {[
+                      { format: 'csv', label: 'CSV', color: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' },
+                      { format: 'excel', label: 'Excel', color: 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300' },
+                      { format: 'pdf', label: 'PDF', color: 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300' },
+                    ].map(({ format, label, color }) => (
+                      <button
+                        key={format}
+                        type="button"
+                        disabled={Boolean(downloadingFormat)}
+                        onClick={() => downloadReport(format)}
+                        title={`Download as ${label}`}
+                        className={`inline-flex h-[42px] flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition disabled:opacity-50 sm:flex-none ${color}`}
+                      >
+                        <Download className={`h-3.5 w-3.5 ${downloadingFormat === format ? 'animate-bounce' : ''}`} />
+                        <span>{downloadingFormat === format ? '...' : label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          {/* Loading state */}
+          {loadingReport && (
+            <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">
+              <RefreshCw className="h-7 w-7 animate-spin text-cyan-600 dark:text-cyan-400" />
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Generating report statement...</p>
+              <p className="text-xs text-gray-500">Aggregating records for {dateRange.start_date || 'start'} to {dateRange.end_date || 'today'}</p>
+            </div>
+          )}
+
+          {/* No Report yet state */}
+          {!report && !loadingReport && (
+            <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center dark:border-gray-700 dark:bg-gray-900">
+              <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-800">
+                <FileText className="h-8 w-8 text-gray-400" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-gray-800 dark:text-gray-200">No report generated yet</p>
+                <p className="mt-1 text-xs text-gray-500">Select a statement type and date range above, then click Generate report.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => generateReport()}
+                className="mt-2 inline-flex h-[42px] items-center gap-1.5 rounded-xl bg-cyan-600 px-4 text-xs font-semibold text-white hover:bg-cyan-700"
+              >
+                <ChartNoAxesCombined className="h-3.5 w-3.5" />
+                Generate this month's report
+              </button>
+            </div>
+          )}
+
+          {/* Report Data display */}
+          {report && !loadingReport && (
+            <div className="space-y-5">
+              {/* Table Card */}
+              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-gray-900 dark:text-white">Report Details</h2>
+                    <p className="text-xs text-gray-500">
+                      Showing {filteredReportRows.length} of {reportRows.length} total entries
+                    </p>
+                  </div>
+                  {reportRows.length > 0 && (
+                    <div className="relative w-full sm:w-64">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        value={reportSearchTerm}
+                        onChange={e => setReportSearchTerm(e.target.value)}
+                        placeholder="Search report entries..."
+                        className="h-[42px] w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {filteredReportRows.length > 0 && reportColumns.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <ManagementTable>
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-gray-800/70 dark:text-gray-400">
+                          <tr>
+                            {reportColumns.map(column => (
+                              <th key={column} className="whitespace-nowrap px-4 py-3 font-semibold">
+                                {prettyLabel(column)}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                          {filteredReportRows.map((row, index) => (
+                            <tr key={row.id || index} className="hover:bg-gray-50/70 dark:hover:bg-gray-800/40">
+                              {reportColumns.map(column => (
+                                <td key={column} className="max-w-sm px-4 py-3 text-xs">
+                                  {renderReportCell(column, row[column])}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </ManagementTable>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center text-sm text-gray-500">
+                    {reportSearchTerm ? 'No report entries match your search.' : 'No statement rows for this period.'}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -506,16 +931,17 @@ const FinancialManagement = () => {
         title="Filter transactions"
         icon={Filter}
         size="lg"
-        footer={<div className="flex w-full flex-col-reverse justify-between gap-3 sm:flex-row"><button type="button" onClick={() => { setFilterDraft(emptyFilters); setFilters(emptyFilters); setCurrentPage(1); setIsFilterModalOpen(false); }} className="rounded-xl px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">Clear filters</button><div className="flex justify-end gap-2"><button type="button" onClick={() => { setFilterDraft(filters); setIsFilterModalOpen(false); }} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:border-gray-600 dark:text-gray-200">Cancel</button><button type="submit" form="financial-filter-form" className="rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700">Apply filters</button></div></div>}
+        footer={<div className="flex w-full flex-col-reverse justify-between gap-3 sm:flex-row"><button type="button" onClick={() => { setFilterDraft(emptyFilters); setFilters(emptyFilters); setCurrentPage(1); setIsFilterModalOpen(false); }} className="inline-flex h-[42px] items-center rounded-xl px-3 text-sm font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">Clear filters</button><div className="flex justify-end gap-2"><button type="button" onClick={() => { setFilterDraft(filters); setIsFilterModalOpen(false); }} className="inline-flex h-[42px] items-center justify-center rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700 dark:border-gray-600 dark:text-gray-200">Cancel</button><button type="submit" form="financial-filter-form" className="inline-flex h-[42px] items-center justify-center rounded-xl bg-cyan-600 px-4 text-sm font-semibold text-white hover:bg-cyan-700">Apply filters</button></div></div>}
       >
         <form id="financial-filter-form" onSubmit={applyFilters} className="grid gap-4 p-1 sm:grid-cols-2">
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-2">Search<div className="relative mt-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input autoFocus value={filterDraft.search} onChange={event => setFilterDraft({ ...filterDraft, search: event.target.value })} className={`${inputClass} pl-9`} placeholder="Search transactions" /></div></label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Transaction type<SelectField options={transactionTypeOptions} value={transactionTypeOptions.find(option => option.value === filterDraft.transaction_type) || transactionTypeOptions[0]} onChange={option => setFilterDraft({ ...filterDraft, transaction_type: option?.value || '' })} isSearchable={false} className="mt-1" menuPlacement="auto" classNamePrefix="react-select" /></label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status<SelectField options={transactionStatusOptions} value={transactionStatusOptions.find(option => option.value === filterDraft.status) || transactionStatusOptions[0]} onChange={option => setFilterDraft({ ...filterDraft, status: option?.value || '' })} isSearchable={false} className="mt-1" menuPlacement="auto" classNamePrefix="react-select" /></label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Payment method<SelectField options={paymentMethodFilterOptions} value={paymentMethodFilterOptions.find(option => option.value === filterDraft.payment_method) || paymentMethodFilterOptions[0]} onChange={option => setFilterDraft({ ...filterDraft, payment_method: option?.value || '' })} isSearchable className="mt-1" menuPlacement="auto" classNamePrefix="react-select" /></label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category<input value={filterDraft.category} onChange={event => setFilterDraft({ ...filterDraft, category: event.target.value })} className={`${inputClass} mt-1`} placeholder="Category" /></label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Booking<SelectField options={bookingOptions} value={bookingOptions.find(option => option.value === filterDraft.booking_id) || (filterDraft.booking_id ? { value: filterDraft.booking_id, label: filterDraft.booking_id } : null)} onChange={option => setFilterDraft({ ...filterDraft, booking_id: option?.value || '' })} isSearchable isClearable isLoading={loadingReferences} className="mt-1" placeholder="Search bookings..." noOptionsMessage={() => loadingReferences ? 'Loading bookings...' : 'No bookings found'} menuPlacement="auto" classNamePrefix="react-select" /></label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Customer<SelectField options={customerOptions} value={customerOptions.find(option => option.value === filterDraft.customer_id) || (filterDraft.customer_id ? { value: filterDraft.customer_id, label: filterDraft.customer_id } : null)} onChange={option => setFilterDraft({ ...filterDraft, customer_id: option?.value || '' })} isSearchable isClearable isLoading={loadingReferences} className="mt-1" placeholder="Search customers..." noOptionsMessage={() => loadingReferences ? 'Loading customers...' : 'No customers found'} menuPlacement="auto" classNamePrefix="react-select" /></label>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Vendor<SelectField options={vendorOptions} value={vendorOptions.find(option => option.value === filterDraft.vendor_id) || (filterDraft.vendor_id ? { value: filterDraft.vendor_id, label: filterDraft.vendor_id } : null)} onChange={option => setFilterDraft({ ...filterDraft, vendor_id: option?.value || '' })} isSearchable isClearable isLoading={loadingReferences} className="mt-1" placeholder="Search vendors..." noOptionsMessage={() => loadingReferences ? 'Loading vendors...' : 'No vendors found'} menuPlacement="auto" classNamePrefix="react-select" /></label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-2">Vendor<SelectField options={vendorOptions} value={vendorOptions.find(option => option.value === filterDraft.vendor_id) || (filterDraft.vendor_id ? { value: filterDraft.vendor_id, label: filterDraft.vendor_id } : null)} onChange={option => setFilterDraft({ ...filterDraft, vendor_id: option?.value || '' })} isSearchable isClearable isLoading={loadingReferences} className="mt-1" placeholder="Search vendors..." noOptionsMessage={() => loadingReferences ? 'Loading vendors...' : 'No vendors found'} menuPlacement="auto" classNamePrefix="react-select" /></label>
           <div className="grid gap-4 sm:grid-cols-2 sm:col-span-2">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Start date<CustomDatePicker value={filterDraft.start_date} onChange={value => setFilterDraft({ ...filterDraft, start_date: value })} includeTime={false} placeholder="Choose start date" /></label>
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">End date<CustomDatePicker value={filterDraft.end_date} onChange={value => setFilterDraft({ ...filterDraft, end_date: value })} includeTime={false} placeholder="Choose end date" /></label>
@@ -523,18 +949,57 @@ const FinancialManagement = () => {
         </form>
       </Modal>
 
-      <Modal isOpen={isTransactionModalOpen} onClose={() => !savingTransaction && setIsTransactionModalOpen(false)} title={editingTransaction ? 'Edit transaction' : 'New transaction'} icon={Wallet} size="lg" footer={<div className="flex justify-end gap-2"><button type="button" onClick={() => setIsTransactionModalOpen(false)} disabled={savingTransaction} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:border-gray-600 dark:text-gray-200">Cancel</button><button type="submit" form="financial-transaction-form" disabled={savingTransaction} className="rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingTransaction ? 'Saving...' : editingTransaction ? 'Save changes' : 'Create transaction'}</button></div>}>
+      <Modal isOpen={isTransactionModalOpen} onClose={() => !savingTransaction && setIsTransactionModalOpen(false)} title={editingTransaction ? 'Edit transaction' : 'New transaction'} icon={Wallet} size="lg" footer={<div className="flex justify-end gap-2"><button type="button" onClick={() => setIsTransactionModalOpen(false)} disabled={savingTransaction} className="inline-flex h-[42px] items-center justify-center rounded-xl border border-gray-300 px-4 text-sm font-semibold text-gray-700 dark:border-gray-600 dark:text-gray-200">Cancel</button><button type="submit" form="financial-transaction-form" disabled={savingTransaction} className="inline-flex h-[42px] items-center justify-center rounded-xl bg-cyan-600 px-4 text-sm font-semibold text-white disabled:opacity-60">{savingTransaction ? 'Saving...' : editingTransaction ? 'Save changes' : 'Create transaction'}</button></div>}>
         <form id="financial-transaction-form" onSubmit={saveTransaction} className="grid gap-4 p-1 sm:grid-cols-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Transaction type<SelectField options={transactionDirectionOptions} value={transactionDirectionOptions.find(option => option.value === transactionForm.transaction_type) || transactionDirectionOptions[0]} onChange={option => setTransactionForm({ ...transactionForm, transaction_type: option?.value || 'INCOME' })} isSearchable={false} className="mt-1" menuPlacement="auto" classNamePrefix="react-select" /></label>
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Transaction type</label>
+            <SelectField
+              options={transactionDirectionOptions}
+              value={transactionDirectionOptions.find(option => option.value === transactionForm.transaction_type) || transactionDirectionOptions[0]}
+              onChange={option => setTransactionForm({ ...transactionForm, transaction_type: option?.value || 'INCOME' })}
+              isSearchable={false}
+              className="mt-1"
+              menuPlacement="auto"
+              classNamePrefix="react-select"
+            />
+          </div>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category<input required value={transactionForm.category} onChange={event => setTransactionForm({ ...transactionForm, category: event.target.value })} className={`${inputClass} mt-1`} placeholder="e.g. booking, refund, vendor payment" /></label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount<input required type="number" min="0.01" step="0.01" value={transactionForm.amount} onChange={event => setTransactionForm({ ...transactionForm, amount: event.target.value })} className={`${inputClass} mt-1`} /></label>
           <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Transaction date<input required type="date" value={transactionForm.transaction_date} onChange={event => setTransactionForm({ ...transactionForm, transaction_date: event.target.value })} className={`${inputClass} mt-1`} /></label>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Payment method<input value={transactionForm.payment_method} onChange={event => setTransactionForm({ ...transactionForm, payment_method: event.target.value })} className={`${inputClass} mt-1`} placeholder="Optional" /></label>
-          {editingTransaction && <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status<input value={transactionForm.status || ''} onChange={event => setTransactionForm({ ...transactionForm, status: event.target.value })} className={`${inputClass} mt-1`} placeholder="Transaction status" /></label>}
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Payment method</label>
+            <SelectField
+              options={paymentMethodOptions}
+              value={paymentMethodOptions.find(option => option.value === transactionForm.payment_method) || (transactionForm.payment_method ? { value: transactionForm.payment_method, label: prettyLabel(transactionForm.payment_method) } : null)}
+              onChange={option => setTransactionForm({ ...transactionForm, payment_method: option?.value || '' })}
+              isSearchable
+              isClearable
+              placeholder="Select payment method..."
+              className="mt-1"
+              menuPlacement="auto"
+              classNamePrefix="react-select"
+            />
+          </div>
+          {editingTransaction && (
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+              <SelectField
+                options={transactionEditStatusOptions}
+                value={transactionEditStatusOptions.find(option => option.value === transactionForm.status) || (transactionForm.status ? { value: transactionForm.status, label: prettyLabel(transactionForm.status) } : null)}
+                onChange={option => setTransactionForm({ ...transactionForm, status: option?.value || '' })}
+                isSearchable={false}
+                isClearable
+                placeholder="Select status..."
+                className="mt-1"
+                menuPlacement="auto"
+                classNamePrefix="react-select"
+              />
+            </div>
+          )}
           <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">Booking</label><SelectField options={bookingOptions} value={bookingOptions.find(option => option.value === transactionForm.booking_id) || (transactionForm.booking_id ? { value: transactionForm.booking_id, label: editingTransaction?.booking_code || transactionForm.booking_id } : null)} onChange={option => setTransactionForm(current => ({ ...current, booking_id: option?.value || '', customer_id: option?.raw?.customer_id || option?.raw?.customer?.id || current.customer_id }))} isSearchable isClearable isLoading={loadingReferences} placeholder="Search bookings..." noOptionsMessage={() => loadingReferences ? 'Loading bookings...' : 'No bookings found'} menuPlacement="auto" classNamePrefix="react-select" /></div>
           <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">Customer</label><SelectField options={customerOptions} value={customerOptions.find(option => option.value === transactionForm.customer_id) || (transactionForm.customer_id ? { value: transactionForm.customer_id, label: transactionForm.customer_id } : null)} onChange={option => setTransactionForm(current => ({ ...current, customer_id: option?.value || '' }))} isSearchable isClearable isLoading={loadingReferences} placeholder="Search customers..." noOptionsMessage={() => loadingReferences ? 'Loading customers...' : 'No customers found'} menuPlacement="auto" classNamePrefix="react-select" /></div>
           <div><label className="text-sm font-medium text-gray-700 dark:text-gray-300">Vendor</label><SelectField options={vendorOptions} value={vendorOptions.find(option => option.value === transactionForm.vendor_id) || (transactionForm.vendor_id ? { value: transactionForm.vendor_id, label: editingTransaction?.vendor_name || transactionForm.vendor_id } : null)} onChange={option => setTransactionForm(current => ({ ...current, vendor_id: option?.value || '' }))} isSearchable isClearable isLoading={loadingReferences} placeholder="Search vendors..." noOptionsMessage={() => loadingReferences ? 'Loading vendors...' : 'No vendors found'} menuPlacement="auto" classNamePrefix="react-select" /></div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-2">Description<textarea required rows={3} value={transactionForm.description} onChange={event => setTransactionForm({ ...transactionForm, description: event.target.value })} className={`${inputClass} mt-1`} /></label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-2">Description<textarea required rows={3} value={transactionForm.description} onChange={event => setTransactionForm({ ...transactionForm, description: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-700 outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200" /></label>
         </form>
       </Modal>
       <ConfirmDeleteModal isOpen={Boolean(deleteTarget)} onClose={() => !deleting && setDeleteTarget(null)} onConfirm={removeTransaction} confirming={deleting} itemLabel={deleteTarget?.description || deleteTarget?.transaction_code || 'this transaction'} title="Delete transaction" message="This transaction and its associated ledger entries will be permanently deleted when permitted." />
