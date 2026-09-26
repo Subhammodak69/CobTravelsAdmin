@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import ManagementTable from '../component/common/ManagementTable';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -328,7 +329,7 @@ const TourVariant = () => {
         ) : (
           <div className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
+              <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800/70">
                   <tr>
                     <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Variant</th>
@@ -427,7 +428,7 @@ const TourVariant = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></ManagementTable>
             </div>
           </div>
         )}

@@ -13,7 +13,86 @@ function resolveRowKey(row, rowKey, index) {
   return index;
 }
 
+function getTextContent(node) {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (!React.isValidElement(node)) return '';
+  return React.Children.toArray(node.props.children).map(getTextContent).join(' ').trim();
+}
+
+function collectRows(children) {
+  const rows = [];
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return;
+    if (child.type === 'tr') {
+      rows.push(child);
+    } else if (child.type === React.Fragment) {
+      rows.push(...collectRows(child.props.children));
+    }
+  });
+  return rows;
+}
+
+function NativeTableCards({ children }) {
+  const table = React.Children.toArray(children).find((child) => React.isValidElement(child) && child.type === 'table');
+  if (!table) return children;
+
+  const sections = React.Children.toArray(table.props.children);
+  const header = sections.find((section) => React.isValidElement(section) && section.type === 'thead');
+  const body = sections.find((section) => React.isValidElement(section) && section.type === 'tbody');
+  const headerRow = header && collectRows(header.props.children)[0];
+  const headerCells = headerRow
+    ? React.Children.toArray(headerRow.props.children).filter((cell) => React.isValidElement(cell) && cell.type === 'th')
+    : [];
+  const rows = body ? collectRows(body.props.children) : [];
+  const actionColumnIndex = headerCells.findIndex((cell) => /^(action|actions)$/i.test(getTextContent(cell.props.children)));
+
+  return (
+    <>
+      <div className="space-y-3 p-2 md:hidden">
+        {rows.map((row, rowIndex) => {
+          const cells = React.Children.toArray(row.props.children).filter((cell) => React.isValidElement(cell) && cell.type === 'td');
+          if (!cells.length) return null;
+
+          const primaryCell = cells[0];
+          const actionCell = actionColumnIndex >= 0 ? cells[actionColumnIndex] : null;
+          const detailCells = cells.filter((_, index) => index !== 0 && index !== actionColumnIndex);
+
+          return (
+            <article
+              key={row.key || rowIndex}
+              onClick={row.props.onClick}
+              onContextMenu={row.props.onContextMenu}
+              className="rounded-xl border border-gray-200 bg-white p-3 text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            >
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">{primaryCell.props.children}</div>
+                {actionCell && <div className="shrink-0">{actionCell.props.children}</div>}
+              </div>
+              {detailCells.length > 0 && (
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                  {detailCells.map((cell) => {
+                    const index = cells.indexOf(cell);
+                    const label = headerCells[index] ? getTextContent(headerCells[index].props.children) : `Detail ${index}`;
+                    return (
+                      <div key={cell.key || index} className="min-w-0">
+                        <dt className="mb-0.5 text-[10px] font-semibold uppercase text-gray-500 dark:text-gray-400">{label}</dt>
+                        <dd className="break-words text-xs">{cell.props.children}</dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-x-auto md:block">{table}</div>
+    </>
+  );
+}
+
 export default function ManagementTable({
+  children,
   rows = [],
   columns = [],
   rowKey = 'id',
@@ -94,6 +173,10 @@ export default function ManagementTable({
     setContextMenu({ actions: rowActions, x: e.clientX, y: e.clientY, key: `ctx-${resolveRowKey(row, rowKey, index)}` });
   };
 
+  if (children) {
+    return <NativeTableCards>{children}</NativeTableCards>;
+  }
+
   if (!rows.length) {
     return emptyState || null;
   }
@@ -106,7 +189,64 @@ export default function ManagementTable({
       className={joinClasses('overflow-hidden rounded-2xl bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg border w-full', cardClass, containerClassName, className)}
     >
       <div className={joinClasses('w-full', tableClassName)}>
-        <table className="w-full table-fixed text-left text-sm text-gray-700 dark:text-gray-300">
+        <div className="space-y-3 p-3 md:hidden">
+          {rows.map((row, index) => {
+            const key = resolveRowKey(row, rowKey, index);
+            const rowActions = typeof getActions === 'function' ? getActions(row, index) : actions;
+            const hasRowActions = Array.isArray(rowActions) ? rowActions.length > 0 : Boolean(rowActions);
+            const primaryColumn = allVisibleColumns[0];
+            const mobileColumns = allVisibleColumns.slice(1).filter((column) => column.mobile !== false);
+            const rowId = `row-${String(key)}`;
+            const primaryContent = primaryColumn
+              ? (typeof primaryColumn.render === 'function' ? primaryColumn.render(row, index) : row?.[primaryColumn.key])
+              : null;
+
+            return (
+              <div
+                key={`mobile-${key}`}
+                onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+                onContextMenu={(actions || getActions) ? (event) => handleContextMenu(event, row, index) : undefined}
+                className={joinClasses(
+                  'rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900',
+                  onRowClick && 'cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-gray-800'
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1 text-sm">{primaryContent}</div>
+                  {showActionsColumn && (actions || getActions) && hasRowActions && (
+                    <div className="shrink-0" onClick={(event) => event.stopPropagation()}>
+                      <ActionMenu
+                        menuId={`mobile-${rowId}`}
+                        activeId={activeId}
+                        onToggle={onToggleAction}
+                        actions={rowActions}
+                      />
+                    </div>
+                  )}
+                </div>
+                {mobileColumns.length > 0 && (
+                  <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-gray-100 pt-3 dark:border-gray-800">
+                    {mobileColumns.map((column) => {
+                      const content = typeof column.render === 'function'
+                        ? column.render(row, index)
+                        : row?.[column.key];
+
+                      return (
+                        <div key={column.key} className={joinClasses('min-w-0 text-xs', column.mobileClassName)}>
+                          <div className="mb-0.5 text-[10px] font-semibold uppercase text-gray-500 dark:text-gray-400">{column.label}</div>
+                          <div className="break-words text-gray-700 dark:text-gray-200">{content}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block">
+          <table className="w-full table-fixed text-left text-sm text-gray-700 dark:text-gray-300">
           {showHeader && (
             <thead className={joinClasses('hidden sm:table-header-group bg-gradient-to-r from-gray-100/90 to-gray-200/70 dark:from-gray-700/50 dark:to-gray-800/50 text-xs uppercase text-gray-600 dark:text-gray-400', headerClassName)}>
               <tr>
@@ -188,7 +328,8 @@ export default function ManagementTable({
               );
             })}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       {contextMenu && (

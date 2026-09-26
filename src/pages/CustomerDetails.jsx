@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import ManagementTable from '../component/common/ManagementTable';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -636,7 +637,7 @@ const CustomerDetails = () => {
                 </p>
               ) : (
                 <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
-                  <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+                  <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
                     <thead className="bg-gray-50 dark:bg-gray-800/70">
                       <tr>
                         <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Document</th>
@@ -706,7 +707,7 @@ const CustomerDetails = () => {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></ManagementTable>
                 </div>
               )}
             </div>
@@ -732,7 +733,7 @@ const CustomerDetails = () => {
                 </p>
               ) : (
                 <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
-                  <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+                  <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
                     <thead className="bg-gray-50 dark:bg-gray-800/70">
                       <tr>
                         <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Enquiry Code</th>
@@ -801,7 +802,7 @@ const CustomerDetails = () => {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></ManagementTable>
                 </div>
               )}
             </div>
@@ -827,7 +828,7 @@ const CustomerDetails = () => {
                 </p>
               ) : (
                 <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
-                  <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+                  <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
                     <thead className="bg-gray-50 dark:bg-gray-800/70">
                       <tr>
                         <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Tour Package</th>
@@ -887,7 +888,7 @@ const CustomerDetails = () => {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></ManagementTable>
                 </div>
               )}
             </div>
@@ -913,7 +914,7 @@ const CustomerDetails = () => {
                 </p>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
-                  <table className="min-w-[1050px] divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+                  <ManagementTable><table className="min-w-[1050px] divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
                     <thead className="bg-gray-50 dark:bg-gray-800/70">
                       <tr>
                         <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Reviewer</th>
@@ -1012,7 +1013,7 @@ const CustomerDetails = () => {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></ManagementTable>
                 </div>
               )}
             </div>
@@ -1038,7 +1039,7 @@ const CustomerDetails = () => {
                 </p>
               ) : (
                 <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
-                  <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+                  <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
                     <thead className="bg-gray-50 dark:bg-gray-800/70">
                       <tr>
                         <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Referred Contact</th>
@@ -1086,7 +1087,7 @@ const CustomerDetails = () => {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></ManagementTable>
                 </div>
               )}
             </div>

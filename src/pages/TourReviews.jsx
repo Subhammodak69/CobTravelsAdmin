@@ -549,6 +549,7 @@ const TourReviews = () => {
                 {
                   key: 'review',
                   label: 'Review',
+                  mobile: false,
                   render: (review) => (
                     <p className="line-clamp-2 text-xs text-gray-600 dark:text-gray-300">
                       {review.review || <span className="italic text-gray-400">No review text</span>}
@@ -558,6 +559,7 @@ const TourReviews = () => {
                 {
                   key: 'gallery',
                   label: 'Gallery',
+                  mobile: false,
                   headerClassName: 'w-24',
                   render: (review) => {
                     const gallery = Array.isArray(review.review_gallery) ? review.review_gallery : [];

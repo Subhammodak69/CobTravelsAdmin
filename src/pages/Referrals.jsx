@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import ManagementTable from '../component/common/ManagementTable';
 import toast from 'react-hot-toast';
 import {
   Gift,
@@ -249,7 +250,7 @@ const Referrals = () => {
       {/* Table Container */}
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+          <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
             <thead className="bg-gray-50/80 dark:bg-gray-800/60 font-semibold text-gray-700 dark:text-gray-300">
               <tr>
                 <th className="px-4 py-3.5">Referrer</th>
@@ -413,7 +414,7 @@ const Referrals = () => {
                 })
               )}
             </tbody>
-          </table>
+          </table></ManagementTable>
         </div>
 
         {/* Pagination footer */}

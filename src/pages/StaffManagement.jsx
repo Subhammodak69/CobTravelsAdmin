@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import ManagementTable from '../component/common/ManagementTable';
 import toast from 'react-hot-toast';
 import { Plus, UserCog, Pencil, Trash2, Mail, Phone, ShieldCheck, Search, RefreshCw, KeyRound, AlertTriangle } from 'lucide-react';
 import Modal from '../component/common/Modal';
@@ -300,7 +301,7 @@ const StaffManagement = () => {
           <div className="p-12 text-center text-sm text-gray-500">No staff records found.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
+            <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800/70">
                 <tr>
                   <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Staff</th>
@@ -393,7 +394,7 @@ const StaffManagement = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></ManagementTable>
           </div>
         )}
 

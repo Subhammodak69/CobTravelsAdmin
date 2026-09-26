@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ManagementTable from '../component/common/ManagementTable';
 import toast from 'react-hot-toast';
 import { BadgePercent, BookOpen, Layers, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import Modal from '../component/common/Modal';
@@ -339,7 +340,7 @@ const TourOffers = () => {
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
         {loading ? <div className="p-12 text-center text-sm text-gray-500">Loading offers...</div> : offers.length === 0 ? <div className="p-12 text-center text-sm text-gray-500">No tour offers found.</div> : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
+            <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800/70"><tr>
                 <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Offer</th>
                 <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Discount</th>
@@ -365,7 +366,7 @@ const TourOffers = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></ManagementTable>
           </div>
         )}
       </div>
@@ -404,7 +405,7 @@ const TourOffers = () => {
       </Modal>
 
       <Modal isOpen={!!bookingsOffer} onClose={() => setBookingsOffer(null)} title={`Bookings · ${bookingsOffer?.name || ''}`} icon={BookOpen} size="2xl">
-        {bookingsLoading ? <div className="p-8 text-center text-sm text-gray-500">Loading bookings...</div> : bookings.length === 0 ? <div className="p-8 text-center text-sm text-gray-500">No bookings have used this offer.</div> : <div className="overflow-x-auto"><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700"><thead className="bg-gray-50 dark:bg-gray-800"><tr><th className="px-3 py-2">Booking</th><th className="px-3 py-2">Customer</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Discount</th><th className="px-3 py-2">Total</th><th className="px-3 py-2">Created</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-700">{bookings.map((booking) => <tr key={booking.id}><td className="px-3 py-3 font-medium text-gray-900 dark:text-white">{booking.booking_code || booking.id}</td><td className="px-3 py-3">{booking.customer_name || booking.customer_mobile || 'N/A'}</td><td className="px-3 py-3">{booking.status || 'N/A'}</td><td className="px-3 py-3">{formatAmount(booking.discount_amount)}</td><td className="px-3 py-3">{formatAmount(booking.total_amount)}</td><td className="px-3 py-3 text-xs text-gray-500">{formatDate(booking.created_at)}</td></tr>)}</tbody></table></div>}
+        {bookingsLoading ? <div className="p-8 text-center text-sm text-gray-500">Loading bookings...</div> : bookings.length === 0 ? <div className="p-8 text-center text-sm text-gray-500">No bookings have used this offer.</div> : <div className="overflow-x-auto"><ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700"><thead className="bg-gray-50 dark:bg-gray-800"><tr><th className="px-3 py-2">Booking</th><th className="px-3 py-2">Customer</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Discount</th><th className="px-3 py-2">Total</th><th className="px-3 py-2">Created</th></tr></thead><tbody className="divide-y divide-gray-200 dark:divide-gray-700">{bookings.map((booking) => <tr key={booking.id}><td className="px-3 py-3 font-medium text-gray-900 dark:text-white">{booking.booking_code || booking.id}</td><td className="px-3 py-3">{booking.customer_name || booking.customer_mobile || 'N/A'}</td><td className="px-3 py-3">{booking.status || 'N/A'}</td><td className="px-3 py-3">{formatAmount(booking.discount_amount)}</td><td className="px-3 py-3">{formatAmount(booking.total_amount)}</td><td className="px-3 py-3 text-xs text-gray-500">{formatDate(booking.created_at)}</td></tr>)}</tbody></table></ManagementTable></div>}
       </Modal>
     </div>
   );

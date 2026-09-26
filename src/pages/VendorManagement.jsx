@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import ManagementTable from '../component/common/ManagementTable';
 import toast from 'react-hot-toast';
 import {
   Plus,
@@ -277,7 +278,7 @@ const VendorManagement = () => {
         ) : (
           <div className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
+              <ManagementTable><table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-700">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-900/60 dark:text-slate-300">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Vendor</th>
@@ -339,7 +340,7 @@ const VendorManagement = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></ManagementTable>
             </div>
           </div>
         )}

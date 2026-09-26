@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import ManagementTable from '../component/common/ManagementTable';
 import {
   Shield,
   User,
@@ -387,7 +388,7 @@ const Profile = () => {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+          <ManagementTable><table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
             <thead className="bg-gray-50/75 dark:bg-gray-800/50 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-200/60 dark:border-gray-800">
               <tr>
                 <th className="px-6 py-4">Device &amp; Browser</th>
@@ -491,7 +492,7 @@ const Profile = () => {
                 })
               )}
             </tbody>
-          </table>
+          </table></ManagementTable>
         </div>
       </div>
 
