@@ -906,13 +906,16 @@ const CustomerDetails = () => {
                   No reviews submitted by this customer.
                 </p>
               ) : (
-                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
-                  <table className="min-w-full divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
+                <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800">
+                  <table className="min-w-[1050px] divide-y divide-gray-200 text-left text-sm dark:divide-gray-800">
                     <thead className="bg-gray-50 dark:bg-gray-800/70">
                       <tr>
+                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Reviewer</th>
                         <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Rating</th>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Tour Name</th>
-                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Comment</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Package ID</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Review</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Gallery</th>
+                        <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Status</th>
                         <th className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-200">Date</th>
                         <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Actions</th>
                       </tr>
@@ -925,7 +928,22 @@ const CustomerDetails = () => {
                           className="cursor-pointer transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-900/10"
                         >
                           <td className="px-4 py-3.5">
-                            <div className="flex items-center gap-1 text-amber-500">
+                            <div className="flex items-center gap-2.5">
+                              {rev.customer_profile_picture ? (
+                                <img src={rev.customer_profile_picture} alt={rev.name || 'Reviewer'} className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                              ) : (
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                  {(rev.name || 'C').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="max-w-40 truncate font-semibold text-gray-900 dark:text-white">{rev.name || 'Anonymous'}</p>
+                                <p className="max-w-40 truncate font-mono text-[10px] text-gray-400" title={rev.customer_id}>{rev.customer_id || '—'}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1 text-amber-500" title={`${rev.rating || 0} out of 5`}>
                               {Array.from({ length: 5 }).map((_, i) => (
                                 <Star
                                   key={i}
@@ -934,11 +952,39 @@ const CustomerDetails = () => {
                               ))}
                             </div>
                           </td>
-                          <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-white">
-                            {rev.tour_name || 'General Feedback'}
+                          <td className="px-4 py-3.5 font-mono text-xs text-gray-600 dark:text-gray-300" title={rev.package_id}>
+                            {rev.package_id || '—'}
                           </td>
-                          <td className="px-4 py-3.5 text-xs text-gray-600 dark:text-gray-300 truncate max-w-sm">
-                            {rev.comment || rev.review || 'No written text'}
+                          <td className="max-w-xs px-4 py-3.5 text-xs text-gray-600 dark:text-gray-300">
+                            <p className="line-clamp-2">{rev.review || 'No written text'}</p>
+                          </td>
+                          <td className="px-4 py-3.5 text-xs text-gray-600 dark:text-gray-300">
+                            {Array.isArray(rev.review_gallery) && rev.review_gallery.length > 0 ? (
+                              <div className="flex items-center gap-2">
+                                {rev.review_gallery.slice(0, 2).map((media, mediaIndex) => {
+                                  const url = typeof media === 'string' ? media : media?.url;
+                                  const isVideo = media?.type === 'video' || /\.(mp4|mov|webm|ogg)(\?|$)/i.test(url || '');
+                                  return url ? (
+                                    isVideo ? (
+                                      <video key={media.id || url} src={url} className="h-9 w-12 rounded object-cover" />
+                                    ) : (
+                                      <img key={media.id || url} src={url} alt={media?.alt || `Review media ${mediaIndex + 1}`} className="h-9 w-12 rounded object-cover" />
+                                    )
+                                  ) : null;
+                                })}
+                                <span>{rev.review_gallery.length} {rev.review_gallery.length === 1 ? 'file' : 'files'}</span>
+                              </div>
+                            ) : 'None'}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${rev.is_verified ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                                {rev.is_verified ? 'Verified' : 'Unverified'}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${rev.is_published ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                                {rev.is_published ? 'Published' : 'Unpublished'}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-4 py-3.5 text-xs text-gray-500 dark:text-gray-400">
                             {formatShortDate(rev.created_at)}
@@ -1344,6 +1390,19 @@ const CustomerDetails = () => {
       >
         {selectedReview && (
           <div className="space-y-4 p-1">
+            <div className="flex items-center gap-3">
+              {selectedReview.customer_profile_picture ? (
+                <img src={selectedReview.customer_profile_picture} alt={selectedReview.name || 'Reviewer'} className="h-12 w-12 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                  {(selectedReview.name || 'C').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-900 dark:text-white">{selectedReview.name || 'Anonymous'}</p>
+                <p className="break-all font-mono text-[10px] text-gray-400">Customer ID: {selectedReview.customer_id || '—'}</p>
+              </div>
+            </div>
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
               <div className="flex items-center gap-1 text-amber-500">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -1355,14 +1414,32 @@ const CustomerDetails = () => {
               </div>
               <span className="text-xs text-gray-400">{formatShortDate(selectedReview.created_at)}</span>
             </div>
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Tour / Service</p>
-              <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedReview.tour_name || 'General Feedback'}</p>
+            <div className="space-y-1">
+              <p className="text-xs text-gray-400">Review ID: <span className="font-mono">{selectedReview.id || '—'}</span></p>
+              <p className="text-xs text-gray-400">Package ID: <span className="font-mono">{selectedReview.package_id || '—'}</span></p>
+              <p className="text-xs text-gray-400">Status: {selectedReview.is_verified ? 'Verified' : 'Unverified'} · {selectedReview.is_published ? 'Published' : 'Unpublished'}</p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3.5 dark:bg-gray-800/60">
-              <p className="text-xs text-gray-400 mb-1">Feedback Comment</p>
-              <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{selectedReview.comment || selectedReview.review || 'No written comment'}</p>
+              <p className="text-xs text-gray-400 mb-1">Review</p>
+              <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{selectedReview.review || 'No written review'}</p>
             </div>
+            {Array.isArray(selectedReview.review_gallery) && selectedReview.review_gallery.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold text-gray-500 dark:text-gray-400">Review gallery</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {selectedReview.review_gallery.map((media, index) => {
+                    const url = typeof media === 'string' ? media : media?.url;
+                    if (!url) return null;
+                    const isVideo = media?.type === 'video' || /\.(mp4|mov|webm|ogg)(\?|$)/i.test(url);
+                    return isVideo ? (
+                      <video key={media.id || url} src={url} controls className="aspect-square w-full rounded-lg bg-black object-contain" />
+                    ) : (
+                      <img key={media.id || url} src={url} alt={media?.alt || `Review gallery item ${index + 1}`} className="aspect-square w-full rounded-lg object-cover" />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>

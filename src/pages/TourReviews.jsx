@@ -21,20 +21,17 @@ import {
 } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
-import ActionMenu from '../component/common/ActionMenu';
 import ManagementTable from '../component/common/ManagementTable';
 import MediaPreviewModal from '../component/common/MediaPreviewModal';
 import MediaViewerModal from '../component/common/MediaViewerModal';
 import ModalScrollLock from '../component/common/ModalScrollLock';
 import DragDropUpload from '../component/common/DragDropUpload';
 import Pagination from '../component/common/PaginationComponent';
+import SelectField from '../component/common/SelectField';
 import { sanitizeNumericInput } from '../utils/inputValidation';
 import { apiCall, handleApiError } from '../utils/apiCall';
 
 const defaultReviewForm = {
-  customer_id: '',
-  customer_profile_picture: '',
-  name: '',
   rating: 5,
   review: '',
   review_gallery: [],
@@ -50,7 +47,6 @@ const formatDate = (value) => {
       day: 'numeric',
     });
   } catch {
-    return value;
   }
 };
 
@@ -106,6 +102,12 @@ const TourReviews = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingReview, setEditingReview] = useState(null);
   const [formState, setFormState] = useState(defaultReviewForm);
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customersLoaded, setCustomersLoaded] = useState(false);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [customerHasMore, setCustomerHasMore] = useState(true);
 
   /* Gallery modal state */
   const [galleryModal, setGalleryModal] = useState({ open: false, images: [], reviewerName: '' });
@@ -137,20 +139,65 @@ const TourReviews = () => {
     loadReviews(currentPage, itemsPerPage);
   }, [loadReviews, currentPage, itemsPerPage]);
 
+  const loadCustomers = useCallback(async (page = 1, append = false) => {
+    if (customersLoading) return;
+    setCustomersLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), page_size: '20' });
+      const response = await apiCall(`/api/v1/admin/customers?${params.toString()}`, 'GET');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.detail || 'Unable to fetch customers');
+      }
+
+      const data = Array.isArray(payload?.data) ? payload.data : [];
+      const options = data.map((customer) => ({
+        value: customer.id,
+        label: [customer.name || customer.full_name, customer.mobile || customer.phone].filter(Boolean).join(' · ') || customer.id,
+        customer,
+      }));
+      setCustomerOptions((current) => (append ? [...current, ...options] : options));
+      setCustomerPage(Number(payload?.pagination?.current_page) || page);
+      setCustomerHasMore(Boolean(payload?.pagination?.has_next));
+      setCustomersLoaded(true);
+    } catch (error) {
+      handleApiError(error, 'Unable to load customers');
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, [customersLoading]);
+
+  const handleCustomerMenuOpen = () => {
+    if (!customersLoaded && !customersLoading) loadCustomers(1);
+  };
+
+  const handleCustomerMenuScrollToBottom = () => {
+    if (customerHasMore && !customersLoading) loadCustomers(customerPage + 1, true);
+  };
+
   /* Open create modal */
   const openCreateModal = () => {
     setEditingReview(null);
     setFormState(defaultReviewForm);
+    setSelectedCustomer(null);
     setIsModalOpen(true);
   };
 
   /* Open edit modal */
   const openEditModal = (review) => {
     setEditingReview(review);
+    const matchingCustomer = customerOptions.find((option) => option.value === review.customer_id);
+    setSelectedCustomer(matchingCustomer || (review.customer_id ? {
+      value: review.customer_id,
+      label: review.name || review.customer_id,
+      customer: {
+        id: review.customer_id,
+        name: review.name || '',
+        profile_pic: review.customer_profile_picture || '',
+      },
+    } : null));
     setFormState({
       customer_id: review.customer_id || '',
-      customer_profile_picture: review.customer_profile_picture || '',
-      name: review.name || '',
       rating: Number(review.rating) || 5,
       review: review.review || '',
       review_gallery: Array.isArray(review.review_gallery)
@@ -171,6 +218,7 @@ const TourReviews = () => {
     setIsModalOpen(false);
     setEditingReview(null);
     setFormState(defaultReviewForm);
+    setSelectedCustomer(null);
   };
 
   /* Gallery helpers */
@@ -212,8 +260,8 @@ const TourReviews = () => {
   /* Save review (Create / Update) */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formState.name.trim()) {
-      toast.error('Reviewer name is required.');
+    if (!selectedCustomer?.value) {
+      toast.error('Select a customer for this review.');
       return;
     }
 
@@ -233,30 +281,17 @@ const TourReviews = () => {
         });
 
       const payload = {
-        name: formState.name.trim(),
+        customer_id: selectedCustomer.value,
+        name: selectedCustomer.customer?.name || selectedCustomer.customer?.full_name || selectedCustomer.label.split(' · ')[0],
         rating: Number(formState.rating) || 5,
         review: formState.review.trim(),
         review_gallery: galleryPayload,
         is_published: Boolean(formState.is_published),
       };
 
-      if (formState.customer_id.trim()) {
-        payload.customer_id = formState.customer_id.trim();
-      }
-      if (formState.customer_profile_picture.trim()) {
-        payload.customer_profile_picture = formState.customer_profile_picture.trim();
-      }
-
       let response;
       if (editingReview) {
         response = await apiCall(`/api/v1/admin/reviews/${editingReview.id}`, 'PATCH', payload);
-        if (!response.ok) {
-          response = await apiCall(
-            `/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/reviews/${editingReview.id}`,
-            'PATCH',
-            payload
-          );
-        }
       } else {
         response = await apiCall(
           `/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/reviews`,
@@ -284,16 +319,9 @@ const TourReviews = () => {
   const handleTogglePublished = async (review) => {
     const nextPublished = !review.is_published;
     try {
-      let response = await apiCall(`/api/v1/admin/reviews/${review.id}`, 'PATCH', {
+      const response = await apiCall(`/api/v1/admin/reviews/${review.id}`, 'PATCH', {
         is_published: nextPublished,
       });
-      if (!response.ok) {
-        response = await apiCall(
-          `/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/reviews/${review.id}`,
-          'PATCH',
-          { is_published: nextPublished }
-        );
-      }
       const resData = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(resData?.message || 'Unable to update status');
       toast.success(resData?.message || (nextPublished ? 'Review published' : 'Review unpublished'));
@@ -313,13 +341,7 @@ const TourReviews = () => {
     if (!deleteReviewTarget) return;
     setDeletingReview(true);
     try {
-      let response = await apiCall(`/api/v1/admin/reviews/${deleteReviewTarget.id}`, 'DELETE');
-      if (!response.ok) {
-        response = await apiCall(
-          `/api/v1/admin/tour-packages/${encodeURIComponent(packageId)}/reviews/${deleteReviewTarget.id}`,
-          'DELETE'
-        );
-      }
+      const response = await apiCall(`/api/v1/admin/reviews/${deleteReviewTarget.id}`, 'DELETE');
       const resData = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(resData?.message || 'Unable to delete review');
       toast.success(resData?.message || 'Review deleted successfully');
@@ -754,31 +776,51 @@ const TourReviews = () => {
         )}
       >
         <form id="tour-review-form" onSubmit={handleSubmit} className="space-y-5 p-1">
-          <div className="grid gap-5 md:grid-cols-2">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Reviewer name <span className="text-red-500">*</span>
-              </label>
-              <input
-                value={formState.name}
-                onChange={(e) => setFormState((p) => ({ ...p, name: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                placeholder="e.g. Rahul Sharma"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Customer ID <span className="text-xs text-gray-400">(optional)</span>
-              </label>
-              <input
-                value={formState.customer_id}
-                onChange={(e) => setFormState((p) => ({ ...p, customer_id: e.target.value }))}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-                placeholder="UUID of existing customer"
-              />
-            </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Customer <span className="text-red-500">*</span>
+            </label>
+            <SelectField
+              options={customerOptions}
+              value={selectedCustomer}
+              onChange={setSelectedCustomer}
+              onMenuOpen={handleCustomerMenuOpen}
+              onMenuScrollToBottom={handleCustomerMenuScrollToBottom}
+              isLoading={customersLoading}
+              isSearchable
+              isClearable
+              placeholder="Search and select a customer"
+              noOptionsMessage={() => (customersLoading ? 'Loading customers...' : 'No customers found')}
+              menuPlacement="auto"
+              classNamePrefix="react-select"
+            />
+            {selectedCustomer && (
+              <div className="mt-3 flex items-start gap-3 rounded-xl border border-violet-100 bg-violet-50/70 p-3 dark:border-violet-900/40 dark:bg-violet-950/20">
+                {selectedCustomer.customer?.profile_pic || selectedCustomer.customer?.profile_picture || selectedCustomer.customer?.avatar_url ? (
+                  <img
+                    src={selectedCustomer.customer.profile_pic || selectedCustomer.customer.profile_picture || selectedCustomer.customer.avatar_url}
+                    alt={selectedCustomer.customer.name || selectedCustomer.customer.full_name || 'Customer'}
+                    className="h-11 w-11 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-200 text-sm font-bold text-violet-800 dark:bg-violet-900 dark:text-violet-200">
+                    {(selectedCustomer.customer?.name || selectedCustomer.customer?.full_name || selectedCustomer.label).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {selectedCustomer.customer?.name || selectedCustomer.customer?.full_name || selectedCustomer.label.split(' · ')[0]}
+                  </p>
+                  <p className="mt-0.5 break-all text-xs text-gray-500 dark:text-gray-400">ID: {selectedCustomer.value}</p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-300">
+                    {(selectedCustomer.customer?.mobile || selectedCustomer.customer?.phone) && (
+                      <span>{selectedCustomer.customer.mobile || selectedCustomer.customer.phone}</span>
+                    )}
+                    {selectedCustomer.customer?.email && <span>{selectedCustomer.customer.email}</span>}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -796,20 +838,6 @@ const TourReviews = () => {
               rows={4}
               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
               placeholder="Customer's review of this package..."
-            />
-          </div>
-
-          {/* Customer Profile Picture Upload */}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Customer profile photo <span className="text-xs text-gray-400">(optional)</span>
-            </label>
-            <DragDropUpload
-              label="Upload reviewer profile picture"
-              value={formState.customer_profile_picture}
-              accept="image/*"
-              helperText="Upload JPG, PNG, WEBP up to 5MB"
-              onChange={(url) => setFormState((p) => ({ ...p, customer_profile_picture: url }))}
             />
           </div>
 
@@ -932,6 +960,20 @@ const TourReviews = () => {
           </label>
         </form>
       </Modal>
+      <ConfirmDeleteModal
+        isOpen={isDeleteReviewModalOpen}
+        onClose={() => {
+          if (!deletingReview) {
+            setIsDeleteReviewModalOpen(false);
+            setDeleteReviewTarget(null);
+          }
+        }}
+        onConfirm={confirmDeleteReview}
+        confirming={deletingReview}
+        itemLabel={deleteReviewTarget?.name || 'this review'}
+        title="Delete review"
+        message="This review will be permanently removed from the package."
+      />
     </div>
   );
 };
