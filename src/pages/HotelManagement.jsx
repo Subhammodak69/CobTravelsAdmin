@@ -229,6 +229,14 @@ const HotelManagement = () => {
       toast.error('Please provide a hotel name');
       return;
     }
+    if (uploadingImage) {
+      toast.error('Please wait for the image upload to finish');
+      return;
+    }
+    if (!formState.image?.some((image) => image?.url)) {
+      toast.error('Please upload at least one hotel image');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -681,10 +689,10 @@ const HotelManagement = () => {
             <button
               type="submit"
               form="hotel-form"
-              disabled={saving}
+              disabled={saving || uploadingImage}
               className="rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 transition"
             >
-              {saving ? 'Saving...' : editingHotel ? 'Save changes' : 'Create hotel'}
+              {uploadingImage ? 'Uploading image...' : saving ? 'Saving...' : editingHotel ? 'Save changes' : 'Create hotel'}
             </button>
           </div>
         )}
@@ -778,10 +786,10 @@ const HotelManagement = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Hotel gallery ({formState.image?.length || 0})
+                  Hotel gallery ({formState.image?.length || 0}) <span className="text-red-500">*</span>
                 </h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Upload photos representing the facade, lobby, rooms, and dining.
+                  At least one photo is required. Upload photos representing the facade, lobby, rooms, and dining.
                 </p>
               </div>
             </div>
