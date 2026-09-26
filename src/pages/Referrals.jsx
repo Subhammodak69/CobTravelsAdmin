@@ -206,12 +206,13 @@ const Referrals = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              aria-label="Refresh referrals"
               onClick={() => fetchReferrals(currentPage, pageSize, statusFilter)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 transition"
               title="Refresh referrals list"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
-              <span>Refresh</span>
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>

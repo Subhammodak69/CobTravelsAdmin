@@ -103,7 +103,7 @@ const MainLayout = ({ children }) => {
           <main
             ref={mainRef}
             className={`
-              flex-1 transition-all duration-300 ease-out
+              min-w-0 flex-1 transition-all duration-300 ease-out
               ${getContentMargin()}
               overflow-y-auto overflow-x-hidden
             `}
@@ -112,7 +112,7 @@ const MainLayout = ({ children }) => {
               maxWidth: isMobile ? '100%' : `calc(100vw - ${desktopSidebarCollapsed ? '64px' : '256px'})`,
             }}
           >
-            <div className="w-full max-w-8xl px-6 py-4">
+            <div className="w-full max-w-8xl px-2 py-2 sm:px-4 sm:py-3 xl:px-6 xl:py-4">
               {children || <Outlet />}
             </div>
           </main>

@@ -401,17 +401,21 @@ const TourReviews = () => {
             <button
               type="button"
               onClick={goToVariants}
-              className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              aria-label="Variants"
+              title="Variants"
+              className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 sm:px-5"
             >
               <Route className="h-4 w-4" />
-              Variants
+              <span className="hidden sm:inline">Variants</span>
             </button>
             <button
               type="button"
-              className="flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm dark:bg-gray-900 dark:text-white"
+              aria-label="Reviews"
+              title="Reviews"
+              className="flex items-center gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 shadow-sm dark:bg-gray-900 dark:text-white sm:px-5"
             >
               <Star className="h-4 w-4" />
-              Reviews
+              <span className="hidden sm:inline">Reviews</span>
             </button>
           </div>
         </div>
@@ -459,18 +463,22 @@ const TourReviews = () => {
             <button
               type="button"
               onClick={() => loadReviews(currentPage, itemsPerPage)}
+              aria-label="Refresh reviews"
+              title="Refresh reviews"
               className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
 
             <button
               type="button"
               onClick={openCreateModal}
+              aria-label="Add review"
+              title="Add review"
               className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
             >
-              <Plus className="h-4 w-4" /> Add review
+              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add review</span>
             </button>
           </div>
         </div>

@@ -268,19 +268,23 @@ const Profile = () => {
 
           <div className="flex items-center gap-3 flex-wrap self-start md:self-auto">
             <button
+              aria-label="Refresh profile"
+              title="Refresh profile"
               onClick={handleRefreshProfile}
               disabled={refreshingProfile}
-              className="px-4 py-2 bg-white/15 hover:bg-white/25 active:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-sm flex items-center gap-2 disabled:opacity-50 border border-white/20"
+              className="p-2.5 sm:px-4 sm:py-2 bg-white/15 hover:bg-white/25 active:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-sm flex items-center gap-2 disabled:opacity-50 border border-white/20"
             >
               <RefreshCw className={`w-4 h-4 ${refreshingProfile ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
             <button
+              aria-label="Log out"
+              title="Log out"
               onClick={logout}
-              className="px-4 py-2 bg-rose-500/80 hover:bg-rose-500 active:bg-rose-600 text-white rounded-xl text-sm font-medium transition-all shadow-md shadow-rose-500/30 flex items-center gap-2"
+              className="p-2.5 sm:px-4 sm:py-2 bg-rose-500/80 hover:bg-rose-500 active:bg-rose-600 text-white rounded-xl text-sm font-medium transition-all shadow-md shadow-rose-500/30 flex items-center gap-2"
             >
               <LogOut className="w-4 h-4" />
-              Logout
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>

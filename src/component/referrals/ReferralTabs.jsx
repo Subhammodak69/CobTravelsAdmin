@@ -7,6 +7,8 @@ const ReferralTabs = ({ activeTab = 'referrals' }) => {
       <NavLink
         to="/referrals"
         end
+        aria-label="Referrals"
+        title="Referrals"
         className={({ isActive }) =>
           `inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
             isActive || activeTab === 'referrals'
@@ -16,11 +18,13 @@ const ReferralTabs = ({ activeTab = 'referrals' }) => {
         }
       >
         <Gift className="w-4 h-4" />
-        <span>Referrals</span>
+        <span className="hidden sm:inline">Referrals</span>
       </NavLink>
 
       <NavLink
         to="/referrals/configuration"
+        aria-label="Referrals Configuration"
+        title="Referrals Configuration"
         className={({ isActive }) =>
           `inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
             isActive || activeTab === 'configuration'
@@ -30,7 +34,7 @@ const ReferralTabs = ({ activeTab = 'referrals' }) => {
         }
       >
         <Sliders className="w-4 h-4" />
-        <span>Referrals Configuration</span>
+        <span className="hidden sm:inline">Referrals Configuration</span>
       </NavLink>
     </div>
   );

@@ -57,3 +57,18 @@
     background: rgba(100, 116, 139, 0.5);
   }
 }
+
+@layer utilities {
+  @media (max-width: 639px) {
+    .mobile-icon-button {
+      gap: 0 !important;
+      padding-inline: 0.65rem !important;
+      font-size: 0 !important;
+      line-height: 0 !important;
+    }
+
+    .mobile-icon-button svg {
+      flex-shrink: 0;
+    }
+  }
+}

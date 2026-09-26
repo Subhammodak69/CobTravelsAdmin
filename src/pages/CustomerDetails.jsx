@@ -396,20 +396,24 @@ const CustomerDetails = () => {
             <button
               type="button"
               onClick={openEditModal}
+              aria-label="Edit profile"
+              title="Edit profile"
               className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 shadow-sm"
             >
               <Pencil className="h-4 w-4 text-indigo-500" />
-              Edit Profile
+              <span className="hidden sm:inline">Edit Profile</span>
             </button>
 
             <button
               type="button"
               onClick={handleDelete}
               disabled={deleting}
+              aria-label="Delete customer"
+              title="Delete customer"
               className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-sm font-medium text-red-600 hover:bg-red-100 disabled:opacity-60 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300 shadow-sm"
             >
               <Trash2 className="h-4 w-4" />
-              {deleting ? 'Deleting...' : 'Delete'}
+              <span className="hidden sm:inline">{deleting ? 'Deleting...' : 'Delete'}</span>
             </button>
           </div>
         </div>
@@ -420,7 +424,7 @@ const CustomerDetails = () => {
         <div className="mt-2 px-2">
           <div
             role="tablist"
-            className="flex items-center gap-1.5 overflow-x-auto pb-1"
+            className="flex items-center gap-1 overflow-x-auto pb-1"
           >
             {TABS.map(({ key, label, icon: Icon }) => (
               <button
@@ -429,15 +433,17 @@ const CustomerDetails = () => {
                 role="tab"
                 aria-selected={activeTab === key}
                 onClick={() => setActiveTab(key)}
+                aria-label={label}
+                title={label}
                 className={[
-                  'flex whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition',
+                  'flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium transition sm:px-3.5',
                   activeTab === key
                     ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-semibold'
                     : 'border-transparent text-gray-600 hover:bg-gray-100/70 dark:text-gray-300 dark:hover:bg-gray-800',
                 ].join(' ')}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>

@@ -54,20 +54,26 @@ export default function ManagementTable({
 
   const allVisibleColumns = columns.filter((column) => column.visible !== false);
 
-  const getResponsiveColumns = () => {
-    let maxCols = allVisibleColumns.length;
-    if (containerWidth < 340) maxCols = 1;
-    else if (containerWidth < 480) maxCols = 2;
-    else if (containerWidth < 640) maxCols = 3;
-    else if (containerWidth < 768) maxCols = 4;
-    else if (containerWidth < 1024) maxCols = 5;
-    else if (containerWidth < 1280) maxCols = 6;
+  const actionWidth = showActionsColumn && (actions || getActions) ? 56 : 0;
+  const availableWidth = Math.max(0, containerWidth - 24 - actionWidth);
+  let usedWidth = 0;
+  const visibleColumnKeys = new Set();
+  const orderedColumns = allVisibleColumns
+    .map((column, index) => ({ column, index }))
+    .sort((left, right) => (left.column.responsivePriority ?? left.index) - (right.column.responsivePriority ?? right.index));
 
-    return allVisibleColumns.slice(0, maxCols);
-  };
+  orderedColumns.forEach(({ column, index }) => {
+    const minWidth = column.responsiveMinWidth ?? (index === 0 ? 150 : 120);
+    if (index === 0 || usedWidth + minWidth <= availableWidth) {
+      visibleColumnKeys.add(column.key);
+      usedWidth += minWidth;
+    }
+  });
 
-  const visibleColumns = getResponsiveColumns();
-  const densityClasses = compact ? 'px-3 py-3' : 'px-4 lg:px-6 py-4';
+  const visibleColumns = allVisibleColumns.filter((column) => visibleColumnKeys.has(column.key));
+  const densityClasses = compact
+    ? 'px-2 py-2 sm:px-3 sm:py-3'
+    : 'px-2 py-2 sm:px-3 sm:py-3 lg:px-6 lg:py-4';
   const cardAccentMap = {
     slate: 'border-gray-200/50 dark:border-gray-700/50 shadow-gray-200/50 dark:shadow-none',
     blue: 'border-blue-200/50 dark:border-blue-900/50 shadow-blue-100/50 dark:shadow-none',

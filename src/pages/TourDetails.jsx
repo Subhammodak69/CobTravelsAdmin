@@ -14,6 +14,7 @@ import {
   Trash2,
   Plus,
   Pencil,
+  RotateCcw,
   X,
   ChevronDown,
   ChevronRight,
@@ -1340,15 +1341,17 @@ const TourDetails = () => {
                 role="tab"
                 aria-selected={activeSection === key}
                 onClick={() => setActiveSection(key)}
+                aria-label={label}
+                title={label}
                 className={[
-                  'flex whitespace-nowrap items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition',
+                  'flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium transition sm:px-3',
                   activeSection === key
                     ? 'border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-500'
                     : 'border-transparent text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800',
                 ].join(' ')}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>
@@ -1367,9 +1370,12 @@ const TourDetails = () => {
                   type="button"
                   onClick={() => details && applyDetailToDraft(details)}
                   disabled={!hasChanges || saving}
-                  className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:disabled:hover:bg-gray-800"
+                  aria-label="Reset changes"
+                  title="Reset changes"
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 dark:disabled:hover:bg-gray-800 sm:px-3"
                 >
-                  Reset
+                  <RotateCcw className="h-4 w-4" />
+                  <span className="hidden sm:inline">Reset</span>
                 </button>
               )}
               {!notFound && (
@@ -1377,18 +1383,22 @@ const TourDetails = () => {
                   type="button"
                   onClick={handleDelete}
                   disabled={deleting || saving}
+                  aria-label="Delete details"
+                  title="Delete details"
                   className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300"
                 >
-                  <Trash2 className="h-4 w-4" /> {deleting ? 'Deleting...' : 'Delete'}
+                  <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">{deleting ? 'Deleting...' : 'Delete'}</span>
                 </button>
               )}
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={saving || !hasChanges}
+                aria-label={notFound ? 'Create details' : 'Save changes'}
+                title={notFound ? 'Create details' : 'Save changes'}
                 className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-orange-600"
               >
-                <Save className="h-4 w-4" /> {saving ? 'Saving...' : notFound ? 'Create details' : 'Save changes'}
+                <Save className="h-4 w-4" /> <span className="hidden sm:inline">{saving ? 'Saving...' : notFound ? 'Create details' : 'Save changes'}</span>
               </button>
             </div>
           </div>

@@ -277,19 +277,23 @@ const CustomerManagement = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              aria-label="Refresh customers"
+              title="Refresh customers"
               onClick={() => loadCustomers(currentPage, searchTerm, isActiveFilter)}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </button>
             <button
               type="button"
+              aria-label="Add customer"
+              title="Add customer"
               onClick={openCreateModal}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white p-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50 sm:px-4"
             >
               <Plus className="h-4 w-4" />
-              Add customer
+              <span className="hidden sm:inline">Add customer</span>
             </button>
           </div>
         </div>
