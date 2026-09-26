@@ -28,81 +28,41 @@ const Sidebar = ({
   const location = useLocation();
   const currentPath = location.pathname;
  
-  const menuItems = [
+  const menuSections = [
     {
-      icon: House,
-      label: "Dashboard",
-      path: "/",
+      label: "Overview",
+      items: [
+        { icon: House, label: "Dashboard", path: "/" },
+      ],
     },
     {
-      icon: ShieldCheck,
-      label: "Staff Management",
-      path: "/staff-management",
+      label: "People & Sales",
+      items: [
+        { icon: ShieldCheck, label: "Staff Management", path: "/staff-management" },
+        { icon: Users, label: "Customers", path: "/customers" },
+        { icon: Gift, label: "Referrals", path: "/referrals" },
+        { icon: HelpCircle, label: "Enquiries", path: "/enquiries" },
+        { icon: Receipt, label: "Quotations", path: "/quotations" },
+      ],
     },
     {
-      icon: Users,
-      label: "Customers",
-      path: "/customers",
+      label: "Operations",
+      items: [
+        { icon: CalendarCheck, label: "Bookings", path: "/bookings" },
+        { icon: Wallet, label: "Financial Management", path: "/financial" },
+        { icon: FileText, label: "Document Management", path: "/document-management" },
+      ],
     },
     {
-      icon: Gift,
-      label: "Referrals",
-      path: "/referrals",
-    },
-    {
-      icon: HelpCircle,
-      label: "Enquiries",
-      path: "/enquiries",
-    },
-    {
-      icon: Receipt,
-      label: "Quotations",
-      path: "/quotations",
-    },
-    {
-      icon: CalendarCheck,
-      label: "Bookings",
-      path: "/bookings",
-    },
-    {
-      icon: Wallet,
-      label: "Financial Management",
-      path: "/financial",
-    },
-    {
-      icon: FileText,
-      label: "Document Management",
-      path: "/document-management",
-    },
-    {
-      icon: Package,
-      label: "Tour Packages",
-      path: "/tour-packages",
-    },
-    {
-      icon: BadgePercent,
-      label: "Tour Offers",
-      path: "/tour-offers",
-    },
-    {
-      icon: MapPin,
-      label: "Destinations",
-      path: "/destinations",
-    },
-    {
-      icon: Building2,
-      label: "Hotels",
-      path: "/hotels",
-    },
-    {
-      icon: BadgePercent,
-      label: "Vendors",
-      path: "/vendors",
-    },
-    {
-      icon: Car,
-      label: "Vehicles",
-      path: "/vehicles",
+      label: "Travel Inventory",
+      items: [
+        { icon: Package, label: "Tour Packages", path: "/tour-packages" },
+        { icon: BadgePercent, label: "Tour Offers", path: "/tour-offers" },
+        { icon: MapPin, label: "Destinations", path: "/destinations" },
+        { icon: Building2, label: "Hotels", path: "/hotels" },
+        { icon: BadgePercent, label: "Vendors", path: "/vendors" },
+        { icon: Car, label: "Vehicles", path: "/vehicles" },
+      ],
     },
   ];
 
@@ -128,8 +88,12 @@ const Sidebar = ({
         `}
         >
           <div className="p-4">
-            <nav className="space-y-1">
-              {menuItems.map((item) => {
+            <nav className="space-y-5">
+              {menuSections.map((section) => (
+                <section key={section.label}>
+                  <h2 className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{section.label}</h2>
+                  <div className="space-y-1">
+                    {section.items.map((item) => {
                 const isActive = isActiveRoute(item.path);
                 const Icon = item.icon;
 
@@ -160,7 +124,10 @@ const Sidebar = ({
                     <span className="text-sm font-medium">{item.label}</span>
                   </Link>
                 );
-              })}
+                    })}
+                  </div>
+                </section>
+              ))}
             </nav>
           </div>
         </div>
@@ -245,8 +212,17 @@ const Sidebar = ({
       onMouseLeave={handleMouseLeave}
     >
       <div className="flex flex-col h-full">
-        <nav className="flex-1 py-6 px-2">
-          {menuItems.map((item) => renderMenuItem(item, isSidebarExpanded))}
+        <nav className="flex-1 space-y-4 px-2 py-5">
+          {menuSections.map((section, sectionIndex) => (
+            <section key={section.label} className={sectionIndex > 0 ? "border-t border-gray-200 pt-3 dark:border-gray-800" : ""}>
+              {isSidebarExpanded && (
+                <h2 className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{section.label}</h2>
+              )}
+              <div className="space-y-1">
+                {section.items.map((item) => renderMenuItem(item, isSidebarExpanded))}
+              </div>
+            </section>
+          ))}
         </nav>
       </div>
     </div>
