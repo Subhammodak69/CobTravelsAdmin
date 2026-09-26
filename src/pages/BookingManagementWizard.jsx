@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ManagementTable from '../component/common/ManagementTable';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeft, ArrowRight, CalendarDays, Check, Eye, FileText, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarDays, Check, Eye, FileText, Filter, Plus, RefreshCw, Search, Trash2, X } from 'lucide-react';
 import Modal from '../component/common/Modal';
 import ConfirmDeleteModal from '../component/common/ConfirmDeleteModal';
 import CustomDatePicker from '../component/common/CustomDatePicker';
@@ -73,6 +73,7 @@ const BookingManagementWizard = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const loadBookings = useCallback(async (currentPage = page, pageSize = limit) => {
     setLoading(true);
@@ -534,8 +535,8 @@ const BookingManagementWizard = () => {
       {/* Top Header */}
       <div className="flex flex-col gap-3 px-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Bookings</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage reservations, payments, travellers, and trip details.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Bookings</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage reservations, payments, travellers, and trip details.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -549,10 +550,20 @@ const BookingManagementWizard = () => {
           </Link>
           <button
             type="button"
+            aria-label="Refresh bookings"
+            title="Refresh bookings"
+            onClick={() => loadBookings(page, limit)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-2.5 text-sm font-semibold text-gray-700 sm:px-3 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+          <button
+            type="button"
             aria-label="New booking"
             title="New booking"
             onClick={openCreate}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 p-2.5 text-sm font-semibold text-white sm:px-4 hover:bg-cyan-700"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-600 p-2.5 text-sm font-semibold text-white hover:bg-cyan-700 sm:px-4"
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">New booking</span>
@@ -560,25 +571,84 @@ const BookingManagementWizard = () => {
         </div>
       </div>
 
-      {/* Filters & Search Toolbar (Section 4.2 Query Params) */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between dark:border-gray-700 dark:bg-gray-800">
+      {/* Search & Filter Toolbar */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search code, customer, email, phone..."
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-              className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
             />
           </div>
 
-          <div className="w-full sm:w-44">
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+              statusFilter || sourceFilter
+                ? 'border-cyan-400 bg-cyan-50 text-cyan-700 dark:border-cyan-700 dark:bg-cyan-950/30 dark:text-cyan-300'
+                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Filter className="h-4 w-4" />
+            Filter
+            {(statusFilter || sourceFilter) && (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-600 text-xs font-bold text-white dark:bg-cyan-500">
+                {[statusFilter, sourceFilter].filter(Boolean).length}
+              </span>
+            )}
+          </button>
+
+          {(statusFilter || sourceFilter || searchQuery) && (
+            <button
+              type="button"
+              onClick={() => { setStatusFilter(''); setSourceFilter(''); setSearchQuery(''); setPage(1); }}
+              className="inline-flex items-center gap-1 rounded-xl border border-dashed border-gray-300 px-3 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              <X className="h-3.5 w-3.5" />
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Filter Modal */}
+      <Modal
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Filter Bookings"
+        icon={Filter}
+        size="sm"
+        footer={(
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              onClick={() => { setStatusFilter(''); setSourceFilter(''); setPage(1); setIsFilterOpen(false); }}
+              className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => { setPage(1); setIsFilterOpen(false); }}
+              className="flex-1 rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-cyan-700"
+            >
+              Apply filters
+            </button>
+          </div>
+        )}
+      >
+        <div className="space-y-5 p-1">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
             <select
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={inputClass}
             >
               <option value="">All statuses</option>
               {bookingStatuses.map((st) => (
@@ -586,12 +656,12 @@ const BookingManagementWizard = () => {
               ))}
             </select>
           </div>
-
-          <div className="w-full sm:w-44">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Source</label>
             <select
               value={sourceFilter}
-              onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
-              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className={inputClass}
             >
               <option value="">All sources</option>
               {bookingSources.map((src) => (
@@ -600,18 +670,7 @@ const BookingManagementWizard = () => {
             </select>
           </div>
         </div>
-
-        <button
-          type="button"
-          aria-label="Refresh bookings"
-          title="Refresh bookings"
-          onClick={() => loadBookings(page, limit)}
-          className="inline-flex items-center gap-2 self-end rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-50 md:self-auto dark:border-gray-700 dark:text-cyan-400 dark:hover:bg-cyan-950/30"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
-      </div>
+      </Modal>
 
       {/* Table Section */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
