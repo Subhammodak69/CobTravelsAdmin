@@ -13,6 +13,7 @@ import {
   Save,
   Trash2,
   Plus,
+  Pencil,
   X,
   ChevronDown,
   ChevronRight,
@@ -198,6 +199,7 @@ const sections = [
 const inputClass = 'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/15 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200';
 const addBtnClass = 'inline-flex items-center gap-1.5 rounded-2xl border border-dashed border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:border-orange-400 hover:text-orange-600 dark:border-gray-600 dark:text-gray-200';
 const removeBtnClass = 'inline-flex items-center gap-1 rounded-xl border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300';
+const editBtnClass = 'inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-300 dark:hover:border-orange-900/50 dark:hover:bg-orange-900/20 dark:hover:text-orange-300';
 
 const EmptyState = ({ text }) => (
   <p className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400 dark:border-gray-700">{text}</p>
@@ -243,6 +245,8 @@ const TourDetails = () => {
     available_seats: 20,
   });
   const [extrasCollapsed, setExtrasCollapsed] = useState({ inclusion: true, exclusion: true });
+  const [editingItem, setEditingItem] = useState(null);
+  const [editItemForm, setEditItemForm] = useState({});
 
   useEffect(() => {
     if (variantId) {
@@ -313,10 +317,22 @@ const TourDetails = () => {
   };
 
   const buildPayload = () => {
+    const bannerItems = (draft.banner?.items || []).map((item, index) => ({
+      ...(item.id ? { id: item.id } : {}),
+      url: item.url || '',
+      type: item.type || 'image',
+      cover_image: Boolean(item.cover_image),
+      display_order: item.display_order ?? index + 1,
+    }));
+    const bannerImage = bannerItems.find((item) => item.type === 'image')?.url || '';
+    const bannerVideo = bannerItems.find((item) => item.type === 'video')?.url || '';
+    const bannerCoverImage = bannerItems.find((item) => item.cover_image)?.url || '';
     return {
       banner: {
-        image: draft.banner?.image || '',
-        video: draft.banner?.video || '',
+        image: bannerImage,
+        video: bannerVideo,
+        cover_image: bannerCoverImage,
+        items: bannerItems,
       },
       gallery: (draft.gallery || []).map((item, index) => ({
         ...(item.id ? { id: item.id } : {}),
@@ -364,10 +380,7 @@ const TourDetails = () => {
       }
 
       toast.success(result?.message || 'Tour details saved successfully');
-      const detailData = result?.data || payload;
-      setDetails(detailData);
-      setNotFound(false);
-      applyDetailToDraft(detailData);
+      await loadDetails();
     } catch (error) {
       handleApiError(error, 'Unable to save tour details');
     } finally {
@@ -402,14 +415,6 @@ const TourDetails = () => {
     }
   };
 
-  const updateArrayItem = (key, index, field, value) => {
-    setDraft((current) => {
-      const next = [...(current[key] || [])];
-      next[index] = { ...next[index], [field]: value };
-      return { ...current, [key]: next };
-    });
-  };
-
   const addArrayItem = (key, item = {}) => {
     setDraft((current) => ({
       ...current,
@@ -422,6 +427,102 @@ const TourDetails = () => {
       ...current,
       [key]: (current[key] || []).filter((_, idx) => idx !== index),
     }));
+  };
+
+  const setBannerItems = (items) => {
+    setDraft((current) => ({
+      ...current,
+      banner: {
+        ...current.banner,
+        items,
+        image: items.find((item) => item.type === 'image')?.url || '',
+        video: items.find((item) => item.type === 'video')?.url || '',
+        cover_image: items.find((item) => item.cover_image)?.url || '',
+      },
+    }));
+  };
+
+  const openItemEditor = (section, index, item) => {
+    setEditingItem({ section, index });
+    if (section === 'banner' || section === 'gallery') {
+      setEditItemForm({
+        type: item.type || 'image',
+        url: item.url || '',
+        ...(section === 'gallery' ? { alt: item.alt || '' } : {}),
+        cover_image: Boolean(item.cover_image),
+      });
+    } else if (section === 'highlights') {
+      setEditItemForm({ text: item.text || '' });
+    } else if (section === 'itinerary') {
+      setEditItemForm({ day: item.day || item.day_number || index + 1, title: item.title || '', description: item.description || '' });
+    } else if (section === 'route') {
+      setEditItemForm({ city: item.city || '', nights: item.nights ?? 1 });
+    } else if (section === 'departure_dates') {
+      setEditItemForm({
+        departure_date: item.departure_date || item.date || '',
+        return_date: item.return_date || '',
+        total_seats: item.total_seats ?? 0,
+        available_seats: item.available_seats ?? 0,
+      });
+    } else {
+      setEditItemForm({ value: item || '' });
+    }
+  };
+
+  const saveEditedItem = () => {
+    if (!editingItem) return;
+    const { section, index } = editingItem;
+    if ((section === 'banner' || section === 'gallery') && !editItemForm.url?.trim()) {
+      toast.error('Please choose a media file first.');
+      return;
+    }
+    if (section === 'itinerary' && !editItemForm.title?.trim()) {
+      toast.error('Please enter an itinerary title.');
+      return;
+    }
+    if (section === 'route' && !editItemForm.city?.trim()) {
+      toast.error('Please enter a city name.');
+      return;
+    }
+    if (section === 'departure_dates' && !editItemForm.departure_date) {
+      toast.error('Please select a departure date.');
+      return;
+    }
+    if ((section === 'inclusions' || section === 'exclusions') && !editItemForm.value?.trim()) {
+      toast.error('Please enter a value.');
+      return;
+    }
+
+    if (section === 'banner' || section === 'gallery') {
+      const items = [...(section === 'banner' ? draft.banner?.items || [] : draft.gallery || [])];
+      items[index] = { ...items[index], ...editItemForm };
+      if (section === 'banner') setBannerItems(items);
+      else setDraft((current) => ({ ...current, gallery: items }));
+    } else if (section === 'inclusions' || section === 'exclusions') {
+      setDraft((current) => ({
+        ...current,
+        [section]: (current[section] || []).map((item, itemIndex) => itemIndex === index ? editItemForm.value.trim() : item),
+      }));
+    } else {
+      const item = section === 'highlights'
+        ? { ...draft.highlights[index], text: editItemForm.text || '' }
+        : section === 'itinerary'
+          ? { ...draft.itinerary[index], day: Number(editItemForm.day) || index + 1, title: editItemForm.title.trim(), description: editItemForm.description || '' }
+          : section === 'route'
+            ? { ...draft.route[index], city: editItemForm.city.trim(), nights: Number(editItemForm.nights) || 1 }
+            : {
+                ...draft.departure_dates[index],
+                departure_date: editItemForm.departure_date,
+                return_date: editItemForm.return_date || '',
+                total_seats: Number(editItemForm.total_seats) || 0,
+                available_seats: Number(editItemForm.available_seats) || 0,
+              };
+      setDraft((current) => ({
+        ...current,
+        [section]: (current[section] || []).map((currentItem, itemIndex) => itemIndex === index ? item : currentItem),
+      }));
+    }
+    setEditingItem(null);
   };
 
   const openMediaModal = (context) => {
@@ -578,14 +679,14 @@ const TourDetails = () => {
 
             {bannerItems.length > 0 && (
               <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-[110px_minmax(0,1fr)_56px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <div className="grid grid-cols-[110px_minmax(0,1fr)_88px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                   <span>Type</span>
                   <span>Media</span>
                   <span className="text-right">Action</span>
                 </div>
 
                 {bannerItems.map((item, index) => (
-                  <div key={item.id || index} className="grid grid-cols-[110px_minmax(0,1fr)_56px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                  <div key={item.id || index} className="grid grid-cols-[110px_minmax(0,1fr)_88px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
                     <span className="text-sm font-medium capitalize text-gray-700 dark:text-gray-200">{item.type || 'image'}</span>
                     <div className="flex min-w-0 items-center gap-3">
                       <MediaPreviewModal
@@ -597,17 +698,16 @@ const TourDetails = () => {
                       />
                       <span className="truncate text-xs text-gray-500 dark:text-gray-400">{item.url}</span>
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-1">
+                      <button type="button" onClick={() => openItemEditor('banner', index, item)} className={editBtnClass} title="Edit banner media" aria-label="Edit banner media">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                       <button
                         type="button"
-                        onClick={() => setDraft((current) => ({
-                          ...current,
-                          banner: {
-                            ...current.banner,
-                            items: (current.banner?.items || []).filter((_, idx) => idx !== index),
-                          },
-                        }))}
+                        onClick={() => setBannerItems(bannerItems.filter((_, idx) => idx !== index))}
                         className={removeBtnClass}
+                        title="Remove banner media"
+                        aria-label="Remove banner media"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -635,14 +735,14 @@ const TourDetails = () => {
 
             {galleryItems.length > 0 && (
               <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-[110px_minmax(0,1fr)_56px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <div className="grid grid-cols-[110px_minmax(0,1fr)_88px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                   <span>Type</span>
                   <span>Media</span>
                   <span className="text-right">Action</span>
                 </div>
 
                 {galleryItems.map((item, index) => (
-                  <div key={item.id || index} className="grid grid-cols-[110px_minmax(0,1fr)_56px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                  <div key={item.id || index} className="grid grid-cols-[110px_minmax(0,1fr)_88px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
                     <span className="text-sm font-medium capitalize text-gray-700 dark:text-gray-200">{item.type || 'image'}</span>
                     <div className="flex min-w-0 items-center gap-3">
                       <MediaPreviewModal
@@ -657,7 +757,10 @@ const TourDetails = () => {
                         <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">{item.url}</p>
                       </div>
                     </div>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-1">
+                      <button type="button" onClick={() => openItemEditor('gallery', index, item)} className={editBtnClass} title="Edit gallery media" aria-label="Edit gallery media">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                       <button type="button" onClick={() => removeArrayItem('gallery', index)} className={removeBtnClass}>
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -675,14 +778,12 @@ const TourDetails = () => {
           <div className="space-y-3">
             {(draft.highlights || []).length === 0 && <EmptyState text="No highlights yet." />}
             {(draft.highlights || []).map((item, index) => (
-              <div key={item.id || index} className="flex gap-2">
-                <input
-                  value={item.text || ''}
-                  onChange={(event) => updateArrayItem('highlights', index, 'text', event.target.value)}
-                  className={inputClass}
-                  placeholder="Highlight text"
-                />
-                <button type="button" onClick={() => removeArrayItem('highlights', index)} className={removeBtnClass}>
+              <div key={item.id || index} className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2.5 dark:border-gray-700">
+                <p className="min-w-0 flex-1 text-sm text-gray-700 dark:text-gray-200">{item.text || 'Untitled highlight'}</p>
+                <button type="button" onClick={() => openItemEditor('highlights', index, item)} className={editBtnClass} title="Edit highlight" aria-label="Edit highlight">
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" onClick={() => removeArrayItem('highlights', index)} className={removeBtnClass} title="Remove highlight" aria-label="Remove highlight">
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -708,7 +809,7 @@ const TourDetails = () => {
 
             {itineraryItems.length > 0 && (
               <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-[90px_minmax(0,1.1fr)_minmax(0,1.5fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <div className="grid grid-cols-[90px_minmax(0,1.1fr)_minmax(0,1.5fr)_88px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                   <span>Day</span>
                   <span>Title</span>
                   <span>Description</span>
@@ -716,11 +817,14 @@ const TourDetails = () => {
                 </div>
 
                 {itineraryItems.map((item, index) => (
-                  <div key={item.id || index} className="grid grid-cols-[90px_minmax(0,1.1fr)_minmax(0,1.5fr)_70px] items-start gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                  <div key={item.id || index} className="grid grid-cols-[90px_minmax(0,1.1fr)_minmax(0,1.5fr)_88px] items-start gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Day {item.day || index + 1}</span>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{item.title || 'Untitled'}</span>
                     <p className="text-sm text-gray-600 dark:text-gray-300">{item.description || 'No description provided.'}</p>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-1">
+                      <button type="button" onClick={() => openItemEditor('itinerary', index, item)} className={editBtnClass} title="Edit itinerary day" aria-label="Edit itinerary day">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                       <button type="button" onClick={() => removeArrayItem('itinerary', index)} className={removeBtnClass}>
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -747,17 +851,20 @@ const TourDetails = () => {
 
             {(draft.route || []).length > 0 && (
               <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-[minmax(0,1.2fr)_110px_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <div className="grid grid-cols-[minmax(0,1.2fr)_110px_88px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                   <span>City</span>
                   <span>Nights</span>
                   <span className="text-right">Action</span>
                 </div>
 
                 {(draft.route || []).map((item, index) => (
-                  <div key={item.id || index} className="grid grid-cols-[minmax(0,1.2fr)_110px_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                  <div key={item.id || index} className="grid grid-cols-[minmax(0,1.2fr)_110px_88px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{item.city || 'Untitled city'}</span>
                     <span className="text-sm text-gray-600 dark:text-gray-300">{item.nights || 0} nights</span>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-1">
+                      <button type="button" onClick={() => openItemEditor('route', index, item)} className={editBtnClass} title="Edit route segment" aria-label="Edit route segment">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                       <button type="button" onClick={() => removeArrayItem('route', index)} className={removeBtnClass}>
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -786,7 +893,7 @@ const TourDetails = () => {
 
             {(draft.departure_dates || []).length > 0 && (
               <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_100px_110px_60px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_100px_110px_88px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                   <span>Departure Date</span>
                   <span>Return Date</span>
                   <span>Total Seats</span>
@@ -795,14 +902,17 @@ const TourDetails = () => {
                 </div>
 
                 {(draft.departure_dates || []).map((item, index) => (
-                  <div key={item.id || index} className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_100px_110px_60px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700 text-sm">
+                  <div key={item.id || index} className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_100px_110px_88px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700 text-sm">
                     <span className="font-medium text-gray-800 dark:text-gray-200">{item.departure_date || item.date || 'N/A'}</span>
                     <span className="text-gray-600 dark:text-gray-400">{item.return_date || '—'}</span>
                     <span className="text-gray-700 dark:text-gray-300">{item.total_seats ?? 0}</span>
                     <span className="inline-flex w-fit rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
                       {item.available_seats ?? 0}
                     </span>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-1">
+                      <button type="button" onClick={() => openItemEditor('departure_dates', index, item)} className={editBtnClass} title="Edit departure date" aria-label="Edit departure date">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                       <button type="button" onClick={() => removeArrayItem('departure_dates', index)} className={removeBtnClass}>
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -844,16 +954,19 @@ const TourDetails = () => {
 
                   {(draft.inclusions || []).length > 0 && (
                     <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                      <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                      <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                         <span>Item</span>
                         <span className="text-right">Action</span>
                       </div>
 
                       {(draft.inclusions || []).map((item, index) => (
-                        <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                        <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
                           <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
-                          <div className="flex justify-end">
-                            <button type="button" onClick={() => setDraft((current) => ({ ...current, inclusions: (current.inclusions || []).filter((_, idx) => idx !== index) }))} className={removeBtnClass}>
+                          <div className="flex justify-end gap-1">
+                            <button type="button" onClick={() => openItemEditor('inclusions', index, item)} className={editBtnClass} title="Edit inclusion" aria-label="Edit inclusion">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button type="button" onClick={() => removeArrayItem('inclusions', index)} className={removeBtnClass} title="Remove inclusion" aria-label="Remove inclusion">
                               <X className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -892,16 +1005,19 @@ const TourDetails = () => {
 
                   {(draft.exclusions || []).length > 0 && (
                     <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                      <div className="grid grid-cols-[minmax(0,1fr)_70px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                      <div className="grid grid-cols-[minmax(0,1fr)_88px] gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
                         <span>Item</span>
                         <span className="text-right">Action</span>
                       </div>
 
                       {(draft.exclusions || []).map((item, index) => (
-                        <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_70px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
+                        <div key={`${item}-${index}`} className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3 border-b border-gray-200 px-3 py-3 last:border-b-0 dark:border-gray-700">
                           <span className="text-sm text-gray-700 dark:text-gray-200">{item}</span>
-                          <div className="flex justify-end">
-                            <button type="button" onClick={() => setDraft((current) => ({ ...current, exclusions: (current.exclusions || []).filter((_, idx) => idx !== index) }))} className={removeBtnClass}>
+                          <div className="flex justify-end gap-1">
+                            <button type="button" onClick={() => openItemEditor('exclusions', index, item)} className={editBtnClass} title="Edit exclusion" aria-label="Edit exclusion">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button type="button" onClick={() => removeArrayItem('exclusions', index)} className={removeBtnClass} title="Remove exclusion" aria-label="Remove exclusion">
                               <X className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -946,6 +1062,71 @@ const TourDetails = () => {
       />
 
       <Modal
+        isOpen={Boolean(editingItem)}
+        onClose={() => setEditingItem(null)}
+        title={`Edit ${editingItem?.section === 'banner' ? 'banner media' : editingItem?.section === 'gallery' ? 'gallery media' : editingItem?.section === 'highlights' ? 'highlight' : editingItem?.section === 'itinerary' ? 'itinerary day' : editingItem?.section === 'route' ? 'route segment' : editingItem?.section === 'departure_dates' ? 'departure date' : editingItem?.section === 'inclusions' ? 'inclusion' : 'exclusion'}`}
+        icon={Pencil}
+        size="lg"
+        confirmText="Save item"
+        onConfirm={saveEditedItem}
+      >
+        <div className="space-y-4 p-4">
+          {(editingItem?.section === 'banner' || editingItem?.section === 'gallery') && (
+            <>
+              <div className={`grid gap-4 ${editingItem?.section === 'gallery' ? 'md:grid-cols-2' : ''}`}>
+                <SelectField
+                  options={[{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }]}
+                  value={{ value: editItemForm.type || 'image', label: editItemForm.type === 'video' ? 'Video' : 'Image' }}
+                  onChange={(selected) => setEditItemForm((current) => ({ ...current, type: selected?.value || 'image' }))}
+                  isSearchable={false}
+                  menuPlacement="bottom"
+                />
+                {editingItem?.section === 'gallery' && (
+                  <input value={editItemForm.alt || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, alt: event.target.value }))} placeholder="Media title" className={inputClass} />
+                )}
+              </div>
+              <DragDropUpload
+                label="Media file"
+                value={editItemForm.url || ''}
+                accept="image/*,video/*"
+                onChange={(url) => setEditItemForm((current) => ({ ...current, url }))}
+                helperText="Upload image or video file"
+              />
+            </>
+          )}
+          {editingItem?.section === 'highlights' && (
+            <textarea value={editItemForm.text || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, text: event.target.value }))} rows={3} placeholder="Highlight text" className={inputClass} />
+          )}
+          {editingItem?.section === 'itinerary' && (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <input type="number" min="1" value={editItemForm.day || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, day: event.target.value }))} placeholder="Day" className={inputClass} />
+                <input value={editItemForm.title || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, title: event.target.value }))} placeholder="Title" className={inputClass} />
+              </div>
+              <textarea value={editItemForm.description || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, description: event.target.value }))} rows={4} placeholder="Description" className={inputClass} />
+            </>
+          )}
+          {editingItem?.section === 'route' && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <input value={editItemForm.city || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, city: event.target.value }))} placeholder="City name" className={inputClass} />
+              <input type="number" min="1" value={editItemForm.nights ?? 1} onChange={(event) => setEditItemForm((current) => ({ ...current, nights: event.target.value }))} placeholder="Nights" className={inputClass} />
+            </div>
+          )}
+          {editingItem?.section === 'departure_dates' && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-1 text-xs font-medium text-gray-600 dark:text-gray-300">Departure date<input type="date" value={editItemForm.departure_date || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, departure_date: event.target.value }))} className={inputClass} /></label>
+              <label className="space-y-1 text-xs font-medium text-gray-600 dark:text-gray-300">Return date<input type="date" value={editItemForm.return_date || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, return_date: event.target.value }))} className={inputClass} /></label>
+              <label className="space-y-1 text-xs font-medium text-gray-600 dark:text-gray-300">Total seats<input type="number" min="0" value={editItemForm.total_seats ?? 0} onChange={(event) => setEditItemForm((current) => ({ ...current, total_seats: event.target.value }))} className={inputClass} /></label>
+              <label className="space-y-1 text-xs font-medium text-gray-600 dark:text-gray-300">Available seats<input type="number" min="0" value={editItemForm.available_seats ?? 0} onChange={(event) => setEditItemForm((current) => ({ ...current, available_seats: event.target.value }))} className={inputClass} /></label>
+            </div>
+          )}
+          {(editingItem?.section === 'inclusions' || editingItem?.section === 'exclusions') && (
+            <input value={editItemForm.value || ''} onChange={(event) => setEditItemForm((current) => ({ ...current, value: event.target.value }))} placeholder="Item text" className={inputClass} />
+          )}
+        </div>
+      </Modal>
+
+      <Modal
         isOpen={mediaModalOpen}
         onClose={() => setMediaModalOpen(false)}
         title={mediaModalContext === 'banner' ? 'Add banner media' : 'Add gallery media'}
@@ -954,7 +1135,7 @@ const TourDetails = () => {
         onConfirm={submitMediaModal}
       >
         <div className="space-y-4 p-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className={`grid gap-4 ${mediaModalContext === 'gallery' ? 'md:grid-cols-2' : ''}`}>
             <SelectField
               options={[
                 { value: 'image', label: 'Image' },
@@ -966,12 +1147,14 @@ const TourDetails = () => {
               menuPlacement="bottom"
               classNamePrefix="react-select"
             />
-            <input
-              value={mediaForm.alt}
-              onChange={(event) => setMediaForm((current) => ({ ...current, alt: event.target.value }))}
-              placeholder={mediaModalContext === 'banner' ? 'Alt text' : 'Media title'}
-              className={inputClass}
-            />
+            {mediaModalContext === 'gallery' && (
+              <input
+                value={mediaForm.alt}
+                onChange={(event) => setMediaForm((current) => ({ ...current, alt: event.target.value }))}
+                placeholder="Media title"
+                className={inputClass}
+              />
+            )}
           </div>
 
           <DragDropUpload
