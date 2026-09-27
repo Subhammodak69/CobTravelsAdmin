@@ -188,7 +188,7 @@ const Analytics = () => {
 
       {error && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">{error}</div>}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         {statCards.map(card => {
           const Icon = card.icon;
           return <Card key={card.label} className="p-4"><div className="flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{card.label}</span><Icon className="h-4 w-4 text-indigo-500" /></div><p className="mt-3 text-2xl font-bold">{loading && !overview ? '—' : numberFormat(card.value)}</p></Card>;
