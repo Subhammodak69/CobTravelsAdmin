@@ -30,6 +30,7 @@ import ReferralsConfiguration from './pages/ReferralsConfiguration';
 import FinancialManagement from './pages/FinancialManagement';
 import ServerUnavailable from './pages/ServerUnavailable';
 import NotFound from './pages/NotFound';
+import Analytics from './pages/Analytics';
 
 // Fallback placeholder component for other routes
 const UnderConstruction = ({ title }) => (
@@ -52,6 +53,7 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/staff-management" element={<StaffManagement />} />
           <Route path="/customers" element={<CustomerManagement />} />

@@ -14,6 +14,7 @@ import {
   Receipt,
   CalendarCheck,
   Wallet,
+  BarChart3,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 
@@ -33,6 +34,7 @@ const Sidebar = ({
       label: "Overview",
       items: [
         { icon: House, label: "Dashboard", path: "/" },
+        { icon: BarChart3, label: "Analytics", path: "/analytics" },
       ],
     },
     {
