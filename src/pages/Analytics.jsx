@@ -130,7 +130,7 @@ const Analytics = () => {
     const handleRealtimeEvent = event => {
       const detail = event.detail || {};
       setLastRealtimeEvent({ event: detail.event, payload: detail.payload, receivedAt: new Date() });
-      if (['visitor_connected', 'visitor_disconnected', 'analytics:visitor_identified', 'analytics:session_started', 'analytics:visitor_event'].includes(detail.event)) {
+      if (['visitor_connected', 'visitor_disconnected', 'visitor_identified', 'visitor_location_updated', 'live_stats', 'analytics:visitor_identified', 'analytics:session_started', 'analytics:visitor_event'].includes(detail.event)) {
         loadAnalytics();
         loadVisitors();
       }
@@ -255,4 +255,3 @@ const Analytics = () => {
 };
 
 export default Analytics;
-
