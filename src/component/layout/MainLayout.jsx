@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { ThemeProvider } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
+import { createAdminRealtimeSocket, createNotificationSocket } from '../../realtime/socket';
 
 const MainLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -19,6 +21,8 @@ const MainLayout = ({ children }) => {
   const sidebarRef = useRef(null);
   const mainRef = useRef(null);
   const { pathname } = useLocation();
+  const { tokenInfo } = useAuth();
+  const [realtimeStatus, setRealtimeStatus] = useState('disconnected');
 
   useEffect(() => {
     if (mainRef.current) mainRef.current.scrollTop = 0;
@@ -40,6 +44,40 @@ const MainLayout = ({ children }) => {
     document.documentElement.style.setProperty('--sidebar-offset', sidebarOffset);
     window.dispatchEvent(new Event('sidebar-offset-change'));
   }, [isMobile, desktopSidebarCollapsed]);
+
+  useEffect(() => {
+    const token = tokenInfo?.access_token || localStorage.getItem('access_token');
+    if (!token) {
+      setRealtimeStatus('disconnected');
+      return undefined;
+    }
+
+    const socket = createAdminRealtimeSocket({
+      token,
+      onStatus: (status, error) => {
+        setRealtimeStatus(status);
+        if (status === 'error') {
+          window.dispatchEvent(new CustomEvent('cobtravels:realtime', {
+            detail: { status, error: error?.message || 'Realtime connection failed' },
+          }));
+        }
+      },
+      onEvent: (event, payload) => {
+        window.dispatchEvent(new CustomEvent('cobtravels:realtime:event', {
+          detail: { event, payload },
+        }));
+      },
+    });
+    const notificationSocket = createNotificationSocket(token, (message) => {
+      window.dispatchEvent(new CustomEvent('cobtravels:notification', { detail: message }));
+    });
+
+    return () => {
+      socket?.disconnect();
+      notificationSocket?.close();
+      setRealtimeStatus('disconnected');
+    };
+  }, [tokenInfo?.access_token]);
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -79,6 +117,7 @@ const MainLayout = ({ children }) => {
           isMobile={isMobile}
           sidebarOpen={sidebarOpen}
           isDesktopSidebarExpanded={!desktopSidebarCollapsed}
+          realtimeStatus={realtimeStatus}
         />
 
         <div className="flex flex-1 relative overflow-hidden">

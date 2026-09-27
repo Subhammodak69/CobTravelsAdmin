@@ -16,6 +16,7 @@ const Navbar = ({
   isMobile,
   sidebarOpen,
   isDesktopSidebarExpanded,
+  realtimeStatus = 'disconnected',
 }) => {
   const [openDropdown, setOpenDropdown] = useState(false);
   const navigate = useNavigate();
@@ -63,6 +64,13 @@ const Navbar = ({
             </div>
 
             <div className="flex items-center space-x-2">
+              <span
+                className={`hidden items-center gap-1 text-[10px] font-semibold uppercase tracking-wide md:flex ${realtimeStatus === 'connected' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400'}`}
+                title={`Realtime: ${realtimeStatus}`}
+              >
+                <span className={`h-2 w-2 rounded-full ${realtimeStatus === 'connected' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                Live
+              </span>
               <button type="button" onClick={toggleTheme} className="p-2.5 rounded-2xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
