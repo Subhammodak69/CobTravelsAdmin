@@ -6,8 +6,7 @@ import {
   Mail, 
   KeyRound, 
   ArrowRight, 
-  RotateCw, 
-  Compass, 
+  RotateCw,
   CheckCircle2, 
   AlertCircle 
 } from 'lucide-react';
@@ -180,11 +179,11 @@ const Login = () => {
           
           {/* Brand Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-lg shadow-indigo-500/25 mb-4 group transition-transform duration-300 hover:scale-105">
-              <Compass className="w-7 h-7 text-white animate-[spin_10s_linear_infinite]" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white shadow-lg shadow-indigo-500/25 mb-4 group transition-transform duration-300 hover:scale-105 overflow-hidden">
+              <img src="/gantabya-logo.jpg" alt="Gantabya" className="h-full w-full object-contain" />
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 flex items-center justify-center gap-2">
-              Coochbehar Travels
+              Gantabya
               <span className="text-xs uppercase px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-600 font-semibold tracking-wider">
                 Admin
               </span>
@@ -364,14 +363,14 @@ const Login = () => {
           {/* Security Notice */}
           <div className="mt-8 pt-6 border-t border-slate-200 flex items-center justify-center gap-2 text-xs text-slate-400 text-center">
             <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
-            <span>Authorized Coochbehar Travels personnel only</span>
+            <span>Authorized Gantabya personnel only</span>
           </div>
 
         </div>
 
         {/* Footer info */}
         <p className="text-center text-xs text-slate-400 mt-6">
-          Protected by end-to-end token verification &bull; Coochbehar Travels &copy; {new Date().getFullYear()}
+          Protected by end-to-end token verification &bull; Gantabya &copy; {new Date().getFullYear()}
         </p>
       </div>
     </div>
