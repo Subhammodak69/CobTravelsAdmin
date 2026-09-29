@@ -1,0 +1,43 @@
+name: Deploy Admin Frontend
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: admin-frontend-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script_stop: true
+          script: |
+            set -e
+
+            APP_DIR="/home/gantabyaa-admin/htdocs/admin.gantabyaa.com"
+
+            cd "$APP_DIR"
+
+            echo "Updating repository..."
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "Installing dependencies..."
+            npm ci
+
+            echo "Building React application..."
+            npm run build
+
+            echo "Deployment completed successfully."
+
