@@ -3,14 +3,14 @@
   "name": "Gantabyaa Admin",
   "icons": [
     {
-      "src": "gantabya-logo-transparent.png",
-      "sizes": "560x550",
+      "src": "gantabya-transparent.png",
+      "sizes": "1254x1254",
       "type": "image/png"
     },
     {
-      "src": "gantabya-logo-transparent.png",
+      "src": "gantabya-transparent.png",
       "type": "image/png",
-      "sizes": "560x550"
+      "sizes": "1254x1254"
     }
   ],
   "start_url": ".",

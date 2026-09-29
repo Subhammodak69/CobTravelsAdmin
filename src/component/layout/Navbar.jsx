@@ -52,7 +52,7 @@ const Navbar = ({
                 onClick={() => navigate("/dashboard")}
                 className="flex items-center gap-1 rounded-2xl transition-opacity duration-200 hover:opacity-90 focus:outline-none"
               >
-                <img src="/gantabya-logo-transparent.png" alt="Gantabya" className="h-9 w-9 object-contain" />
+                <img src="/gantabya-transparent.png" alt="Gantabya" className="h-9 w-9 object-contain" />
                 <div>
                   <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight">
                     Gantabya

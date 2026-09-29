@@ -180,7 +180,7 @@ const Login = () => {
           {/* Brand Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-transparent shadow-none mb-4 group transition-transform duration-300 hover:scale-105 overflow-hidden">
-              <img src="/gantabya-logo-transparent.png" alt="Gantabya" className="h-full w-full object-contain" />
+              <img src="/gantabya-transparent.png" alt="Gantabya" className="h-full w-full object-contain" />
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 flex items-center justify-center gap-2">
               Gantabya
