@@ -66,6 +66,11 @@ const MainLayout = ({ children }) => {
         window.dispatchEvent(new CustomEvent('cobtravels:realtime:event', {
           detail: { event, payload },
         }));
+        if (event === 'notification.created') {
+          window.dispatchEvent(new CustomEvent('cobtravels:notification', {
+            detail: { event, data: payload },
+          }));
+        }
       },
     });
     const notificationSocket = createNotificationSocket(token, (message) => {
