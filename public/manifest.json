@@ -3,12 +3,12 @@
   "name": "Gantabya Admin",
   "icons": [
     {
-      "src": "gantabya-mark.jpg",
+      "src": "gantabya-logo.jpg",
       "sizes": "1254x1254",
       "type": "image/jpeg"
     },
     {
-      "src": "gantabya-mark.jpg",
+      "src": "gantabya-logo.jpg",
       "type": "image/jpeg",
       "sizes": "1254x1254"
     }
