@@ -25,6 +25,12 @@ jobs:
           script: |
             set -e
 
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            echo "Node: $(node -v)"
+            echo "NPM: $(npm -v)"
+
             APP_DIR="/home/gantabyaa-admin/htdocs/admin.gantabyaa.com"
 
             cd "$APP_DIR"
