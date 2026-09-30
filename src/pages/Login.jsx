@@ -180,10 +180,10 @@ const Login = () => {
           {/* Brand Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-transparent shadow-none mb-4 group transition-transform duration-300 hover:scale-105 overflow-hidden">
-              <img src="/gantabya-transparent.png" alt="Gantabya" className="h-full w-full object-contain" />
+              <img src="/gantabyaa-transparent.png" alt="Gantabyaa" className="h-full w-full object-contain" />
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 flex items-center justify-center gap-2">
-              Gantabya
+              Gantabyaa
               <span className="text-xs uppercase px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-600 font-semibold tracking-wider">
                 Admin
               </span>
@@ -363,14 +363,14 @@ const Login = () => {
           {/* Security Notice */}
           <div className="mt-8 pt-6 border-t border-slate-200 flex items-center justify-center gap-2 text-xs text-slate-400 text-center">
             <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
-            <span>Authorized Gantabya personnel only</span>
+            <span>Authorized Gantabyaa personnel only</span>
           </div>
 
         </div>
 
         {/* Footer info */}
         <p className="text-center text-xs text-slate-400 mt-6">
-          Protected by end-to-end token verification &bull; Gantabya &copy; {new Date().getFullYear()}
+          Protected by end-to-end token verification &bull; Gantabyaa &copy; {new Date().getFullYear()}
         </p>
       </div>
     </div>
