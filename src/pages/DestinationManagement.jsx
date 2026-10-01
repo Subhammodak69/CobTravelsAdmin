@@ -8,6 +8,9 @@ import {
   Trash2,
   Search,
   RefreshCw,
+  CheckCircle2,
+  XCircle,
+  LoaderCircle,
   Globe,
   Home,
   Star,
@@ -45,6 +48,7 @@ const DestinationManagement = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingDestination, setDeletingDestination] = useState(false);
+  const [updatingStatusIds, setUpdatingStatusIds] = useState(() => new Set());
   const [formState, setFormState] = useState(defaultForm);
 
   const loadDestinations = useCallback(
@@ -159,6 +163,35 @@ const DestinationManagement = () => {
   const handleDelete = (row) => {
     setDeleteTarget(row);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleToggleActive = async (destination) => {
+    const newStatus = destination.is_active === false;
+    setUpdatingStatusIds((previous) => new Set(previous).add(destination.id));
+    try {
+      const response = await apiCall(
+        `/api/v1/admin/destinations/${destination.id}`,
+        'PATCH',
+        { is_active: newStatus }
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.message || result?.detail || 'Failed to update destination status');
+      }
+
+      setDestinations((previous) => previous.map((item) => (
+        item.id === destination.id ? { ...item, is_active: newStatus } : item
+      )));
+      toast.success(`Destination ${newStatus ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      handleApiError(error, 'Unable to update destination status');
+    } finally {
+      setUpdatingStatusIds((previous) => {
+        const next = new Set(previous);
+        next.delete(destination.id);
+        return next;
+      });
+    }
   };
 
   const confirmDeleteDestination = async () => {
@@ -385,16 +418,29 @@ const DestinationManagement = () => {
 
                     {/* Active / Inactive */}
                     <td className="px-4 py-4">
-                      <span
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(dest)}
+                        disabled={updatingStatusIds.has(dest.id)}
+                        aria-label={`${dest.is_active === false ? 'Activate' : 'Deactivate'} ${dest.name}`}
+                        aria-pressed={dest.is_active !== false}
+                        title="Click to toggle status"
                         className={[
-                          'inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold',
+                          'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition disabled:cursor-wait disabled:opacity-60',
                           dest.is_active === false
-                            ? 'border-red-200 bg-red-50 text-red-600 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300'
-                            : 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300',
+                            ? 'border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300',
                         ].join(' ')}
                       >
+                        {updatingStatusIds.has(dest.id) ? (
+                          <LoaderCircle className="h-3 w-3 animate-spin" />
+                        ) : dest.is_active === false ? (
+                          <XCircle className="h-3 w-3" />
+                        ) : (
+                          <CheckCircle2 className="h-3 w-3" />
+                        )}
                         {dest.is_active === false ? 'Inactive' : 'Active'}
-                      </span>
+                      </button>
                     </td>
 
                     {/* Actions */}
@@ -407,6 +453,14 @@ const DestinationManagement = () => {
                               label: 'Edit Destination',
                               icon: <Pencil className="h-4 w-4 text-blue-500" />,
                               onClick: () => openEditModal(dest),
+                            },
+                            {
+                              label: dest.is_active === false ? 'Activate Destination' : 'Deactivate Destination',
+                              icon: dest.is_active === false
+                                ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                : <XCircle className="h-4 w-4 text-amber-500" />,
+                              disabled: updatingStatusIds.has(dest.id),
+                              onClick: () => handleToggleActive(dest),
                             },
                             {
                               label: 'Delete Destination',
