@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import { API_BASE } from "../utils/config";
 
-const REALTIME_BASE = API_BASE || "https://coochbehar-travels.onrender.com";
+const REALTIME_BASE = API_BASE || "https://api.gantabyaa.in";
 
 export function createAdminRealtimeSocket({ token, onStatus, onEvent } = {}) {
   if (!token) return null;
