@@ -170,7 +170,7 @@ const HotelManagement = () => {
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Image handling
+  // Hotel gallery media handling
   const handleImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -182,11 +182,12 @@ const HotelManagement = () => {
       if (!url) throw new Error('Uploaded file URL not found in response');
 
       const nextOrder = (formState.image || []).length + 1;
+      const mediaType = file.type?.startsWith('video/') ? 'video' : 'image';
       const newImg = {
         id: `img-${Date.now()}`,
-        alt: newImageAlt.trim() || formState.name || file.name || 'Hotel Image',
+        alt: newImageAlt.trim() || formState.name || file.name || 'Hotel media',
         url,
-        type: 'image',
+        type: mediaType,
         display_order: nextOrder,
         additionalProperty: 'anything',
       };
@@ -196,7 +197,7 @@ const HotelManagement = () => {
         image: [...(prev.image || []), newImg],
       }));
       setNewImageAlt('');
-      toast.success('Image uploaded successfully');
+      toast.success('Media uploaded successfully');
     } catch (err) {
       toast.error(err?.message || 'Failed to upload image');
     } finally {
@@ -225,6 +226,14 @@ const HotelManagement = () => {
     });
   };
 
+  const updateImageType = (index, type) => {
+    setFormState((prev) => {
+      const updated = [...(prev.image || [])];
+      if (updated[index]) updated[index] = { ...updated[index], type };
+      return { ...prev, image: updated };
+    });
+  };
+
   // Submit create or update
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -237,7 +246,7 @@ const HotelManagement = () => {
       return;
     }
     if (!formState.image?.some((image) => image?.url)) {
-      toast.error('Please upload at least one hotel image');
+      toast.error('Please upload at least one hotel image or video');
       return;
     }
 
@@ -577,7 +586,8 @@ const HotelManagement = () => {
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredHotels.map((hotel) => {
                   const images = Array.isArray(hotel.image) ? hotel.image : [];
-                  const primaryImg = images[0]?.url;
+                  const primaryMedia = images[0];
+                  const primaryImg = primaryMedia?.url;
                   const destName = destinationMap[hotel.destination_id] || '—';
                   const badgeClass =
                     categoryBadgeColors[hotel.category?.toUpperCase()] ||
@@ -596,7 +606,7 @@ const HotelManagement = () => {
                               <MediaPreviewModal
                                 src={primaryImg}
                                 alt={hotel.name}
-                                type="image"
+                                type={primaryMedia?.type || 'image'}
                                 thumbnailClassName="h-12 w-12 rounded-xl object-cover ring-2 ring-indigo-100 dark:ring-indigo-950"
                                 className="block"
                               />
@@ -624,7 +634,7 @@ const HotelManagement = () => {
                               </p>
                             )}
                             <div className="mt-0.5 text-[11px] text-gray-400">
-                              {images.length} {images.length === 1 ? 'photo' : 'photos'}
+                              {images.length} {images.length === 1 ? 'media item' : 'media items'}
                             </div>
                           </div>
                         </div>
@@ -857,7 +867,7 @@ const HotelManagement = () => {
                   Hotel gallery ({formState.image?.length || 0}) <span className="text-red-500">*</span>
                 </h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  At least one photo is required. Upload photos representing the facade, lobby, rooms, and dining.
+                  At least one image or video is required. Add photos and videos representing the property.
                 </p>
               </div>
             </div>
@@ -877,10 +887,10 @@ const HotelManagement = () => {
                 }`}
               >
                 <UploadCloud className="h-4 w-4" />
-                {uploadingImage ? 'Uploading...' : 'Upload photo'}
+                {uploadingImage ? 'Uploading...' : 'Upload media'}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,video/*"
                   onChange={handleImageFileUpload}
                   disabled={uploadingImage}
                   className="hidden"
@@ -896,12 +906,14 @@ const HotelManagement = () => {
                     key={img.id || idx}
                     className="group relative rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-50 dark:bg-gray-800 shadow-xs"
                   >
-                    <img
+                    <MediaPreviewModal
                       src={img.url}
                       alt={img.alt || `Hotel ${idx + 1}`}
-                      className="h-24 w-full object-cover"
+                      type={img.type || 'image'}
+                      thumbnailClassName="h-24 w-full object-cover"
+                      className="block w-full"
                     />
-                    <div className="p-1.5">
+                    <div className="space-y-1 p-1.5">
                       <input
                         type="text"
                         value={img.alt || ''}
@@ -909,12 +921,27 @@ const HotelManagement = () => {
                         placeholder="Caption/Alt"
                         className="w-full text-[11px] rounded px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-indigo-500 bg-transparent text-gray-700 dark:text-gray-300 outline-none"
                       />
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                        Media type
+                        <SelectField
+                          options={[
+                            { value: 'image', label: 'Image' },
+                            { value: 'video', label: 'Video' },
+                          ]}
+                          value={{ value: img.type || 'image', label: img.type === 'video' ? 'Video' : 'Image' }}
+                          onChange={(selected) => updateImageType(idx, selected?.value || 'image')}
+                          isSearchable={false}
+                          menuPlacement="auto"
+                          className="mt-1"
+                          classNamePrefix="react-select"
+                        />
+                      </label>
                     </div>
                     <button
                       type="button"
                       onClick={() => removeImage(idx)}
                       className="absolute top-1 right-1 rounded-full bg-red-600/90 text-white p-1 hover:bg-red-700 transition shadow-sm"
-                      title="Remove image"
+                      title="Remove media"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -926,7 +953,7 @@ const HotelManagement = () => {
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-800 p-4 text-center text-xs text-gray-400">
-                No images added yet. Click &quot;Upload photo&quot; to add hotel pictures.
+                No media added yet. Click &quot;Upload media&quot; to add hotel photos or videos.
               </div>
             )}
           </div>
