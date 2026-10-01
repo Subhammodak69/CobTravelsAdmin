@@ -564,6 +564,22 @@ const DestinationManagement = () => {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          if (!deletingDestination) {
+            setIsDeleteModalOpen(false);
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={confirmDeleteDestination}
+        confirming={deletingDestination}
+        itemLabel={deleteTarget?.name || 'this destination'}
+        title="Delete destination"
+        message="This destination will be permanently removed from the catalog."
+        confirmText="Delete destination"
+      />
     </div>
   );
 };
