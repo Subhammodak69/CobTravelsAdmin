@@ -226,14 +226,6 @@ const HotelManagement = () => {
     });
   };
 
-  const updateImageType = (index, type) => {
-    setFormState((prev) => {
-      const updated = [...(prev.image || [])];
-      if (updated[index]) updated[index] = { ...updated[index], type };
-      return { ...prev, image: updated };
-    });
-  };
-
   // Submit create or update
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -921,21 +913,9 @@ const HotelManagement = () => {
                         placeholder="Caption/Alt"
                         className="w-full text-[11px] rounded px-1 py-0.5 border border-transparent hover:border-gray-300 focus:border-indigo-500 bg-transparent text-gray-700 dark:text-gray-300 outline-none"
                       />
-                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400">
-                        Media type
-                        <SelectField
-                          options={[
-                            { value: 'image', label: 'Image' },
-                            { value: 'video', label: 'Video' },
-                          ]}
-                          value={{ value: img.type || 'image', label: img.type === 'video' ? 'Video' : 'Image' }}
-                          onChange={(selected) => updateImageType(idx, selected?.value || 'image')}
-                          isSearchable={false}
-                          menuPlacement="auto"
-                          className="mt-1"
-                          classNamePrefix="react-select"
-                        />
-                      </label>
+                      <span className="inline-flex rounded-md bg-gray-100 px-2 py-1 text-[10px] font-semibold capitalize text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        {img.type === 'video' ? 'Video' : 'Image'}
+                      </span>
                     </div>
                     <button
                       type="button"
